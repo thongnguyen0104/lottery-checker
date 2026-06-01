@@ -1,0 +1,147 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+    <!-- Nền gradient đỏ → cam → vàng (màu may mắn) -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%"   stop-color="#DC2626"/>
+      <stop offset="50%"  stop-color="#EA580C"/>
+      <stop offset="100%" stop-color="#F59E0B"/>
+    </linearGradient>
+
+    <!-- Card vé màu kem nhẹ -->
+    <linearGradient id="ticketGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%"   stop-color="#FFFBEB"/>
+      <stop offset="100%" stop-color="#FEF3C7"/>
+    </linearGradient>
+
+    <!-- Vạch scan -->
+    <linearGradient id="scanGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%"   stop-color="#10B981" stop-opacity="0"/>
+      <stop offset="50%"  stop-color="#10B981" stop-opacity="0.95"/>
+      <stop offset="100%" stop-color="#10B981" stop-opacity="0"/>
+    </linearGradient>
+
+    <!-- Shadow cho card -->
+    <filter id="cardShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="14"/>
+      <feOffset dx="0" dy="8" result="off"/>
+      <feFlood flood-color="#000" flood-opacity="0.35"/>
+      <feComposite in2="off" operator="in"/>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <!-- Glow cho vạch scan -->
+    <filter id="scanGlow">
+      <feGaussianBlur stdDeviation="6"/>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Nền bo góc -->
+  <rect width="1024" height="1024" rx="220" ry="220" fill="url(#bgGrad)"/>
+
+  <!-- Pattern chấm nhẹ trang trí ở nền -->
+  <g opacity="0.08" fill="#FFFFFF">
+    <circle cx="120" cy="150" r="6"/>
+    <circle cx="900" cy="180" r="5"/>
+    <circle cx="850" cy="850" r="7"/>
+    <circle cx="150" cy="880" r="5"/>
+    <circle cx="200" cy="500" r="4"/>
+    <circle cx="850" cy="500" r="4"/>
+  </g>
+
+  <!-- Card vé số (xoay -8 độ) -->
+  <g transform="translate(512 512) rotate(-8) translate(-360 -230)" filter="url(#cardShadow)">
+    <!-- Thân vé với cạnh răng cưa bên trái + phải -->
+    <path d="
+      M 40 0
+      L 680 0
+      Q 720 0 720 40
+      L 720 100
+      Q 700 110 700 125
+      Q 700 140 720 150
+      L 720 310
+      Q 700 320 700 335
+      Q 700 350 720 360
+      L 720 420
+      Q 720 460 680 460
+      L 40 460
+      Q 0 460 0 420
+      L 0 360
+      Q 20 350 20 335
+      Q 20 320 0 310
+      L 0 150
+      Q 20 140 20 125
+      Q 20 110 0 100
+      L 0 40
+      Q 0 0 40 0 Z"
+      fill="url(#ticketGrad)"/>
+
+    <!-- Đường perforation dọc giữa vé -->
+    <line x1="360" y1="20" x2="360" y2="440"
+          stroke="#D97706" stroke-width="3" stroke-dasharray="8 8" opacity="0.5"/>
+
+    <!-- Tiêu đề "XỔ SỐ" trên cùng -->
+    <text x="360" y="70" text-anchor="middle"
+          font-family="Arial Black, sans-serif" font-weight="900"
+          font-size="48" fill="#DC2626" letter-spacing="6">
+      XỔ SỐ
+    </text>
+
+    <!-- Số chính: 168 (lộc phát) — số to, đậm -->
+    <text x="360" y="280" text-anchor="middle"
+          font-family="Arial Black, sans-serif" font-weight="900"
+          font-size="220" fill="#1F2937" letter-spacing="-4">
+      168
+    </text>
+
+    <!-- Dòng nhỏ dưới số -->
+    <text x="360" y="370" text-anchor="middle"
+          font-family="Arial, sans-serif" font-weight="700"
+          font-size="32" fill="#6B7280" letter-spacing="8">
+      LỘC PHÁT
+    </text>
+
+    <!-- Đường ngang chia phần dưới -->
+    <line x1="60" y1="400" x2="660" y2="400"
+          stroke="#FCD34D" stroke-width="2"/>
+
+    <!-- Ngày + đài giả lập -->
+    <text x="80" y="435" font-family="Arial, sans-serif"
+          font-size="22" fill="#9CA3AF" font-weight="600">
+      28-05-2026
+    </text>
+    <text x="640" y="435" text-anchor="end" font-family="Arial, sans-serif"
+          font-size="22" fill="#9CA3AF" font-weight="600">
+      TP.HCM
+    </text>
+  </g>
+
+  <!-- Vạch scan màu xanh ngang qua vé (chéo theo card) -->
+  <g transform="translate(512 512) rotate(-8) translate(-380 -10)" filter="url(#scanGlow)">
+    <rect x="-40" y="-8" width="800" height="16" rx="8" fill="url(#scanGrad)"/>
+    <rect x="-40" y="-2" width="800" height="4" rx="2" fill="#FFFFFF" opacity="0.9"/>
+  </g>
+
+  <!-- Huy hiệu CHECK ở góc dưới phải (ngoài card) -->
+  <g transform="translate(760 760)">
+    <circle cx="0" cy="0" r="110" fill="#10B981" stroke="#FFFFFF" stroke-width="14"/>
+    <!-- Dấu check -->
+    <path d="M -45 5 L -10 40 L 50 -30"
+          stroke="#FFFFFF" stroke-width="22" stroke-linecap="round"
+          stroke-linejoin="round" fill="none"/>
+  </g>
+
+  <!-- Ngôi sao nhỏ trang trí góc trên -->
+  <g transform="translate(220 220)" fill="#FCD34D" opacity="0.9">
+    <path d="M 0 -36 L 10 -10 L 36 -10 L 14 6 L 22 32 L 0 16 L -22 32 L -14 6 L -36 -10 L -10 -10 Z"/>
+  </g>
+  <g transform="translate(820 280) scale(0.6)" fill="#FCD34D" opacity="0.7">
+    <path d="M 0 -36 L 10 -10 L 36 -10 L 14 6 L 22 32 L 0 16 L -22 32 L -14 6 L -36 -10 L -10 -10 Z"/>
+  </g>
+</svg>
