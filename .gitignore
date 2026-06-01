@@ -1,0 +1,46 @@
+# .NET
+bin/
+obj/
+*.user
+*.suo
+.vs/
+publish/
+*.pdb
+
+# Database files (dev)
+*.db
+*.db-journal
+*.sqlite
+
+# Node
+node_modules/
+dist/
+build/
+.vite/
+
+# Env files
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/*
+!.vscode/launch.json
+!.vscode/tasks.json
+!.vscode/extensions.json
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Uploads tạm
+uploads/
+temp-images/
+
+# Tesseract tessdata - sẽ download trong Phần 3
+backend/LotteryChecker.Api/tessdata/
