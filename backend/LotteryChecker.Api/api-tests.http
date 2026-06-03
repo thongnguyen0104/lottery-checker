@@ -1,0 +1,46 @@
+### Health check
+GET http://localhost:5177/health
+
+### Ping
+GET http://localhost:5177/api/ping
+
+### Bước 1 — Scan ảnh vé (OCR). Cần 1 ảnh test, sửa đường dẫn cho đúng.
+POST http://localhost:5177/api/scan
+Content-Type: multipart/form-data; boundary=----boundary
+
+------boundary
+Content-Disposition: form-data; name="image"; filename="ticket.jpg"
+Content-Type: image/jpeg
+
+< ./test-images/sample-ticket.jpg
+------boundary--
+
+### Bước 2 — Dò số: trúng cả ĐB + Giải Tám (với dev smoke fixture)
+POST http://localhost:5177/api/check
+Content-Type: application/json
+
+{
+  "ticketNumber": "123456",
+  "drawDate": "2026-06-02",
+  "province": "TPHCM"
+}
+
+### Dò số — vé KHÔNG trúng
+POST http://localhost:5177/api/check
+Content-Type: application/json
+
+{
+  "ticketNumber": "000000",
+  "drawDate": "2026-06-02",
+  "province": "TPHCM"
+}
+
+### Dò số — số vé sai định dạng → 400
+POST http://localhost:5177/api/check
+Content-Type: application/json
+
+{
+  "ticketNumber": "12A45",
+  "drawDate": "2026-06-02",
+  "province": "TPHCM"
+}

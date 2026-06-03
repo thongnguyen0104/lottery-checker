@@ -1,3 +1,4 @@
 <Solution>
   <Project Path="LotteryChecker.Api/LotteryChecker.Api.csproj" />
+  <Project Path="LotteryChecker.Tests/LotteryChecker.Tests.csproj" />
 </Solution>

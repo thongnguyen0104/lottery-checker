@@ -6,7 +6,7 @@ public class ScanResult
     public DateOnly? DrawDate { get; set; }
     public string? Province { get; set; }
     public bool IsWinner { get; set; }
-    public string? WinningTier { get; set; }
-    public decimal PrizeAmount { get; set; }
+    public List<WinningPrize> Winnings { get; set; } = new();
+    public decimal TotalPrize { get; set; }
     public double OcrConfidence { get; set; }
 }

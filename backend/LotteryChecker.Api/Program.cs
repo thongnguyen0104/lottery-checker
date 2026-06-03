@@ -1,4 +1,5 @@
 using LotteryChecker.Api.Data;
+using LotteryChecker.Api.Services;
 using Microsoft.EntityFrameworkCore;
 using Scalar.AspNetCore;
 
@@ -18,6 +19,12 @@ builder.Services.AddCors(o => o.AddDefaultPolicy(p =>
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 
+// Services — OCR + dò số
+builder.Services.AddSingleton<ProvinceMatcher>();   // stateless, chỉ data tĩnh
+builder.Services.AddScoped<ImagePreprocessor>();
+builder.Services.AddScoped<OcrService>();
+builder.Services.AddScoped<LotteryMatcher>();        // phụ thuộc AppDbContext (Scoped)
+
 var app = builder.Build();
 
 // Tự động apply migrations khi khởi động (chỉ ở dev)
@@ -26,6 +33,10 @@ if (app.Environment.IsDevelopment())
     using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     db.Database.Migrate();
+
+    // Seed fixture nhỏ để test /api/check qua HTTP (dev-only, opt-in qua config)
+    if (app.Configuration.GetValue<bool>("Seed:SmokeFixture"))
+        await DevSmokeSeed.SeedSmokeFixtureIfEmptyAsync(db);
 
     // Spec OpenAPI tại /openapi/v1.json
     app.MapOpenApi();
