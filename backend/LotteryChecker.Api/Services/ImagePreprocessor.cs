@@ -10,6 +10,9 @@ public class ImagePreprocessor
     {
         using var image = Image.Load<Rgba32>(input);
 
+        // Xoay ảnh theo EXIF orientation (ảnh chụp từ điện thoại thường bị xoay 90°)
+        image.Mutate(x => x.AutoOrient());
+
         // Resize nếu quá to (giữ tỉ lệ, max 1600px chiều dài)
         if (image.Width > 1600)
         {

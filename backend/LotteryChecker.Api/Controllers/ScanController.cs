@@ -24,9 +24,19 @@ public class ScanController : ControllerBase
         if (image == null || image.Length == 0)
             return BadRequest(new { error = "Chưa có ảnh" });
 
-        using var stream = image.OpenReadStream();
-        var processed = _preprocessor.Preprocess(stream);
-        var info = _ocr.Extract(processed);
+        TicketInfo info;
+        try
+        {
+            using var stream = image.OpenReadStream();
+            var processed = _preprocessor.Preprocess(stream);
+            info = _ocr.Extract(processed);
+        }
+        catch (Exception ex)
+        {
+            // Trả lỗi rõ ràng (kèm CORS header) thay vì để exception thành 500 —
+            // tránh trình duyệt báo "Network Error" do mất CORS header ở trang lỗi dev.
+            return UnprocessableEntity(new { error = $"Không xử lý được ảnh: {ex.Message}" });
+        }
 
         var lowConfidence = info.OcrConfidence < 0.55;
 
