@@ -13,7 +13,17 @@ builder.Services.AddDbContext<AppDbContext>(opt =>
 var allowedOrigins = builder.Configuration
     .GetSection("Cors:AllowedOrigins").Get<string[]>() ?? Array.Empty<string>();
 builder.Services.AddCors(o => o.AddDefaultPolicy(p =>
-    p.WithOrigins(allowedOrigins).AllowAnyHeader().AllowAnyMethod()));
+{
+    p.AllowAnyHeader().AllowAnyMethod();
+    if (builder.Environment.IsDevelopment())
+        // Dev: chấp nhận mọi origin localhost/127.0.0.1 (bất kỳ cổng) — tránh
+        // "network error" khi Vite đổi cổng (5173→5174) hoặc dùng 127.0.0.1.
+        p.SetIsOriginAllowed(origin =>
+            Uri.TryCreate(origin, UriKind.Absolute, out var u)
+            && (u.Host == "localhost" || u.Host == "127.0.0.1"));
+    else
+        p.WithOrigins(allowedOrigins);
+}));
 
 // Controllers + OpenAPI (built-in của .NET 10, KHÔNG cần Swashbuckle)
 builder.Services.AddControllers();
