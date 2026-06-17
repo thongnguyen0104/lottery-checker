@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import ScanFeedback from './ScanFeedback'
 
 type Props = {
   scanned: {
@@ -24,11 +25,7 @@ export default function TicketInfoConfirm({ scanned, allProvinces, onConfirm, on
 
   return (
     <div className="space-y-4 p-4">
-      {scanned.warning && (
-        <div className="bg-yellow-50 border border-yellow-300 p-3 rounded text-sm">
-          ⚠️ {scanned.warning}
-        </div>
-      )}
+      <ScanFeedback scanned={scanned} />
 
       <label className="block">
         <span className="text-sm text-gray-600">Số vé (6 chữ số)</span>
@@ -54,10 +51,6 @@ export default function TicketInfoConfirm({ scanned, allProvinces, onConfirm, on
           ))}
         </select>
       </label>
-
-      <div className="text-xs text-gray-500">
-        Độ tin cậy OCR: {Math.round(scanned.confidence * 100)}%
-      </div>
 
       <div className="flex gap-2">
         <button onClick={onRescan}
