@@ -65,3 +65,13 @@ export async function checkTicket(payload: {
     throw toFriendlyError(e)
   }
 }
+
+// Danh sách (ngày → đài) đang có kết quả trong DB
+export async function getAvailableDraws() {
+  try {
+    const { data } = await api.get('/api/results/available')
+    return data as { drawDate: string; provinces: string[] }[]
+  } catch (e) {
+    throw toFriendlyError(e)
+  }
+}
