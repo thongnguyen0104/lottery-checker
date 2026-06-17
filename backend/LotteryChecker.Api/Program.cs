@@ -1,5 +1,6 @@
 using LotteryChecker.Api.Data;
 using LotteryChecker.Api.Services;
+using LotteryChecker.Api.Workers;
 using Microsoft.EntityFrameworkCore;
 using Scalar.AspNetCore;
 
@@ -35,6 +36,14 @@ builder.Services.AddScoped<ImagePreprocessor>();
 builder.Services.AddScoped<OcrService>();
 builder.Services.AddScoped<LotteryMatcher>();        // phụ thuộc AppDbContext (Scoped)
 
+// Scraper kết quả XSKT + worker tự động cào hằng ngày
+builder.Services.AddHttpClient<ResultScraper>(c =>
+{
+    c.Timeout = TimeSpan.FromSeconds(30);
+    c.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64)");
+});
+builder.Services.AddHostedService<DailyResultFetchWorker>();
+
 var app = builder.Build();
 
 // Tự động apply migrations khi khởi động (chỉ ở dev)
@@ -44,9 +53,8 @@ if (app.Environment.IsDevelopment())
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     db.Database.Migrate();
 
-    // Seed fixture nhỏ để test /api/check qua HTTP (dev-only, opt-in qua config)
-    if (app.Configuration.GetValue<bool>("Seed:SmokeFixture"))
-        await DevSmokeSeed.SeedSmokeFixtureIfEmptyAsync(db);
+    // Seed 1.152 dòng (1 đài/ngày) để test/demo ở dev — chỉ seed khi DB rỗng
+    await SeedData.SeedIfEmptyAsync(db);
 
     // Spec OpenAPI tại /openapi/v1.json
     app.MapOpenApi();
