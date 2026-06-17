@@ -38,37 +38,43 @@ public class OcrService
         }
         var text = sb.ToString();
 
+        var candidates = SixDigitCandidates(text).ToList();
+
         return new TicketInfo
         {
             RawText = text,
-            TicketNumber = ExtractTicketNumber(text),
+            TicketNumber = PickTicketNumber(candidates),
             DrawDate = ExtractDate(text),
             Province = _provinces.FindBestMatch(text),
             OcrConfidence = bestConfidence
         };
     }
 
-    // Số vé: 6 chữ số liên tục. Heuristic loại 19xx/20xx (đó là năm).
-    private static string? ExtractTicketNumber(string text)
+    // 6 chữ số, KHÔNG bị bao bởi chữ số khác (nhưng cho phép kề chữ cái, vd "288921D").
+    private static IEnumerable<string> SixDigitCandidates(string text) =>
+        Regex.Matches(text, @"(?<!\d)\d{6}(?!\d)").Select(m => m.Value);
+
+    /// <summary>Chọn số vé 6 chữ số tốt nhất từ các ứng viên OCR (tần suất + voting theo vị trí).</summary>
+    public static string? PickTicketNumber(IEnumerable<string> candidates)
     {
-        var matches = Regex.Matches(text, @"\b\d{6}\b")
-                           .Select(m => m.Value)
-                           .Where(c => !c.StartsWith("19") && !c.StartsWith("20")) // loại năm
-                           .Where(c => !c.EndsWith("0000"))                        // loại số tròn (mệnh giá/giá tiền)
-                           .ToList();
-        if (matches.Count == 0) return null;
-        // Số vé in lặp nhiều lần trên vé → chọn số 6 chữ số xuất hiện nhiều nhất.
-        return matches.GroupBy(x => x).OrderByDescending(g => g.Count()).First().Key;
+        var clean = candidates
+            .Where(c => c.Length == 6 && c.All(char.IsDigit))
+            .Where(c => !c.EndsWith("0000")) // loại số tròn (mệnh giá/giá tiền); GIỮ số bắt đầu 19/20 vì vé hợp lệ
+            .ToList();
+        if (clean.Count == 0) return null;
+        // Số vé in lặp nhiều lần trên vé → chọn số 6 chữ số OCR đọc ra NHIỀU NHẤT.
+        // (Không ghép/vote theo vị trí: trên vé font cách điệu dễ "đoán bừa" ra số sai mà vẫn tự tin.)
+        return clean.GroupBy(x => x).OrderByDescending(g => g.Count()).First().Key;
     }
 
     // Ngày: 28-05-2026, 28/05/2026, 28.05.2026, "ngày 28 tháng 5 năm 2026"
     private static DateOnly? ExtractDate(string text)
     {
         // Nới separator: OCR có thể chèn khoảng trắng/xuống dòng giữa các phần (vd "05-6\n\n2026").
-        var m1 = Regex.Match(text, @"(\d{1,2})[-/.\s]{1,3}(\d{1,2})[-/.\s]{1,5}(\d{4})");
-        if (m1.Success && TryBuildDate(m1.Groups[1].Value, m1.Groups[2].Value,
-                                       m1.Groups[3].Value, out var d1))
-            return d1;
+        // Thử MỌI match, trả về ngày HỢP LỆ đầu tiên (tránh match rác đầu tiên làm bỏ ngày thật).
+        foreach (Match m in Regex.Matches(text, @"(\d{1,2})[-/.\s]{1,3}(\d{1,2})[-/.\s]{1,5}(\d{4})"))
+            if (TryBuildDate(m.Groups[1].Value, m.Groups[2].Value, m.Groups[3].Value, out var d1))
+                return d1;
 
         var m2 = Regex.Match(text,
             @"ng[àa]y\s*(\d{1,2}).*?th[áa]ng\s*(\d{1,2}).*?n[ăa]m\s*(\d{4})",

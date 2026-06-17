@@ -104,6 +104,7 @@ public class AdminController : ControllerBase
         return Ok(new
         {
             preprocessedPath = path,
+            production = Dump(_ocr.Extract(processed)),  // đa-PSM + digit-pass + voting (kết quả thật)
             byMode = modes.Select(m => new { mode = m.ToString(), result = Dump(_ocr.Extract(processed, m)) }),
             original = Dump(_ocr.Extract(original))
         });
