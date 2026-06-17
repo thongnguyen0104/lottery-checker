@@ -17,14 +17,14 @@ public class AdminController : ControllerBase
         _scraper = scraper; _db = db; _env = env;
     }
 
-    /// <summary>Cào tay toàn bộ bảng MN (mọi đài, các ngày gần nhất) để test scraper. Chỉ Development.</summary>
+    /// <summary>Cào tay 30 ngày gần nhất (mọi đài MN) để test scraper. Chỉ Development.</summary>
     [HttpPost("/api/admin/fetch")]
     public async Task<IActionResult> Fetch(CancellationToken ct)
     {
         if (!_env.IsDevelopment())
             return NotFound();
 
-        var saved = await _scraper.FetchLatestMienNam(ct);
+        var saved = await _scraper.FetchLast30Days(ct);
         return Ok(new
         {
             saved,

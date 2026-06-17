@@ -31,7 +31,7 @@ public class DailyResultFetchWorker : BackgroundService
             {
                 using var scope = _scopeFactory.CreateScope();
                 var scraper = scope.ServiceProvider.GetRequiredService<ResultScraper>();
-                var saved = await scraper.FetchLatestMienNam(ct);
+                var saved = await scraper.FetchLast30Days(ct);
                 _logger.LogInformation("Worker: cào xong, lưu {Count} dòng.", saved);
             }
             catch (Exception ex)

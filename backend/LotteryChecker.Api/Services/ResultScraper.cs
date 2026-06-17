@@ -6,12 +6,12 @@ using LotteryChecker.Api.Models;
 namespace LotteryChecker.Api.Services;
 
 // Cào kết quả XSKT Miền Nam từ xosodaiphat.com (HTML TĨNH — không AJAX).
-// Trang hiển thị ~7 ngày gần nhất; mỗi ngày 1 bảng <table class="...table-xsmn...">:
+// Mỗi ngày 1 URL riêng: /xsmn-DD-MM-YYYY.html, chứa bảng <table class="...table-xsmn...">:
 //   - <thead>: ô đầu "Giải", các ô sau là tên đài (cột).
 //   - mỗi <tr>: <td>G.n + 1 <td class=tn_prize> mỗi đài, số nằm trong <span>.
-//   - ngày lấy từ link <a href="/xsmn-DD-MM-YYYY.html"> ngay trước bảng.
-// LƯU Ý (best-effort): nếu xosodaiphat đổi DOM, selector cần chỉnh. Sanity-check 18 số/đài
-// đảm bảo KHÔNG ghi data rác vào DB.
+//   - ngày lấy từ link <a href="/xsmn-DD-MM-YYYY.html"> trong trang.
+// Cào 30 ngày gần nhất (vé hết hạn lĩnh thưởng sau 30 ngày). Dedupe theo (ngày, đài),
+// sanity-check 18 số/đài để KHÔNG ghi data rác. LƯU Ý best-effort: selector phụ thuộc DOM xosodaiphat.
 public class ResultScraper
 {
     private readonly AppDbContext _db;
@@ -19,8 +19,8 @@ public class ResultScraper
     private readonly HttpClient _http;
     private readonly ProvinceMatcher _provinces;
 
-    private const string Url = "https://xosodaiphat.com/xsmn-xo-so-mien-nam.html";
     private const int PerProvince = 18; // ĐB1+G1..G8 = 1+1+1+2+7+1+3+1+1
+    private const int DaysBack = 30;    // vé hết hạn sau 30 ngày
 
     public ResultScraper(AppDbContext db, ILogger<ResultScraper> logger, HttpClient http,
                          ProvinceMatcher provinces)
@@ -28,38 +28,53 @@ public class ResultScraper
         _db = db; _logger = logger; _http = http; _provinces = provinces;
     }
 
-    /// <summary>Cào toàn bộ bảng MN (mọi đài, các ngày gần nhất) trên trang. Trả số dòng đã lưu.</summary>
-    public async Task<int> FetchLatestMienNam(CancellationToken ct)
+    /// <summary>Cào kết quả 30 ngày gần nhất (mọi đài MN). Trả tổng số dòng đã lưu.</summary>
+    public async Task<int> FetchLast30Days(CancellationToken ct)
     {
-        var html = await _http.GetStringAsync(Url, ct);
-        var doc = new HtmlDocument();
-        doc.LoadHtml(html);
+        // Dedupe theo (ngày, đài) — các trang ngày có thể trùng lặp board.
+        var acc = new Dictionary<(DateOnly Date, string Code), List<LotteryResult>>();
 
-        var tables = doc.DocumentNode.SelectNodes("//table[contains(@class,'table-xsmn')]");
-        if (tables == null || tables.Count == 0)
+        var today = DateOnly.FromDateTime(DateTime.Now);
+        for (int i = 0; i < DaysBack; i++)
         {
-            _logger.LogError("Không tìm thấy bảng 'table-xsmn' ở {Url} (DOM có thể đã đổi).", Url);
-            return 0;
+            var date = today.AddDays(-i);
+            var url = $"https://xosodaiphat.com/xsmn-{date:dd-MM-yyyy}.html";
+            try
+            {
+                var html = await _http.GetStringAsync(url, ct);
+                var doc = new HtmlDocument();
+                doc.LoadHtml(html);
+                ParseBoardsInto(doc, acc);
+            }
+            catch (Exception ex)
+            {
+                // 404 (ngày chưa có kết quả) hoặc lỗi mạng — bỏ qua ngày đó, tiếp tục.
+                _logger.LogWarning("Bỏ qua {Url}: {Msg}", url, ex.Message);
+            }
+            await Task.Delay(250, ct); // lịch sự với server, tránh rate-limit
         }
 
-        var toSave = new List<LotteryResult>();
+        return await PersistAsync(acc, ct);
+    }
+
+    // Parse mọi bảng table-xsmn trong 1 trang, gom vào acc (chỉ giữ đài đủ 18 số; overwrite trùng key).
+    private void ParseBoardsInto(HtmlDocument doc,
+        Dictionary<(DateOnly Date, string Code), List<LotteryResult>> acc)
+    {
+        var tables = doc.DocumentNode.SelectNodes("//table[contains(@class,'table-xsmn')]");
+        if (tables == null) return;
+
         foreach (var table in tables)
         {
             var date = FindDate(table);
-            if (date is null)
-            {
-                _logger.LogWarning("Không xác định được ngày cho 1 bảng — bỏ qua.");
-                continue;
-            }
+            if (date is null) continue;
 
-            // Cột đài (bỏ ô đầu "Giải")
             var headers = table.SelectNodes(".//thead//th") ?? table.SelectNodes(".//tr[1]/th");
             if (headers == null || headers.Count < 2) continue;
             var codes = new List<string?>();
             for (int i = 1; i < headers.Count; i++)
                 codes.Add(_provinces.FindBestMatch(HtmlEntity.DeEntitize(headers[i].InnerText)));
 
-            // Gom số theo đài
             var byProvince = new Dictionary<string, List<LotteryResult>>();
             var rows = table.SelectNodes(".//tbody/tr") ?? table.SelectNodes(".//tr");
             if (rows == null) continue;
@@ -97,32 +112,34 @@ public class ResultScraper
                 }
             }
 
-            // Sanity-check 18 số/đài; chỉ lưu đài đạt. Idempotent theo (ngày, đài).
             foreach (var (code, list) in byProvince)
-            {
-                if (list.Count != PerProvince)
-                {
-                    _logger.LogWarning("Đài {Code} {Date}: {Got}/{Exp} số — bỏ qua.",
-                        code, date.Value, list.Count, PerProvince);
-                    continue;
-                }
-                var existing = _db.LotteryResults.Where(r => r.DrawDate == date.Value && r.Province == code);
-                _db.LotteryResults.RemoveRange(existing);
-                toSave.AddRange(list);
-            }
+                if (list.Count == PerProvince)
+                    acc[(date.Value, code)] = list; // dedupe: 1 board/đài/ngày
         }
+    }
 
-        if (toSave.Count == 0)
+    // Idempotent: xoá data cũ của từng (ngày, đài) rồi insert.
+    private async Task<int> PersistAsync(
+        Dictionary<(DateOnly Date, string Code), List<LotteryResult>> acc, CancellationToken ct)
+    {
+        if (acc.Count == 0)
         {
-            _logger.LogError("Cào xosodaiphat: không lưu được dòng nào (parse 0 đài hợp lệ).");
+            _logger.LogError("Cào xosodaiphat: không parse được đài hợp lệ nào (DOM có thể đổi).");
             return 0;
         }
 
-        _db.LotteryResults.AddRange(toSave);
+        var all = new List<LotteryResult>();
+        foreach (var ((date, code), list) in acc)
+        {
+            var existing = _db.LotteryResults.Where(r => r.DrawDate == date && r.Province == code);
+            _db.LotteryResults.RemoveRange(existing);
+            all.AddRange(list);
+        }
+        _db.LotteryResults.AddRange(all);
         await _db.SaveChangesAsync(ct);
-        _logger.LogInformation("Cào xosodaiphat: lưu {Count} dòng ({Provinces} đài-ngày).",
-            toSave.Count, toSave.Count / PerProvince);
-        return toSave.Count;
+
+        _logger.LogInformation("Cào xosodaiphat: lưu {Count} dòng ({Boards} đài-ngày).", all.Count, acc.Count);
+        return all.Count;
     }
 
     // "G.8"->"8", "G.ĐB"/"ĐB"/"Đặc biệt"->"DB", còn lại null (bỏ qua hàng không phải giải)
