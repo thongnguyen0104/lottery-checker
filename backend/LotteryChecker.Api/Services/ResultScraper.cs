@@ -136,9 +136,16 @@ public class ResultScraper
             all.AddRange(list);
         }
         _db.LotteryResults.AddRange(all);
+
+        // Tự dọn vé đã hết hạn lĩnh thưởng (cũ hơn 30 ngày) — chỉ chạy khi cào thành công.
+        var cutoff = DateOnly.FromDateTime(DateTime.Now).AddDays(-DaysBack);
+        var stale = _db.LotteryResults.Where(r => r.DrawDate < cutoff).ToList();
+        if (stale.Count > 0) _db.LotteryResults.RemoveRange(stale);
+
         await _db.SaveChangesAsync(ct);
 
-        _logger.LogInformation("Cào xosodaiphat: lưu {Count} dòng ({Boards} đài-ngày).", all.Count, acc.Count);
+        _logger.LogInformation("Cào xosodaiphat: lưu {Count} dòng ({Boards} đài-ngày); dọn {Stale} dòng cũ (>{Days} ngày).",
+            all.Count, acc.Count, stale.Count, DaysBack);
         return all.Count;
     }
 
