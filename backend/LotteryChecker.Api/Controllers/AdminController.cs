@@ -14,24 +14,20 @@ public class AdminController : ControllerBase
         _scraper = scraper; _env = env;
     }
 
-    /// <summary>Cào tay 1 đài để test scraper mà không cần đợi worker chạy 19h. Chỉ Development.</summary>
+    /// <summary>Cào tay toàn bộ bảng MN (mọi đài, các ngày gần nhất) để test scraper. Chỉ Development.</summary>
     [HttpPost("/api/admin/fetch")]
-    public async Task<IActionResult> Fetch(
-        [FromQuery] DateOnly date, [FromQuery] string slug, [FromQuery] string code,
-        CancellationToken ct)
+    public async Task<IActionResult> Fetch(CancellationToken ct)
     {
         if (!_env.IsDevelopment())
             return NotFound();
-        if (string.IsNullOrWhiteSpace(slug) || string.IsNullOrWhiteSpace(code))
-            return BadRequest(new { error = "Cần tham số slug và code" });
 
-        var saved = await _scraper.FetchProvince(date, slug, code, ct);
+        var saved = await _scraper.FetchLatestMienNam(ct);
         return Ok(new
         {
             saved,
             note = saved == 0
-                ? "Không lưu (số dòng != 18 hoặc lỗi DOM) — xem log server."
-                : "OK"
+                ? "Không lưu (parse 0 đài hợp lệ hoặc lỗi DOM) — xem log server."
+                : $"OK — lưu {saved} dòng (~{saved / 18} đài-ngày)."
         });
     }
 }
