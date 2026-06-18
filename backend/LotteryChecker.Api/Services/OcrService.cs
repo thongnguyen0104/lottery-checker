@@ -54,6 +54,31 @@ public class OcrService
     private static IEnumerable<string> SixDigitCandidates(string text) =>
         Regex.Matches(text, @"(?<!\d)\d{6}(?!\d)").Select(m => m.Value);
 
+    /// <summary>Trích số vé 6 chữ số tốt nhất từ một đoạn text OCR (dùng cho cloud OCR).</summary>
+    public static string? ReadTicketNumber(string text) =>
+        PickTicketNumber(SixDigitCandidates(text));
+
+    /// <summary>
+    /// Hợp nhất kết quả Tesseract cục bộ với text từ cloud OCR.
+    /// Số vé: ƯU TIÊN cloud (đọc font cách điệu tốt hơn). Đài/ngày: chỉ điền khi cục bộ trống
+    /// (Tesseract cục bộ đã đọc tốt 2 trường này, tránh regress).
+    /// </summary>
+    public TicketInfo MergeFromCloudText(TicketInfo local, string cloudText)
+    {
+        local.CloudText = cloudText;
+
+        var cloudNumber = ReadTicketNumber(cloudText);
+        if (cloudNumber != null)
+        {
+            local.TicketNumber = cloudNumber;
+            local.TicketNumberFromCloud = true;
+        }
+
+        local.Province ??= _provinces.FindBestMatch(cloudText);
+        local.DrawDate ??= ExtractDate(cloudText);
+        return local;
+    }
+
     /// <summary>Chọn số vé 6 chữ số tốt nhất từ các ứng viên OCR (tần suất + voting theo vị trí).</summary>
     public static string? PickTicketNumber(IEnumerable<string> candidates)
     {

@@ -6,6 +6,7 @@ type Scanned = {
   province: string | null
   confidence: number
   lowConfidence: boolean
+  ticketNumberFromCloud?: boolean
 }
 
 const fmtDate = (iso: string | null) => {
@@ -22,18 +23,21 @@ export default function ScanFeedback({ scanned }: { scanned: Scanned }) {
       ok: !!scanned.ticketNumber,
       value: scanned.ticketNumber,
       tip: 'chụp rõ dãy 6 chữ số, tránh mờ/lóa',
+      badge: scanned.ticketNumberFromCloud ? '🤖 AI đọc' : null,
     },
     {
       label: 'Ngày',
       ok: !!scanned.drawDate,
       value: fmtDate(scanned.drawDate),
       tip: 'lấy nét vào dòng ngày (vd 16-06-2026)',
+      badge: null,
     },
     {
       label: 'Đài',
       ok: !!scanned.province,
       value: scanned.province ? provinceName(scanned.province) : null,
       tip: 'chụp rõ phần tên tỉnh/đài',
+      badge: null,
     },
   ]
   const missing = fields.filter(f => !f.ok)
@@ -50,6 +54,11 @@ export default function ScanFeedback({ scanned }: { scanned: Scanned }) {
               {f.ok
                 ? <span className="text-green-700 font-semibold">{f.value}</span>
                 : <span className="text-red-600">chưa rõ — {f.tip}</span>}
+              {f.ok && f.badge && (
+                <span className="ml-2 text-[11px] bg-blue-50 text-blue-600 rounded px-1.5 py-0.5">
+                  {f.badge}
+                </span>
+              )}
             </div>
           </div>
         ))}

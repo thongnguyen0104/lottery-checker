@@ -36,6 +36,9 @@ builder.Services.AddScoped<ImagePreprocessor>();
 builder.Services.AddScoped<OcrService>();
 builder.Services.AddScoped<LotteryMatcher>();        // phụ thuộc AppDbContext (Scoped)
 
+// Cloud OCR (OCR.space) — đọc số vé cách điệu mà Tesseract cục bộ đọc sai. Best-effort.
+builder.Services.AddHttpClient<CloudOcrService>(c => c.Timeout = TimeSpan.FromSeconds(30));
+
 // Scraper kết quả XSKT + worker tự động cào hằng ngày
 builder.Services.AddHttpClient<ResultScraper>(c =>
 {

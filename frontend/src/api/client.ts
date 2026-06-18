@@ -36,6 +36,7 @@ export async function scanImage(blob: Blob) {
       province: string | null
       confidence: number
       lowConfidence: boolean
+      ticketNumberFromCloud: boolean
       allProvinces: string[] | null
       warning: string | null
     }

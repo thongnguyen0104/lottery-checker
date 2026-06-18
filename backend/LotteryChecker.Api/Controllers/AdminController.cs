@@ -14,11 +14,13 @@ public class AdminController : ControllerBase
     private readonly IWebHostEnvironment _env;
     private readonly ImagePreprocessor _preprocessor;
     private readonly OcrService _ocr;
+    private readonly CloudOcrService _cloudOcr;
 
     public AdminController(ResultScraper scraper, AppDbContext db, IWebHostEnvironment env,
-                           ImagePreprocessor preprocessor, OcrService ocr)
+                           ImagePreprocessor preprocessor, OcrService ocr, CloudOcrService cloudOcr)
     {
         _scraper = scraper; _db = db; _env = env; _preprocessor = preprocessor; _ocr = ocr;
+        _cloudOcr = cloudOcr;
     }
 
     /// <summary>Cào tay 30 ngày gần nhất (mọi đài MN) để test scraper. Chỉ Development.</summary>
@@ -83,6 +85,17 @@ public class AdminController : ControllerBase
         var path = Path.Combine(AppContext.BaseDirectory, "_preprocessed.png");
         await System.IO.File.WriteAllBytesAsync(path, processed, ct);
 
+        // Cloud OCR (nếu bật): đọc số vé cách điệu. Lưu cả ảnh gửi lên cloud để xem.
+        string? cloudText = null, cloudNumber = null;
+        if (_cloudOcr.IsEnabled)
+        {
+            var cloudImg = _preprocessor.PrepareForCloud(new MemoryStream(original));
+            await System.IO.File.WriteAllBytesAsync(
+                Path.Combine(AppContext.BaseDirectory, "_cloud.jpg"), cloudImg, ct);
+            cloudText = await _cloudOcr.ReadTextAsync(cloudImg, ct);
+            cloudNumber = cloudText == null ? null : OcrService.ReadTicketNumber(cloudText);
+        }
+
         static object Dump(TicketInfo i) => new
         {
             rawText = i.RawText,
@@ -104,7 +117,10 @@ public class AdminController : ControllerBase
         return Ok(new
         {
             preprocessedPath = path,
-            production = Dump(_ocr.Extract(processed)),  // đa-PSM + digit-pass + voting (kết quả thật)
+            cloudEnabled = _cloudOcr.IsEnabled,
+            cloudTicketNumber = cloudNumber,   // số vé do cloud OCR đọc (đáng tin hơn cho font cách điệu)
+            cloudText,                          // toàn bộ text cloud đọc được
+            production = Dump(_ocr.Extract(processed)),  // Tesseract đa-PSM (chưa merge cloud)
             byMode = modes.Select(m => new { mode = m.ToString(), result = Dump(_ocr.Extract(processed, m)) }),
             original = Dump(_ocr.Extract(original))
         });
