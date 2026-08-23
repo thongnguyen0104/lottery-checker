@@ -1,0 +1,15 @@
+# Git tự chuẩn hoá text khi commit; khi checkout dùng eol của OS.
+* text=auto
+
+# Script chạy trên Linux PHẢI là LF: bash gặp CRLF sẽ báo lỗi kiểu
+# "$'\r': command not found" rất khó đoán.
+*.sh        text eol=lf
+Caddyfile*  text eol=lf
+*.service   text eol=lf
+
+# Ảnh/font/binary — không đụng vào
+*.png   binary
+*.jpg   binary
+*.jfif  binary
+*.ico   binary
+*.traineddata binary

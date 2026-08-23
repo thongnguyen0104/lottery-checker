@@ -1,0 +1,28 @@
+# Frontend và API dùng CHUNG 1 origin -> không cần CORS, không cần VITE_API_URL.
+# __DOMAIN__ được setup-server.sh thay bằng domain thật.
+__DOMAIN__ {
+    encode zstd gzip
+
+    # API + health -> backend Kestrel (chỉ lắng nghe loopback)
+    handle /api/* {
+        reverse_proxy 127.0.0.1:5000
+    }
+    handle /health {
+        reverse_proxy 127.0.0.1:5000
+    }
+
+    # Còn lại là SPA. try_files để F5 ở route con không ra 404.
+    handle {
+        root * /var/www/lottery
+        try_files {path} /index.html
+        file_server
+    }
+
+    # Service worker của PWA không được cache, nếu không user kẹt bản cũ mãi
+    @sw path /sw.js /registerSW.js
+    header @sw Cache-Control "no-cache, no-store, must-revalidate"
+
+    # Asset có hash trong tên -> cache dài
+    @assets path /assets/*
+    header @assets Cache-Control "public, max-age=31536000, immutable"
+}

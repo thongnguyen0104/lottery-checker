@@ -1,0 +1,29 @@
+[Unit]
+Description=Lottery Checker API
+After=network.target
+
+[Service]
+WorkingDirectory=/opt/lottery-api
+ExecStart=/usr/bin/dotnet /opt/lottery-api/LotteryChecker.Api.dll
+Restart=always
+RestartSec=10
+User=__APP_USER__
+
+Environment=ASPNETCORE_ENVIRONMENT=Production
+# Chỉ bind loopback — Caddy là cửa duy nhất ra internet
+Environment=ASPNETCORE_URLS=http://127.0.0.1:5000
+# Chỉ để timestamp trong log dễ đọc: worker đã tự tính 19:00 theo giờ VN
+Environment=TZ=Asia/Ho_Chi_Minh
+# DB nằm ngoài thư mục publish để deploy lại không đè mất
+Environment=ConnectionStrings__Default=Data Source=/var/lib/lottery/lottery.db
+# Secret (CloudOcr__ApiKey) — file chmod 600, KHÔNG commit vào repo
+EnvironmentFile=/etc/lottery-api.env
+
+# Siết quyền ở mức không ảnh hưởng app: chỉ được ghi vào /var/lib/lottery
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ReadWritePaths=/var/lib/lottery
+
+[Install]
+WantedBy=multi-user.target

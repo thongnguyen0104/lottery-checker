@@ -251,6 +251,28 @@ Trỏ DNS: 1 record **A** → public IP của VM. Nếu dùng Cloudflare, để 
 
 Sửa tên domain trong `Caddyfile` rồi `sudo systemctl reload caddy`.
 
+### 7.1 Đường DuckDNS (miễn phí) — chi tiết
+
+1. https://www.duckdns.org → "sign in with GitHub" → ô **sub domain**: gõ tên (vd `dove-so`) → **add domain**.
+2. Trên trang đó copy **token** (dạng UUID) và dán **public IP của VM** vào ô `current ip` → update.
+3. Verify từ máy Windows: `nslookup dove-so.duckdns.org` → phải ra đúng IP VM.
+4. Trong `Caddyfile` (§6) đổi `dove-so.example.com` → `dove-so.duckdns.org`.
+
+Caddy dùng HTTP-01 challenge (qua port 80) nên **không cần** token DuckDNS hay plugin DNS gì cả.
+
+> **Quan trọng — IP Oracle mặc định là ephemeral**: reboot/stop instance là có thể đổi IP, lúc đó
+> domain trỏ sai và web chết. Sửa 1 lần cho xong: Oracle Console → Instance → Attached VNICs →
+> IPv4 Addresses → Edit → đổi Public IP từ **Ephemeral** sang **Reserved** (reserved IP nằm trong
+> Always Free, $0).
+>
+> Muốn chắc ăn hơn nữa, thêm updater tự động trên VM (chạy mỗi 5 phút, tự sửa IP nếu đổi):
+> ```bash
+> echo 'url="https://www.duckdns.org/update?domains=dove-so&token=<TOKEN>&ip="; curl -s -k -o /tmp/duck.log -K -' > ~/duck.sh
+> chmod 700 ~/duck.sh
+> ( crontab -l 2>/dev/null; echo "*/5 * * * * ~/duck.sh >/dev/null 2>&1" ) | crontab -
+> ~/duck.sh && cat /tmp/duck.log    # phải in "OK"
+> ```
+
 ---
 
 ## 8. Checklist verify prod
