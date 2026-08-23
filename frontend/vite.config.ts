@@ -28,6 +28,12 @@ export default defineConfig({
   ],
   server: {
     port: 5173,
-    host: true   // để test từ điện thoại cùng wifi
+    host: true,           // lắng nghe mọi card mạng (LAN / hotspot)
+    allowedHosts: true,   // cho phép domain tunnel (vd *.trycloudflare.com)
+    proxy: {
+      // FE gọi /api/* (cùng origin) → Vite chuyển tiếp sang backend localhost:5177.
+      // Nhờ vậy điện thoại chỉ cần tới được cổng 5173; KHÔNG cần CORS, KHÔNG cần lộ 5177.
+      '/api': { target: 'http://localhost:5177', changeOrigin: true },
+    },
   }
 })
