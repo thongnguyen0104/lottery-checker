@@ -35,5 +35,16 @@ export default defineConfig({
       // Nhờ vậy điện thoại chỉ cần tới được cổng 5173; KHÔNG cần CORS, KHÔNG cần lộ 5177.
       '/api': { target: 'http://localhost:5177', changeOrigin: true },
     },
+  },
+  // `vite preview` = serve bản BUILD thật (bundle production + service worker PWA hoạt động
+  // đúng, khác `vite dev`). Dùng khi đưa app ra ngoài qua Cloudflare Tunnel — xem
+  // deploy/tunnel.ps1. Vẫn proxy /api để giữ nguyên tắc "một origin, không CORS".
+  preview: {
+    port: 4173,
+    host: true,
+    allowedHosts: true,
+    proxy: {
+      '/api': { target: 'http://localhost:5177', changeOrigin: true },
+    },
   }
 })

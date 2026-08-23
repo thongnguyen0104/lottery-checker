@@ -9,6 +9,30 @@ Thư mục này là bản rút gọn để chạy.
 | `publish.ps1` | máy Windows (mỗi lần deploy) | build backend + frontend, nén, scp, restart service |
 | `lottery-api.service` | template | systemd unit (`__APP_USER__` được thay khi setup) |
 | `Caddyfile.template` | template | Caddy config (`__DOMAIN__` được thay khi setup) |
+| `oci-retry-arm.ps1` | máy Windows | thử tạo VM ARM liên tục cho tới khi Oracle có capacity |
+| `tunnel.ps1` | máy Windows | chạy app ra internet qua Cloudflare Tunnel, không cần VM |
+
+## Chưa có VM? Hai script gỡ bí
+
+**Oracle báo `Out of capacity` cho ARM** (rất thường xuyên) — để script tự thử, đừng ngồi bấm tay:
+
+```powershell
+winget install --id Oracle.OCI-CLI
+oci setup config          # dán tenancy/user OCID + region, rồi thêm API key trong Console
+.\deploy\oci-retry-arm.ps1
+```
+Mặc định thử `1 OCPU / 6 GB` mỗi 90 giây (1 OCPU dễ chen vào capacity phân mảnh hơn 2 OCPU),
+tự lùi 5 phút khi bị throttle, tạo được thì in Public IP + các bước tiếp theo. Cứ để cửa sổ đó chạy.
+
+**Muốn có link HTTPS dùng ngay hôm nay, không cần VM:**
+
+```powershell
+winget install --id Cloudflare.cloudflared
+.\deploy\tunnel.ps1
+```
+Chạy backend (Production, đọc key OCR từ user-secrets) + `vite preview` (bản build thật, service
+worker PWA hoạt động) rồi mở tunnel → in ra link `https://....trycloudflare.com`. Ctrl+C là dừng hết.
+Máy tắt thì web tắt — đây là bản tạm trong lúc chờ VM.
 
 ## Lần đầu
 
