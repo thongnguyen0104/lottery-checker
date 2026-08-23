@@ -79,25 +79,48 @@ try {
     }
 
     Step "Chay vite preview tren http://127.0.0.1:$WebPort"
-    $procs += Start-Process -FilePath 'npm' `
-        -ArgumentList 'run', 'preview' `
+    # Goi thang node vao binary vite. KHONG dung Start-Process 'npm': tren Windows npm la
+    # npm.cmd, Start-Process chay qua cmd va process con thoat ngay -> port 4173 khong bao gio mo,
+    # ma script van di tiep va mo tunnel tro vao cong chet (502).
+    $viteBin = Join-Path $fe 'node_modules\vite\bin\vite.js'
+    if (-not (Test-Path $viteBin)) { throw "Khong thay $viteBin - chay 'npm install' trong frontend truoc." }
+    $procs += Start-Process -FilePath 'node' `
+        -ArgumentList "`"$viteBin`"", 'preview' `
         -WorkingDirectory $fe -PassThru
 
     Step "Cho backend san sang"
-    $ready = $false
+    $apiReady = $false
     foreach ($i in 1..30) {
         Start-Sleep -Seconds 2
         try {
             $r = Invoke-WebRequest "http://127.0.0.1:$ApiPort/health" -TimeoutSec 3 -UseBasicParsing
-            if ($r.StatusCode -eq 200) { $ready = $true; break }
+            if ($r.StatusCode -eq 200) { $apiReady = $true; break }
         }
         catch { }
     }
-    if ($ready) {
+    if ($apiReady) {
         Write-Host "    backend OK" -ForegroundColor Green
     }
     else {
-        Warn "Backend chua tra /health sau 60s - tunnel van mo, xem log o cua so dotnet."
+        Warn "Backend chua tra /health sau 60s - xem log o cua so dotnet."
+    }
+
+    Step "Cho vite preview san sang"
+    $webReady = $false
+    foreach ($i in 1..20) {
+        try {
+            $r = Invoke-WebRequest "http://127.0.0.1:$WebPort/" -TimeoutSec 3 -UseBasicParsing
+            if ($r.StatusCode -eq 200) { $webReady = $true; break }
+        }
+        catch { }
+        Start-Sleep -Seconds 2
+    }
+    if ($webReady) {
+        Write-Host "    frontend OK" -ForegroundColor Green
+    }
+    else {
+        # Dung han: mo tunnel tro vao cong chet chi lam ban tuong app loi, kho doan hon nhieu.
+        throw "vite preview khong len tren cong $WebPort - dung lai thay vi mo tunnel vao cong chet."
     }
 
     # -------------------------------------------------------------- tunnel
