@@ -44,3 +44,12 @@ temp-images/
 
 # Tesseract tessdata - sẽ download trong Phần 3
 backend/LotteryChecker.Api/tessdata/
+# SQLite WAL (sinh ra khi app đang chạy)
+*.db-shm
+*.db-wal
+
+# Claude Code — quyền theo từng máy, không chia sẻ
+.claude/settings.local.json
+
+# Ảnh vé test OCR để ở máy local, không cần trong repo
+backend/TestData/
