@@ -13,7 +13,7 @@
 | # | Cách | Chi phí | Ưu | Nhược |
 |---|---|---|---|---|
 | 0 | Máy Windows của bạn + Cloudflare Tunnel | **$0** | Tesseract đã chạy sẵn, không cài Linux, 15 phút xong | Máy phải bật 24/7, mất điện = mất web |
-| **1** | **Oracle Always Free ARM + Caddy (1 VM, 1 domain)** | **$0/tháng** | Thật sự 24/7, 4 vCPU/24GB miễn phí vĩnh viễn, OCR nhanh | Phải fix native lib Tesseract, Oracle hay hết slot ARM |
+| **1** | **Oracle Always Free ARM + Caddy (1 VM, 1 domain)** | **$0/tháng** | Thật sự 24/7, 2 vCPU/12GB miễn phí vĩnh viễn, OCR nhanh | Phải fix native lib Tesseract, Oracle hay hết slot ARM |
 | 2 | Oracle Always Free AMD micro (1/8 OCPU, 1GB) | $0/tháng | Luôn có slot | 1/8 OCPU → Tesseract 3 lượt PSM rất chậm (10–30s/ảnh) |
 | 3 | Fly.io / Railway | $0–5/tháng | Deploy bằng Docker, không quản server | Free tier hay đổi chính sách; Railway hết credit là dừng |
 
@@ -68,13 +68,20 @@ dễ đọc log, nhưng không còn là điều kiện để chạy đúng.
 
 ## 2. Tạo VM Oracle (một lần)
 
+> ⚠️ **Hạn mức ARM free đã bị giảm một nửa từ 15/06/2026**: `4 OCPU / 24GB` → **`2 OCPU / 12GB`**
+> (1.500 OCPU-hours + 9.000 GB-hours/tháng). Oracle **bắt đầu cưỡng chế từ 18/08/2026**: instance
+> vượt hạn mức bị **tự động terminate**. Nên tạo VM đúng 2 OCPU / 12GB — với app này là thừa sức.
+
 1. https://cloud.oracle.com → Sign up Always Free (cần thẻ để verify, **không bị trừ tiền**).
-2. Region: chọn **Singapore** hoặc **Osaka** (gần VN nhất, ping ~30–60ms).
+2. Home region: **Singapore (`ap-singapore-1`)** — chọn xong KHÔNG đổi được, và Always Free
+   compute **chỉ cấp ở home region**. Đừng chọn Singapore West (`ap-singapore-2`): cùng độ trễ
+   tới VN nhưng hay báo hết capacity ARM hơn.
 3. Compute → Create Instance:
    - Image: **Ubuntu 24.04**
-   - Shape: **VM.Standard.A1.Flex** — 4 OCPU / 24GB RAM (toàn bộ hạn mức ARM free)
-   - Lưu private key khi nó cho tải.
+   - Shape: **VM.Standard.A1.Flex** — **2 OCPU / 12 GB RAM**, phải thấy nhãn *Always Free-eligible*
+   - Lưu private key khi nó cho tải (chỉ tải được đúng lúc đó).
 4. Networking → Security List của subnet → thêm **Ingress rule**: `0.0.0.0/0` TCP port **80** và **443**.
+5. Đổi Public IP từ **Ephemeral** sang **Reserved** (§7.1) — nếu không, reboot là đổi IP.
 
 ```bash
 ssh -i key.key ubuntu@<PUBLIC_IP>
