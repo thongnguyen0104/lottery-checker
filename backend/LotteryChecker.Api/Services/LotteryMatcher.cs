@@ -7,22 +7,39 @@ namespace LotteryChecker.Api.Services;
 public class LotteryMatcher
 {
     private readonly AppDbContext _db;
+    private readonly TimeProvider _time;
 
-    public LotteryMatcher(AppDbContext db) => _db = db;
+    public LotteryMatcher(AppDbContext db, TimeProvider? time = null)
+    {
+        _db = db;
+        _time = time ?? TimeProvider.System;
+    }
 
     public async Task<ScanResult> Match(string ticket, DateOnly date, string province, CancellationToken ct)
     {
+        // Chưa đến giờ xổ của đài đó → chưa thể nói trúng hay trượt.
+        if (!DrawSchedule.HasDrawn(date, province, DrawSchedule.NowVn(_time)))
+            return new ScanResult
+            {
+                ExtractedNumber = ticket,
+                DrawDate = date,
+                Province = province,
+                Status = CheckStatus.NotDrawnYet,
+                DrawsAt = DrawSchedule.DrawMoment(date, province)
+            };
+
         var results = await _db.LotteryResults
             .Where(r => r.DrawDate == date && r.Province == province)
             .ToListAsync(ct);
 
+        // Đã xổ nhưng DB chưa có kết quả (chưa cào được, hoặc đài đó không xổ ngày này).
         if (results.Count == 0)
             return new ScanResult
             {
                 ExtractedNumber = ticket,
                 DrawDate = date,
                 Province = province,
-                IsWinner = false
+                Status = CheckStatus.NoData
             };
 
         var winnings = new List<WinningPrize>();
@@ -67,6 +84,7 @@ public class LotteryMatcher
             ExtractedNumber = ticket,
             DrawDate = date,
             Province = province,
+            Status = CheckStatus.Checked,
             IsWinner = winnings.Count > 0,
             Winnings = winnings,
             TotalPrize = winnings.Sum(w => w.Amount)

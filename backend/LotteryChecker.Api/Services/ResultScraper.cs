@@ -2,6 +2,7 @@ using System.Text.RegularExpressions;
 using HtmlAgilityPack;
 using LotteryChecker.Api.Data;
 using LotteryChecker.Api.Models;
+using Microsoft.EntityFrameworkCore;
 
 namespace LotteryChecker.Api.Services;
 
@@ -20,7 +21,7 @@ public class ResultScraper
     private readonly ProvinceMatcher _provinces;
 
     private const int PerProvince = 18; // ĐB1+G1..G8 = 1+1+1+2+7+1+3+1+1
-    private const int DaysBack = 30;    // vé hết hạn sau 30 ngày
+    public const int DaysBack = 30;     // vé hết hạn sau 30 ngày
 
     public ResultScraper(AppDbContext db, ILogger<ResultScraper> logger, HttpClient http,
                          ProvinceMatcher provinces)
@@ -29,15 +30,40 @@ public class ResultScraper
     }
 
     /// <summary>Cào kết quả 30 ngày gần nhất (mọi đài MN). Trả tổng số dòng đã lưu.</summary>
-    public async Task<int> FetchLast30Days(CancellationToken ct)
+    public Task<int> FetchLast30Days(CancellationToken ct) => FetchDates(RecentDates(), ct);
+
+    /// <summary>
+    /// 30 ngày cần có kết quả, tính LÙI từ ngày mới nhất đã xổ + đã lên web.
+    /// (Chưa tới ~16:45 thì hôm nay không tính — trang ngày đó còn trống, cào chỉ tốn request.)
+    /// </summary>
+    public IReadOnlyList<DateOnly> RecentDates()
+    {
+        var latest = DrawSchedule.LatestPublishedDate(DrawSchedule.NowVn());
+        return Enumerable.Range(0, DaysBack).Select(i => latest.AddDays(-i)).ToList();
+    }
+
+    /// <summary>Những ngày trong 30 ngày gần nhất mà DB chưa có dòng kết quả nào (mới → cũ).</summary>
+    public async Task<IReadOnlyList<DateOnly>> MissingDatesAsync(CancellationToken ct)
+    {
+        var wanted = RecentDates();
+        var oldest = wanted.Min();
+        var have = (await _db.LotteryResults
+            .Where(r => r.DrawDate >= oldest)
+            .Select(r => r.DrawDate)
+            .Distinct()
+            .ToListAsync(ct)).ToHashSet();
+
+        return wanted.Where(d => !have.Contains(d)).ToList();
+    }
+
+    /// <summary>Cào đúng những ngày được chỉ định. Trả tổng số dòng đã lưu.</summary>
+    public async Task<int> FetchDates(IEnumerable<DateOnly> dates, CancellationToken ct)
     {
         // Dedupe theo (ngày, đài) — các trang ngày có thể trùng lặp board.
         var acc = new Dictionary<(DateOnly Date, string Code), List<LotteryResult>>();
 
-        var today = DateOnly.FromDateTime(DateTime.Now);
-        for (int i = 0; i < DaysBack; i++)
+        foreach (var date in dates)
         {
-            var date = today.AddDays(-i);
             var url = $"https://xosodaiphat.com/xsmn-{date:dd-MM-yyyy}.html";
             try
             {
@@ -46,7 +72,7 @@ public class ResultScraper
                 doc.LoadHtml(html);
                 ParseBoardsInto(doc, acc);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 // 404 (ngày chưa có kết quả) hoặc lỗi mạng — bỏ qua ngày đó, tiếp tục.
                 _logger.LogWarning("Bỏ qua {Url}: {Msg}", url, ex.Message);
@@ -138,7 +164,7 @@ public class ResultScraper
         _db.LotteryResults.AddRange(all);
 
         // Tự dọn vé đã hết hạn lĩnh thưởng (cũ hơn 30 ngày) — chỉ chạy khi cào thành công.
-        var cutoff = DateOnly.FromDateTime(DateTime.Now).AddDays(-DaysBack);
+        var cutoff = DateOnly.FromDateTime(DrawSchedule.NowVn()).AddDays(-DaysBack);
         var stale = _db.LotteryResults.Where(r => r.DrawDate < cutoff).ToList();
         if (stale.Count > 0) _db.LotteryResults.RemoveRange(stale);
 
