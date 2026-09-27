@@ -16,6 +16,11 @@ public class LotteryMatcherTests
         return new AppDbContext(opt);
     }
 
+    // Cố định giờ VN = sáng hôm sau ngày xổ 02/06: không cố định thì test phụ thuộc đồng hồ máy
+    // và tự hỏng khi vé mẫu quá 30 ngày (Expired).
+    private static readonly TimeProvider DayAfterDraw =
+        new FixedTimeProvider(new DateTimeOffset(2026, 6, 3, 10, 0, 0, TimeSpan.FromHours(7)));
+
     private static async Task SeedAsync(AppDbContext db, DateOnly date, string province,
         string dbNumber, string giai8Number)
     {
@@ -33,7 +38,7 @@ public class LotteryMatcherTests
         var date = new DateOnly(2026, 6, 2);
         await SeedAsync(db, date, "TPHCM", "123456", "99");
 
-        var r = await new LotteryMatcher(db).Match("123456", date, "TPHCM", CancellationToken.None);
+        var r = await new LotteryMatcher(db, DayAfterDraw).Match("123456", date, "TPHCM", CancellationToken.None);
 
         r.IsWinner.Should().BeTrue();
         r.Winnings.Should().Contain(w => w.TierName == "Giải Đặc Biệt" && w.Amount == 2_000_000_000m);
@@ -46,7 +51,7 @@ public class LotteryMatcherTests
         var date = new DateOnly(2026, 6, 2);
         await SeedAsync(db, date, "TPHCM", "123456", "99");
 
-        var r = await new LotteryMatcher(db).Match("923456", date, "TPHCM", CancellationToken.None);
+        var r = await new LotteryMatcher(db, DayAfterDraw).Match("923456", date, "TPHCM", CancellationToken.None);
 
         r.Winnings.Should().ContainSingle(w => w.TierName == "Giải Phụ Đặc Biệt" && w.Amount == 50_000_000m);
         r.Winnings.Should().NotContain(w => w.TierName == "Giải Đặc Biệt");
@@ -60,7 +65,7 @@ public class LotteryMatcherTests
         await SeedAsync(db, date, "TPHCM", "123456", "99");
 
         // Sai vị trí thứ 3 (4 thành 9): 123956 vs 123456
-        var r = await new LotteryMatcher(db).Match("123956", date, "TPHCM", CancellationToken.None);
+        var r = await new LotteryMatcher(db, DayAfterDraw).Match("123956", date, "TPHCM", CancellationToken.None);
 
         r.Winnings.Should().ContainSingle(w => w.TierName == "Giải Khuyến Khích" && w.Amount == 6_000_000m);
     }
@@ -73,7 +78,7 @@ public class LotteryMatcherTests
         await SeedAsync(db, date, "TPHCM", "123456", "99");
 
         // 199956 vs 123456 — chữ số đầu khớp, sai 3 vị trí
-        var r = await new LotteryMatcher(db).Match("199956", date, "TPHCM", CancellationToken.None);
+        var r = await new LotteryMatcher(db, DayAfterDraw).Match("199956", date, "TPHCM", CancellationToken.None);
 
         r.Winnings.Should().NotContain(w => w.TierName == "Giải Khuyến Khích");
         r.Winnings.Should().NotContain(w => w.TierName == "Giải Phụ Đặc Biệt");
@@ -87,7 +92,7 @@ public class LotteryMatcherTests
         // ĐB=123456, Giải 8=56 → vé 123456 trúng cả 2
         await SeedAsync(db, date, "TPHCM", "123456", "56");
 
-        var r = await new LotteryMatcher(db).Match("123456", date, "TPHCM", CancellationToken.None);
+        var r = await new LotteryMatcher(db, DayAfterDraw).Match("123456", date, "TPHCM", CancellationToken.None);
 
         r.Winnings.Should().HaveCount(2);
         r.TotalPrize.Should().Be(2_000_100_000m);

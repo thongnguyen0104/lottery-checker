@@ -81,6 +81,35 @@ public class CheckStatusTests
         r.IsWinner.Should().BeFalse();
     }
 
+    [Fact(DisplayName = "11. Qua 30 ngay ke tu ngay mo thuong -> Expired, du DB co ket qua trung")]
+    public async Task Over30Days_Expired()
+    {
+        var db = NewDb();
+        var date = new DateOnly(2026, 6, 5);
+        db.LotteryResults.Add(new LotteryResult
+            { DrawDate = date, Province = "BinhDuong", PrizeTier = "DB", Number = "288921" });
+        await db.SaveChangesAsync();
+
+        var matcher = new LotteryMatcher(db, AtVn(new DateOnly(2026, 7, 6), 10, 0));   // ngày thứ 31
+        var r = await matcher.Match("288921", date, "BinhDuong", CancellationToken.None);
+
+        r.Status.Should().Be(CheckStatus.Expired);
+        r.IsWinner.Should().BeFalse();
+        r.ClaimDeadline.Should().Be(new DateOnly(2026, 7, 5));
+    }
+
+    [Fact(DisplayName = "12. Dung ngay thu 30 van con han -> KHONG Expired")]
+    public async Task Day30_StillValid()
+    {
+        var db = NewDb();
+        var date = new DateOnly(2026, 6, 5);
+        var matcher = new LotteryMatcher(db, AtVn(new DateOnly(2026, 7, 5), 23, 59));
+
+        var r = await matcher.Match("288921", date, "BinhDuong", CancellationToken.None);
+
+        r.Status.Should().Be(CheckStatus.NoData);
+    }
+
     [Fact(DisplayName = "10. Da xo + co data -> Checked, do binh thuong")]
     public async Task Drawn_WithRows_Checked()
     {

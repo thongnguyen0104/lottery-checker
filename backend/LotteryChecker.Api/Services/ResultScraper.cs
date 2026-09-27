@@ -42,27 +42,38 @@ public class ResultScraper
         return Enumerable.Range(0, DaysBack).Select(i => latest.AddDays(-i)).ToList();
     }
 
-    /// <summary>Những ngày trong 30 ngày gần nhất mà DB chưa có dòng kết quả nào (mới → cũ).</summary>
+    /// <summary>
+    /// Những ngày trong 30 ngày gần nhất còn THIẾU ít nhất 1 đài theo lịch xổ (mới → cũ).
+    ///
+    /// Vì sao theo từng đài chứ không theo ngày: bản cũ coi "ngày đã có" nếu có BẤT KỲ đài nào,
+    /// nên khi một đài từng bị bỏ sót (Bình Phước — thiếu trong ProvinceMatcher) thì thứ 7 đã có
+    /// TPHCM/Long An/Hậu Giang là không bao giờ được cào bù lúc khởi động nữa.
+    /// </summary>
     public async Task<IReadOnlyList<DateOnly>> MissingDatesAsync(CancellationToken ct)
     {
         var wanted = RecentDates();
         var oldest = wanted.Min();
         var have = (await _db.LotteryResults
             .Where(r => r.DrawDate >= oldest)
-            .Select(r => r.DrawDate)
+            .Select(r => new { r.DrawDate, r.Province })
             .Distinct()
-            .ToListAsync(ct)).ToHashSet();
+            .ToListAsync(ct))
+            .Select(x => (x.DrawDate, x.Province))
+            .ToHashSet();
 
-        return wanted.Where(d => !have.Contains(d)).ToList();
+        return wanted
+            .Where(d => DrawSchedule.MnProvincesOn(d).Any(p => !have.Contains((d, p))))
+            .ToList();
     }
 
     /// <summary>Cào đúng những ngày được chỉ định. Trả tổng số dòng đã lưu.</summary>
     public async Task<int> FetchDates(IEnumerable<DateOnly> dates, CancellationToken ct)
     {
+        var list = dates.ToList();
         // Dedupe theo (ngày, đài) — các trang ngày có thể trùng lặp board.
         var acc = new Dictionary<(DateOnly Date, string Code), List<LotteryResult>>();
 
-        foreach (var date in dates)
+        foreach (var date in list)
         {
             var url = $"https://xosodaiphat.com/xsmn-{date:dd-MM-yyyy}.html";
             try
@@ -78,6 +89,18 @@ public class ResultScraper
                 _logger.LogWarning("Bỏ qua {Url}: {Msg}", url, ex.Message);
             }
             await Task.Delay(250, ct); // lịch sự với server, tránh rate-limit
+        }
+
+        if (acc.Count == 0)
+        {
+            // Chỉ cào hôm nay mà chưa có đài nào đủ 18 số = web còn đang cập nhật sau giờ xổ,
+            // worker sẽ tự thử lại. Có ngày cũ mà vẫn trắng tay thì mới đáng ngờ DOM đổi.
+            var today = DateOnly.FromDateTime(DrawSchedule.NowVn());
+            if (list.All(d => d >= today))
+                _logger.LogInformation("Cào xosodaiphat: kết quả hôm nay chưa lên đủ — sẽ thử lại sau.");
+            else
+                _logger.LogError("Cào xosodaiphat: không parse được đài hợp lệ nào (DOM có thể đổi).");
+            return 0;
         }
 
         return await PersistAsync(acc, ct);
@@ -99,7 +122,16 @@ public class ResultScraper
             if (headers == null || headers.Count < 2) continue;
             var codes = new List<string?>();
             for (int i = 1; i < headers.Count; i++)
-                codes.Add(_provinces.FindBestMatch(HtmlEntity.DeEntitize(headers[i].InnerText)));
+            {
+                var name = HtmlEntity.DeEntitize(headers[i].InnerText).Trim();
+                var code = _provinces.FindBestMatch(name);
+                // Cột đài lạ bị bỏ qua cả cột → phải kêu to: Bình Phước từng mất data kiểu này
+                // hàng tháng trời mà không ai biết.
+                if (code is null && name.Length > 0)
+                    _logger.LogWarning("Cào {Date:dd-MM-yyyy}: không nhận ra đài '{Name}' — bỏ qua cột này. " +
+                                       "Thêm tên đài vào ProvinceMatcher.", date, name);
+                codes.Add(code);
+            }
 
             var byProvince = new Dictionary<string, List<LotteryResult>>();
             var rows = table.SelectNodes(".//tbody/tr") ?? table.SelectNodes(".//tr");
@@ -148,12 +180,6 @@ public class ResultScraper
     private async Task<int> PersistAsync(
         Dictionary<(DateOnly Date, string Code), List<LotteryResult>> acc, CancellationToken ct)
     {
-        if (acc.Count == 0)
-        {
-            _logger.LogError("Cào xosodaiphat: không parse được đài hợp lệ nào (DOM có thể đổi).");
-            return 0;
-        }
-
         var all = new List<LotteryResult>();
         foreach (var ((date, code), list) in acc)
         {
