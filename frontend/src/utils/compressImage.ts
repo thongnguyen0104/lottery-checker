@@ -1,7 +1,10 @@
-// Khớp ImagePreprocessor.MaxWidth ở backend: backend cũng thu về rộng 1600px, nên thu nhỏ sẵn
-// ở đây không làm mất chi tiết OCR thấy được — chỉ bớt byte phải đẩy qua mạng 4G/tunnel.
-const MAX_WIDTH = 1600
-const JPEG_QUALITY = 0.85
+/**
+ * Cỡ + chất lượng ảnh gửi đi. Backend quyết theo đường đọc đang bật (GET /api/scan/options):
+ * OCR cục bộ cần 1600px (khớp ImagePreprocessor.MaxWidth — thu nhỏ hơn thì đọc sai), Gemini
+ * đọc đúng với 1280px mà nhanh hơn. Mặc định ở đây là cho OCR cục bộ — an toàn cho cả hai.
+ */
+export type CompressOptions = { maxWidth: number; quality: number }
+export const DEFAULT_COMPRESS: CompressOptions = { maxWidth: 1600, quality: 0.85 }
 
 /** Thời gian từng khâu nén (ms) — để biết khâu nào chậm trên máy thật của user. */
 export type CompressStages = {
@@ -52,7 +55,10 @@ async function decodeWithBitmap(input: Blob): Promise<Decoded> {
  * Thu nhỏ + nén JPEG ảnh vé trước khi upload. Lỗi gì (trình duyệt cũ, ảnh HEIC không giải mã
  * được...) thì trả nguyên ảnh gốc — nén chỉ là tối ưu, không được làm hỏng luồng quét.
  */
-export async function compressImage(input: Blob): Promise<CompressResult> {
+export async function compressImage(
+  input: Blob,
+  { maxWidth, quality }: CompressOptions = DEFAULT_COMPRESS,
+): Promise<CompressResult> {
   const startedAt = performance.now()
   const passthrough = (): CompressResult => ({
     blob: input, originalBytes: input.size, sentBytes: input.size,
@@ -72,7 +78,7 @@ export async function compressImage(input: Blob): Promise<CompressResult> {
     const decode = performance.now() - t
 
     t = performance.now()
-    const scale = Math.min(1, MAX_WIDTH / decoded.width)
+    const scale = Math.min(1, maxWidth / decoded.width)
     const w = Math.round(decoded.width * scale)
     const h = Math.round(decoded.height * scale)
     const canvas = document.createElement('canvas')
@@ -81,14 +87,14 @@ export async function compressImage(input: Blob): Promise<CompressResult> {
     const ctx = canvas.getContext('2d')
     if (!ctx) { decoded.release(); return passthrough() }
     // KHÔNG đặt imageSmoothingQuality 'high': trên Safari nó chuyển sang thu nhỏ bằng phần mềm,
-    // rất chậm với ảnh 12MP. Tỉ lệ thu chỉ ~1,9 lần (3024 → 1600) nên nội suy mặc định (GPU)
-    // vẫn đủ nét cho OCR.
+    // rất chậm với ảnh 12MP. Tỉ lệ thu chỉ ~1,9–2,4 lần (3024 → 1600/1280) nên nội suy mặc định
+    // (GPU) vẫn đủ nét cho OCR.
     ctx.drawImage(decoded.source, 0, 0, w, h)
     decoded.release()
     const resize = performance.now() - t
 
     t = performance.now()
-    const blob = await new Promise<Blob | null>(r => canvas.toBlob(r, 'image/jpeg', JPEG_QUALITY))
+    const blob = await new Promise<Blob | null>(r => canvas.toBlob(r, 'image/jpeg', quality))
     const encode = performance.now() - t
 
     // Ảnh gốc đã nhỏ sẵn (vd. screenshot webcam) thì nén lại có khi còn to hơn → gửi gốc.

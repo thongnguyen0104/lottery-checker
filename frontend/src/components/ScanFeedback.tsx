@@ -1,4 +1,4 @@
-import type { ScanResponse, ScanTimings } from '../api/client'
+import type { CloudProvider, ScanResponse, ScanTimings } from '../api/client'
 import { provinceName } from '../data/provinces'
 
 const fmtDate = (iso: string | null) => {
@@ -22,9 +22,24 @@ const STAGES: { key: Exclude<keyof ScanTimings, 'total'>; label: string }[] = [
   { key: 'localOcr',     label: 'Đọc chữ trên máy chủ' },
   { key: 'localRetry',   label: 'Đọc lại (ảnh tăng tương phản)' },
   { key: 'cloudPrepare', label: 'Chuẩn bị ảnh cho AI' },
-  { key: 'cloudOcr',     label: 'AI đọc lại (OCR.space)' },
+  { key: 'cloudOcr',     label: 'AI đọc' },   // thêm tên nguồn (Gemini/OCR.space) lúc hiển thị
   { key: 'merge',        label: 'Gộp kết quả' },
 ]
+
+const PROVIDER_NAMES: Record<CloudProvider, string> = { gemini: 'Gemini', ocrspace: 'OCR.space' }
+
+// Mã lỗi của một lượt gọi cloud (ScanController.CloudAttempt) → vì sao phải thử nguồn tiếp theo.
+const CLOUD_ERRORS: Record<string, string> = {
+  timeout: 'quá lâu không trả lời',
+  http_429: 'hết lượt miễn phí (429)',
+  http_503: 'máy chủ AI đang quá tải (503)',
+  empty: 'không trả nội dung',
+  bad_json: 'trả dữ liệu hỏng',
+  network: 'lỗi mạng',
+  failed: 'không đọc được',
+}
+const cloudErrorText = (e: string) =>
+  CLOUD_ERRORS[e] ?? (e.startsWith('http_') ? `lỗi HTTP ${e.slice(5)}` : e)
 
 // Mã lý do từ TicketResultValidator → câu dễ hiểu (vì sao phải nhờ AI đọc lại).
 const REASONS: Record<string, string> = {
@@ -102,10 +117,13 @@ export default function ScanFeedback({ scanned }: { scanned: ScanResponse }) {
             </div>
           </div>
         ))}
-        <div className="text-xs text-gray-500 pt-1">
-          Độ tin cậy OCR: {Math.round(scanned.confidence * 100)}%
-          {scanned.lowConfidence && ' (thấp — nên kiểm tra kỹ)'}
-        </div>
+        {/* null = OCR cục bộ không chạy, AI đọc thẳng — AI không trả điểm tin cậy, trường chưa chắc đã có ⚠️ */}
+        {scanned.confidence != null && (
+          <div className="text-xs text-gray-500 pt-1">
+            Độ tin cậy OCR: {Math.round(scanned.confidence * 100)}%
+            {scanned.lowConfidence && ' (thấp — nên kiểm tra kỹ)'}
+          </div>
+        )}
 
         {t && (
           // Gấp lại mặc định: user bình thường chỉ cần tổng, còn chi tiết là để soi khi chậm.
@@ -118,7 +136,7 @@ export default function ScanFeedback({ scanned }: { scanned: ScanResponse }) {
               <div className="flex justify-between gap-4">
                 <span>
                   {up.compressed
-                    ? `Nén ảnh (${fmtBytes(up.originalBytes)} → ${fmtBytes(up.sentBytes)})`
+                    ? `Nén ảnh${up.options ? ` ≤${up.options.maxWidth}px` : ''} (${fmtBytes(up.originalBytes)} → ${fmtBytes(up.sentBytes)})`
                     : `Gửi ảnh gốc (${fmtBytes(up.sentBytes)})`}
                 </span>
                 <span className="tabular-nums">{fmtMs(up.compressMs)}</span>
@@ -140,7 +158,10 @@ export default function ScanFeedback({ scanned }: { scanned: ScanResponse }) {
                 return (
                   <div key={s.key}>
                     <div className={`flex justify-between gap-4 ${ms == null ? 'text-gray-400' : ''}`}>
-                      <span>{s.label}</span>
+                      <span>
+                        {s.label}
+                        {s.key === 'cloudOcr' && scanned.cloudProvider && ` (${PROVIDER_NAMES[scanned.cloudProvider]})`}
+                      </span>
                       <span className="tabular-nums">{ms == null ? 'bỏ qua' : fmtMs(ms)}</span>
                     </div>
                     {/* Chi tiết bên trong chặng OCR — chậm ở dò vùng chữ hay nhận dạng dòng */}
@@ -158,6 +179,18 @@ export default function ScanFeedback({ scanned }: { scanned: ScanResponse }) {
                         )}
                       </>
                     )}
+                    {/* Chặng AI = tổng các lượt thử: tách ra để thấy lượt chậm là do Gemini lỗi/treo
+                        rồi mới lùi về OCR.space, hay do chính nguồn đã trả lời */}
+                    {s.key === 'cloudOcr' && scanned.cloudAttempts?.map((a, i) => (
+                      <div key={i} className="flex justify-between gap-4 pl-3 text-gray-400">
+                        <span>
+                          ↳ {PROVIDER_NAMES[a.provider] ?? a.provider}
+                          {a.retried && a.retried.length > 0 && ` (gọi lại sau lỗi ${a.retried.map(cloudErrorText).join(', ')})`}
+                          {a.error && <span className="text-amber-600"> — {cloudErrorText(a.error)}</span>}
+                        </span>
+                        <span className="tabular-nums">{fmtMs(a.ms)}</span>
+                      </div>
+                    ))}
                     {s.key === 'localRetry' && ms != null && scanned.localRetry && (
                       <div className="pl-3 text-gray-400">
                         ↳ {scanned.localRetry.filled.length > 0
@@ -179,6 +212,12 @@ export default function ScanFeedback({ scanned }: { scanned: ScanResponse }) {
                   ↳ Nhờ AI đọc lại vì: {scanned.localValidation.reasons.map(r => REASONS[r] ?? r).join(', ')}
                   {scanned.ocrPath === 'cloud-failed' && ' (AI không phản hồi kịp — dùng kết quả máy chủ)'}
                 </div>
+              )}
+              {scanned.ocrPath === 'cloud-only' && (
+                <div className="text-gray-400">↳ AI đọc thẳng ảnh (không chạy OCR trên máy chủ)</div>
+              )}
+              {scanned.ocrPath === 'cloud-only-failed' && (
+                <div className="text-gray-400">↳ AI không phản hồi — vui lòng điền tay bên dưới</div>
               )}
               <div className="flex justify-between gap-4">
                 <span>Truyền qua mạng</span>
