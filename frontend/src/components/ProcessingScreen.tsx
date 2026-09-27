@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import Icon from './Icon'
 
 type Props = {
   title: string
@@ -20,10 +21,10 @@ export default function ProcessingScreen({ title, imageUrl, steps, current, deta
   const showImage = imageUrl && !imgFailed
 
   return (
-    <div className="bg-gray-950 rounded-[28px] p-3 pt-5 shadow-2xl shadow-brand-900/30 ring-1 ring-white/5">
-      <h2 className="text-white text-center font-semibold mb-4">{title}</h2>
+    <div className="bg-slate-950 rounded-3xl p-3 pt-5 shadow-2xl shadow-black/40 ring-1 ring-white/5">
+      <h2 className="text-slate-50 text-center font-semibold mb-4">{title}</h2>
 
-      <div className="bg-gray-800/60 rounded-2xl min-h-[300px] flex items-center justify-center overflow-hidden">
+      <div className="bg-slate-800/60 rounded-2xl min-h-[300px] flex items-center justify-center overflow-hidden">
         {/* Khung bọc sát ảnh → vạch quét chạy đúng trong mép ảnh chứ không tràn ra nền.
             min-w-0 + max-w-full: flex item mặc định nở theo bề rộng gốc của ảnh (4000px) */}
         <div className="relative overflow-hidden min-w-0 max-w-full">
@@ -33,8 +34,10 @@ export default function ProcessingScreen({ title, imageUrl, steps, current, deta
                  className={`block max-w-full max-h-[55vh] brightness-[.65] transition-opacity duration-300
                              ${imgLoaded ? 'opacity-100' : 'opacity-0'}`} />
           ) : (
-            <div className="w-72 aspect-[2/1] m-8 rounded-lg border-2 border-dashed border-gray-600
-                            flex items-center justify-center text-4xl opacity-60">🎫</div>
+            <div className="w-72 aspect-[2/1] m-8 rounded-lg border-2 border-dashed border-slate-600
+                            flex items-center justify-center text-slate-500">
+              <Icon name="ticket" className="w-12 h-12" />
+            </div>
           )}
           {/* Chỉ gắn vạch khi khung đã đủ cỡ (ảnh tải xong, hoặc khung vé giả cỡ cố định). Safari
               đổi translateY(-100%) ra px theo chiều cao khung lúc animation BẮT ĐẦU và không tính lại
@@ -58,7 +61,7 @@ export default function ProcessingScreen({ title, imageUrl, steps, current, deta
                 {label}
               </span>
               {state === 'active' && detail && (
-                <span className="ml-auto text-sm text-brand-600 dark:text-brand-300 tabular-nums">{detail}</span>
+                <span className="ml-auto text-sm text-brand-700 dark:text-brand-400 tabular-nums">{detail}</span>
               )}
             </li>
           )
@@ -71,11 +74,9 @@ export default function ProcessingScreen({ title, imageUrl, steps, current, deta
 function StepIcon({ state }: { state: 'done' | 'active' | 'pending' }) {
   if (state === 'done') {
     return (
-      <span className="step-pop shrink-0 w-6 h-6 rounded-full bg-gradient-to-br from-brand-500 to-accent flex items-center justify-center">
-        <svg viewBox="0 0 16 16" className="w-3.5 h-3.5 text-white" fill="none"
-             stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M3.5 8.5l3 3 6-7" />
-        </svg>
+      <span className="step-pop shrink-0 w-6 h-6 rounded-full bg-gradient-to-br from-primary to-primary-end
+                       text-on-primary flex items-center justify-center">
+        <Icon name="check" className="w-3.5 h-3.5" strokeWidth={3} />
       </span>
     )
   }

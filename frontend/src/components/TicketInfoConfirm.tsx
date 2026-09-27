@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import ScanFeedback from './ScanFeedback'
-import type { ScanResponse } from '../api/client'
+import Icon from './Icon'
+import type { ScanResponse, TicketQuery } from '../api/client'
 import { CLAIM_DAYS, claimDeadline, isExpired } from '../utils/claim'
 
 const fmtDate = (iso: string) => iso.split('-').reverse().join('/')
@@ -9,6 +10,8 @@ type Props = {
   // Dùng thẳng kiểu của API: thêm trường mới (vd timings) là tự chảy tới ScanFeedback,
   // khỏi phải khai lại ở đây rồi quên mất một chỗ.
   scanned: ScanResponse
+  /** Thông tin đã đem dò (mở lại form để sửa sau khi dò) — điền thay cho kết quả quét. */
+  initial?: TicketQuery | null
   /** Ảnh vé vừa quét (object URL) — hiện kèm để user so từng số khi sửa tay. */
   imageUrl?: string | null
   allProvinces: { code: string; name: string }[]
@@ -16,10 +19,10 @@ type Props = {
   onRescan: () => void
 }
 
-export default function TicketInfoConfirm({ scanned, imageUrl, allProvinces, onConfirm, onRescan }: Props) {
-  const [ticket, setTicket] = useState(scanned.ticketNumber ?? '')
-  const [date, setDate] = useState(scanned.drawDate ?? new Date().toISOString().slice(0, 10))
-  const [province, setProvince] = useState(scanned.province ?? '')
+export default function TicketInfoConfirm({ scanned, initial, imageUrl, allProvinces, onConfirm, onRescan }: Props) {
+  const [ticket, setTicket] = useState(initial?.ticketNumber ?? scanned.ticketNumber ?? '')
+  const [date, setDate] = useState(initial?.drawDate ?? scanned.drawDate ?? new Date().toISOString().slice(0, 10))
+  const [province, setProvince] = useState(initial?.province ?? scanned.province ?? '')
   // HEIC trên Chrome không giải mã được → ẩn ô ảnh thay vì hiện icon ảnh vỡ.
   const [imgFailed, setImgFailed] = useState(false)
 
@@ -30,13 +33,15 @@ export default function TicketInfoConfirm({ scanned, imageUrl, allProvinces, onC
   const fieldClass = (missing: boolean, uncertain = false) =>
     `field ${missing ? 'border-bad/60 bg-bad/5' : uncertain ? 'border-warn/70 bg-warn/5' : ''}`
   const reviewHint = (show: boolean) => show && (
-    <span className="block text-xs text-warn mt-1">⚠️ Máy đọc chưa chắc — kiểm tra lại với vé</span>
+    <span className="flex items-center gap-1 text-xs text-warn mt-1">
+      <Icon name="warn" className="w-3.5 h-3.5 shrink-0" /> Máy đọc chưa chắc — kiểm tra lại với vé
+    </span>
   )
 
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-xl md:text-3xl font-extrabold tracking-tight">Kiểm tra lại vé nhé 👀</h1>
+        <h1 className="text-xl md:text-3xl font-extrabold tracking-tight">Kiểm tra lại vé nhé</h1>
         <p className="text-sm md:text-base text-ink-soft mt-0.5">Máy đọc sai chỗ nào thì sửa, rồi bấm Dò ngay.</p>
       </div>
 
@@ -45,7 +50,7 @@ export default function TicketInfoConfirm({ scanned, imageUrl, allProvinces, onC
           {imageUrl && !imgFailed && (
             <div className="card p-2">
               <img src={imageUrl} alt="Ảnh vé vừa quét" decoding="async" onError={() => setImgFailed(true)}
-                   className="block w-full max-h-48 md:max-h-80 object-contain rounded-2xl bg-gray-900" />
+                   className="block w-full max-h-48 md:max-h-80 object-contain rounded-xl bg-slate-900" />
             </div>
           )}
           <ScanFeedback scanned={scanned} />
@@ -71,9 +76,12 @@ export default function TicketInfoConfirm({ scanned, imageUrl, allProvinces, onC
 
           {/* Báo sớm ngay khi ngày trên vé (đọc được hoặc sửa tay) đã quá hạn — khỏi bấm dò mới biết */}
           {isExpired(date) && (
-            <div className="alert bg-bad/10 border-bad/30 text-bad">
-              ⌛ <b>Vé hết hạn</b>: đã quá {CLAIM_DAYS} ngày kể từ ngày mở thưởng
-              (hạn lĩnh thưởng đến hết ngày {fmtDate(claimDeadline(date))}).
+            <div className="alert flex gap-2 bg-bad/10 border-bad/30 text-bad">
+              <Icon name="expired" className="w-4 h-4 shrink-0 mt-0.5" />
+              <span>
+                <b>Vé hết hạn</b>: đã quá {CLAIM_DAYS} ngày kể từ ngày mở thưởng
+                (hạn lĩnh thưởng đến hết ngày {fmtDate(claimDeadline(date))}).
+              </span>
             </div>
           )}
 
@@ -90,14 +98,14 @@ export default function TicketInfoConfirm({ scanned, imageUrl, allProvinces, onC
           </label>
 
           <div className="flex gap-3 pt-1">
-            <button onClick={onRescan} className="btn btn-soft flex-1">
-              📷 Chụp lại
+            <button onClick={onRescan} className="btn btn-secondary flex-1">
+              <Icon name="camera" /> Chụp lại
             </button>
             <button
               onClick={() => onConfirm({ ticketNumber: ticket, drawDate: date, province })}
               disabled={!ticket || ticket.length !== 6 || !province}
               className="btn btn-primary flex-[1.4]">
-              ✅ Dò ngay
+              <Icon name="search" /> Dò ngay
             </button>
           </div>
         </div>

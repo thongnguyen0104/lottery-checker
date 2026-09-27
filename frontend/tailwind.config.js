@@ -17,8 +17,12 @@ export default {
       },
       colors: {
         brand: Object.fromEntries(shades.map(s => [s, v(`brand-${s}`)])),
-        // Màu thứ hai của bảng màu — điểm cuối của dải gradient nút chính / nền cực quang.
+        // Màu thứ hai của bảng màu — quầng nền cực quang, pháo giấy.
         accent: v('accent'),
+        // Nền nút chính / tấm vé / huy hiệu (from-primary to-primary-end) + màu chữ trên nền đó.
+        // Tách khỏi brand vì Hoàng kim cần vàng sáng + chữ navy, các bảng màu khác thì chữ trắng.
+        primary: { DEFAULT: v('primary'), end: v('primary-end') },
+        'on-primary': v('on-primary'),
         canvas: v('canvas'),     // nền trang
         surface: v('surface'),   // nền thẻ, ô nhập
         muted: v('muted'),       // nền phụ: hàng xen kẽ, nút tab chưa chọn
@@ -31,7 +35,8 @@ export default {
         info: v('info'),
       },
       boxShadow: {
-        soft: '0 1px 2px rgb(15 15 35 / .04), 0 8px 28px -8px rgb(15 15 35 / .12)',
+        // Đổi theo sáng/tối (index.css): bóng nhạt kiểu nền sáng không thấy được trên navy.
+        soft: 'var(--shadow-soft)',
       },
     },
   },

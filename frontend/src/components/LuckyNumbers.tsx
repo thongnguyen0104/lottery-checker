@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { LUCKY_GAMES, pickNumbers, type LuckyGame } from '../utils/lucky'
+import Icon from './Icon'
 
 const HISTORY_MAX = 5
 const pad = (n: number) => String(n).padStart(2, '0')
@@ -39,17 +40,18 @@ export default function LuckyNumbers() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-xl md:text-3xl font-extrabold tracking-tight">6 số may mắn 🍀</h1>
+        <h1 className="text-xl md:text-3xl font-extrabold tracking-tight">6 số may mắn</h1>
         <p className="text-sm md:text-base text-ink-soft mt-0.5">Bí ý tưởng? Để máy chọn giúp một bộ số Vietlott.</p>
       </div>
 
       <div className="space-y-4 lg:space-y-0 lg:grid lg:grid-cols-[1.4fr_1fr] lg:gap-6 lg:items-start">
         <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-1 bg-muted p-1 rounded-2xl border border-line/60" role="tablist">
+          <div className="grid grid-cols-2 gap-1 bg-muted p-1 rounded-xl border border-line/60" role="tablist">
             {(Object.keys(LUCKY_GAMES) as LuckyGame[]).map(g => (
               <button key={g} role="tab" aria-selected={g === game} onClick={() => switchGame(g)}
-                      className={`py-2.5 rounded-xl text-sm font-semibold transition ${
-                        g === game ? 'bg-surface dark:bg-white/10 shadow-sm text-ink' : 'text-ink-faint hover:text-ink-soft'}`}>
+                      className={`py-2.5 rounded-lg text-sm font-semibold transition ${g === game
+                        ? 'bg-surface dark:bg-brand-500/10 shadow-sm text-brand-700 dark:text-brand-400'
+                        : 'text-ink-faint hover:text-ink-soft'}`}>
                 {LUCKY_GAMES[g].name}
               </button>
             ))}
@@ -78,7 +80,7 @@ export default function LuckyNumbers() {
                   ))}
             </div>
             <button onClick={roll} className="btn btn-primary mt-6 w-full max-w-md py-3.5 text-lg">
-              🎲 {current ? 'Chọn bộ khác' : 'Chọn số'}
+              <Icon name="dice" className="w-6 h-6" /> {current ? 'Chọn bộ khác' : 'Chọn số'}
             </button>
           </div>
         </div>
@@ -86,7 +88,9 @@ export default function LuckyNumbers() {
         <div className="space-y-4">
           {/* Màn rộng luôn có cột lịch sử (kể cả trống) cho bố cục khỏi lệch; điện thoại chỉ hiện khi đã có bộ. */}
           <div className={`card p-4 ${history.length ? '' : 'hidden lg:block'}`}>
-            <div className="text-sm font-bold text-ink-soft mb-3">🕘 Các bộ vừa chọn</div>
+            <div className="flex items-center gap-2 text-sm font-bold text-ink-soft mb-3">
+              <Icon name="history" className="w-4 h-4 text-ink-faint" /> Các bộ vừa chọn
+            </div>
             {history.length === 0 && (
               <div className="text-sm text-ink-faint py-4 text-center">Chưa có bộ nào — bấm Chọn số để bắt đầu.</div>
             )}

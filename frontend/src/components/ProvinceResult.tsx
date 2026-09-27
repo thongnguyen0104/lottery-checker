@@ -19,10 +19,13 @@ type Props = {
   onBack: () => void
 }
 
-// Cùng cách so của LotteryMatcher: ĐB phải trùng cả 6 số, G.1..G.8 trùng N số cuối.
-// Giải phụ ĐB / khuyến khích (suy ra từ ĐB) không tô — màn kết quả dò vé đã liệt kê.
-const matches = (ticket: string | undefined, tier: string, n: string) =>
-  !!ticket && (tier === 'DB' ? ticket === n : ticket.endsWith(n))
+/** Số chữ số cuối trùng nhau giữa vé và số giải (0 = không trùng, vd 912990 & 8730 → 1). */
+function commonSuffix(ticket: string | undefined, n: string) {
+  if (!ticket) return 0
+  let k = 0
+  while (k < n.length && k < ticket.length && n[n.length - 1 - k] === ticket[ticket.length - 1 - k]) k++
+  return k
+}
 
 export default function ProvinceResult({
   drawDate, province, sameDay, ticketNumber, onSelectProvince, backLabel, onBack,
@@ -58,8 +61,12 @@ export default function ProvinceResult({
       </div>
 
       {ticketNumber && (
-        <div className="alert bg-yellow-400/15 border-yellow-400/50">
-          Đang so với vé <b className="tracking-wider">{ticketNumber}</b> — số trùng được tô vàng.
+        <div className="alert flex items-center gap-2 bg-ok/10 border-ok/30">
+          <Icon name="ticket" className="w-4 h-4 shrink-0 text-ok" />
+          <span>
+            Đang so với vé <b className="tracking-wider">{ticketNumber}</b> — chữ số cuối trùng vé được tô xanh,
+            số trúng giải có khung.
+          </span>
         </div>
       )}
 
@@ -68,9 +75,9 @@ export default function ProvinceResult({
           {sameDay.map(code => (
             <button key={code} onClick={() => onSelectProvince(code)}
                     aria-pressed={code === province}
-                    className={`text-sm font-medium px-3 py-1.5 rounded-full transition ${code === province
-                      ? 'bg-gradient-to-r from-brand-600 to-accent text-white shadow-md shadow-brand-500/25'
-                      : 'bg-brand-500/10 text-brand-700 dark:text-brand-300 hover:bg-brand-500/20'}`}>
+                    className={`text-sm font-medium px-3 py-1.5 rounded-full border transition ${code === province
+                      ? 'border-transparent bg-gradient-to-r from-primary to-primary-end text-on-primary shadow-md shadow-primary/20'
+                      : 'border-line bg-muted/60 text-ink-soft hover:border-brand-500/60 hover:text-brand-700 dark:hover:text-brand-400'}`}>
               {provinceName(code)}
             </button>
           ))}
@@ -78,8 +85,9 @@ export default function ProvinceResult({
       )}
 
       <div className="card overflow-hidden">
-        <div className="bg-gradient-to-r from-brand-600 to-accent text-white text-center font-semibold py-2.5 text-sm">
-          {formatDay(drawDate)}
+        <div className="flex items-center justify-center gap-2 py-2.5 text-sm font-semibold border-b border-line
+                        bg-muted/60 text-brand-700 dark:text-brand-400">
+          <Icon name="calendar" className="w-4 h-4" /> {formatDay(drawDate)}
         </div>
 
         {!data && !error && (
@@ -88,7 +96,11 @@ export default function ProvinceResult({
             Đang tải...
           </div>
         )}
-        {error && <div className="p-6 text-center text-bad">😵‍💫 {error}</div>}
+        {error && (
+          <div className="p-6 flex items-center justify-center gap-2 text-bad">
+            <Icon name="error" className="w-5 h-5" /> {error}
+          </div>
+        )}
 
         {data && (
           <table className="w-full">
@@ -103,16 +115,31 @@ export default function ProvinceResult({
                     </th>
                     <td className="py-2.5 px-3">
                       <div className="flex flex-wrap justify-center gap-x-5 gap-y-1">
-                        {numbers.map((n, i) => (
-                          <span key={i}
-                                className={`tabular-nums tracking-wider font-bold ${special
-                                  ? 'text-2xl md:text-3xl text-brand-600 dark:text-brand-400'
-                                  : tier === '8' ? 'text-xl text-brand-600 dark:text-brand-400' : 'text-lg text-ink'
-                                } ${matches(ticketNumber, tier, n)
-                                  ? 'bg-yellow-300 text-yellow-950 dark:text-yellow-950 ring-2 ring-yellow-400 rounded-md px-1.5' : ''}`}>
-                            {n}
-                          </span>
-                        ))}
+                        {numbers.map((n, i) => {
+                          // Trùng hết cả số = trúng giải (cùng cách so của LotteryMatcher: ĐB trùng đủ 6
+                          // số, G.1..G.8 trùng N số cuối) → khung xanh cả số. Trùng một phần đuôi → chỉ tô
+                          // các chữ số đó, để thấy vé "suýt trúng" giải nào (với ĐB là cả giải phụ).
+                          const k = commonSuffix(ticketNumber, n)
+                          const won = k === n.length
+                          return (
+                            <span key={i}
+                                  className={`tabular-nums tracking-wider font-bold ${
+                                    special ? 'text-2xl md:text-3xl' : tier === '8' ? 'text-xl' : 'text-lg'
+                                  } ${
+                                    // ĐB và G.8 màu brand như bảng XSMN quen thuộc.
+                                    won
+                                      ? 'bg-ok/15 text-ok ring-1 ring-ok/60 rounded-md px-1.5'
+                                      : special || tier === '8' ? 'text-brand-700 dark:text-brand-400' : 'text-ink'
+                                  }`}>
+                              {won || k === 0 ? n : (
+                                <>
+                                  {n.slice(0, -k)}
+                                  <mark className="bg-ok/20 text-ok rounded px-0.5">{n.slice(-k)}</mark>
+                                </>
+                              )}
+                            </span>
+                          )
+                        })}
                       </div>
                     </td>
                   </tr>

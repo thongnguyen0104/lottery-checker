@@ -1,5 +1,6 @@
 import type { CloudProvider, ScanResponse, ScanTimings } from '../api/client'
 import { provinceName } from '../data/provinces'
+import Icon from './Icon'
 
 const fmtDate = (iso: string | null) => {
   if (!iso) return null
@@ -54,7 +55,7 @@ const REASONS: Record<string, string> = {
   low_confidence: 'ảnh chưa đủ rõ',
 }
 
-// Hiển thị kết quả OCR theo từng trường: đọc được gì (✅) / chưa đọc được gì (❌) + gợi ý chụp lại.
+// Hiển thị kết quả OCR theo từng trường: đọc được gì (✓ xanh) / chưa đọc được gì (✕ đỏ) + gợi ý chụp lại.
 export default function ScanFeedback({ scanned }: { scanned: ScanResponse }) {
   const review = new Set(scanned.needsReview ?? [])
   const fields = [
@@ -64,7 +65,7 @@ export default function ScanFeedback({ scanned }: { scanned: ScanResponse }) {
       ok: !!scanned.ticketNumber,
       value: scanned.ticketNumber,
       tip: 'chụp rõ dãy 6 chữ số, tránh mờ/lóa',
-      badge: scanned.ticketNumberFromCloud ? '🤖 AI đọc' : null,
+      badge: scanned.ticketNumberFromCloud ? 'AI đọc' : null,
     },
     {
       label: 'Ngày',
@@ -99,8 +100,12 @@ export default function ScanFeedback({ scanned }: { scanned: ScanResponse }) {
         <div className="text-sm font-semibold text-ink">Kết quả đọc tự động</div>
         {fields.map(f => (
           <div key={f.label} className="flex items-start gap-2 text-sm">
-            {/* 3 mức: ❌ không đọc được · ⚠️ đọc được nhưng chưa chắc (kiểm tra ô bên dưới) · ✅ chắc */}
-            <span>{!f.ok ? '❌' : f.review ? '⚠️' : '✅'}</span>
+            {/* 3 mức: ✕ không đọc được · ⚠ đọc được nhưng chưa chắc (kiểm tra ô bên dưới) · ✓ chắc */}
+            {!f.ok
+              ? <Icon name="fail" className="w-[18px] h-[18px] shrink-0 text-bad" />
+              : f.review
+                ? <Icon name="warn" className="w-[18px] h-[18px] shrink-0 text-warn" />
+                : <Icon name="ok" className="w-[18px] h-[18px] shrink-0 text-ok" />}
             <div>
               <span className="font-medium">{f.label}:</span>{' '}
               {!f.ok
@@ -110,8 +115,9 @@ export default function ScanFeedback({ scanned }: { scanned: ScanResponse }) {
                       <span className="text-warn"> — chưa chắc, kiểm tra lại bên dưới</span></>
                   : <span className="text-ok font-semibold">{f.value}</span>}
               {f.ok && f.badge && (
-                <span className="ml-2 text-[11px] bg-info/10 text-info rounded px-1.5 py-0.5">
-                  {f.badge}
+                <span className="ml-2 inline-flex items-center gap-1 align-[1px] text-[11px] font-medium
+                                 bg-info/10 text-info rounded-md px-1.5 py-0.5">
+                  <Icon name="ai" className="w-3 h-3" strokeWidth={2} /> {f.badge}
                 </span>
               )}
             </div>
@@ -129,7 +135,8 @@ export default function ScanFeedback({ scanned }: { scanned: ScanResponse }) {
           // Gấp lại mặc định: user bình thường chỉ cần tổng, còn chi tiết là để soi khi chậm.
           <details className="text-xs text-ink-faint">
             <summary className="cursor-pointer select-none">
-              ⏱ Xử lý hết <b className="text-ink">{fmtMs(totalMs)}</b>
+              <Icon name="timer" className="inline-block w-3.5 h-3.5 -mt-0.5 mr-1" />
+              Xử lý hết <b className="text-ink">{fmtMs(totalMs)}</b>
               {' '}(máy chủ {fmtMs(t.total)}) — xem chi tiết
             </summary>
             <div className="mt-1.5 space-y-0.5">
@@ -202,7 +209,7 @@ export default function ScanFeedback({ scanned }: { scanned: ScanResponse }) {
                 )
               })}
               {scanned.ocrPath === 'local-review' && (
-                <div className="text-ink-faint/70">↳ Số vé đã chắc — không cần AI đọc lại, chỉ cần kiểm tra trường đánh dấu ⚠️</div>
+                <div className="text-ink-faint/70">↳ Số vé đã chắc — không cần AI đọc lại, chỉ cần kiểm tra trường có dấu cảnh báo</div>
               )}
               {scanned.ocrPath === 'local-expired' && (
                 <div className="text-ink-faint/70">↳ Vé đã hết hạn — không cần AI đọc lại</div>
@@ -233,10 +240,13 @@ export default function ScanFeedback({ scanned }: { scanned: ScanResponse }) {
       </div>
 
       {missing.length > 0 && (
-        <div className="alert bg-warn/10 border-warn/30 text-warn">
-          📷 Chưa đọc được: <b>{missing.map(f => f.label.toLowerCase()).join(', ')}</b>.
-          Bạn có thể điền tay bên dưới, hoặc <b>chụp lại rõ hơn</b>: đủ sáng, chụp thẳng
-          (không nghiêng), tránh bóng/lóa, lấy nét vào dãy số và chữ.
+        <div className="alert flex gap-2 bg-warn/10 border-warn/30 text-warn">
+          <Icon name="camera" className="w-4 h-4 shrink-0 mt-0.5" />
+          <span>
+            Chưa đọc được: <b>{missing.map(f => f.label.toLowerCase()).join(', ')}</b>.
+            Bạn có thể điền tay bên dưới, hoặc <b>chụp lại rõ hơn</b>: đủ sáng, chụp thẳng
+            (không nghiêng), tránh bóng/lóa, lấy nét vào dãy số và chữ.
+          </span>
         </div>
       )}
     </div>

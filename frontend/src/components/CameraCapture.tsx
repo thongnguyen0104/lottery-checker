@@ -48,7 +48,7 @@ export default function CameraCapture({ onCapture }: { onCapture: (blob: Blob) =
     <div>
       {/* Khung ngang 4:3 (vé cũng nằm ngang) thay vì cao theo camera dọc của điện thoại —
           đỡ chiếm gần hết màn hình, nút Chụp và ô Chọn ảnh hiện ngay không cần cuộn. */}
-      <div className="relative aspect-[4/3] overflow-hidden rounded-2xl bg-gray-900">
+      <div className="relative aspect-[4/3] overflow-hidden rounded-xl bg-slate-900">
         <Webcam
           ref={webcamRef}
           videoConstraints={{ facingMode: 'environment' }}
@@ -59,7 +59,7 @@ export default function CameraCapture({ onCapture }: { onCapture: (blob: Blob) =
         {/* Khung hướng dẫn căn vé */}
         <div className="absolute inset-x-[9%] top-1/2 -translate-y-1/2 h-[48%] pointer-events-none">
           {CORNERS.map(c => (
-            <span key={c} className={`absolute w-8 h-8 border-white drop-shadow-[0_0_6px_rgba(0,0,0,.5)] ${c}`} />
+            <span key={c} className={`absolute w-8 h-8 border-brand-400 drop-shadow-[0_0_6px_rgba(0,0,0,.5)] ${c}`} />
           ))}
           <span className="absolute -top-9 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full
                            bg-black/45 backdrop-blur px-3 py-1 text-xs font-medium text-white">
@@ -76,7 +76,7 @@ export default function CameraCapture({ onCapture }: { onCapture: (blob: Blob) =
               </>
             ) : (
               <>
-                <span className="text-3xl">📷</span>
+                <Icon name="camera" className="w-8 h-8 text-white/60" />
                 Không mở được camera. Hãy cho phép quyền camera, hoặc chọn ảnh vé có sẵn.
               </>
             )}

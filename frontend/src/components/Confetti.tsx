@@ -1,6 +1,7 @@
 import type { CSSProperties } from 'react'
 
-const COLORS = ['rgb(var(--brand-500))', 'rgb(var(--accent))', '#FACC15', '#34D399', '#60A5FA', '#F472B6']
+// Màu brand + vàng kim, xanh ngọc (màu "trúng"), trắng ngà — bớt sắc cầu vồng cho hợp tông sang.
+const COLORS = ['rgb(var(--brand-400))', 'rgb(var(--accent))', '#FBBF24', '#10B981', '#F8FAFC', '#FDE68A']
 
 // Số giả ngẫu nhiên cố định theo chỉ số mảnh: pháo lần nào cũng đẹp như nhau, và tính một lần
 // lúc nạp module chứ không gọi Math.random trong lúc render.

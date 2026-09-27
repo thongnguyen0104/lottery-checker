@@ -80,6 +80,11 @@ export type ScanResponse = {
     filled: Exclude<ReviewField, 'number'>[]
   } | null
   needsReview?: ReviewField[]
+  /**
+   * Máy chủ chắc cả số vé, đài, ngày (xem TicketResultValidator.CanAutoCheck) → dò luôn, bỏ qua form
+   * xác nhận. Backend cũ không có trường này → undefined → vẫn hỏi lại như trước.
+   */
+  autoCheck?: boolean
   timings?: ScanTimings
   /**
    * Tổng thời gian đo ở trình duyệt: bấm gửi ảnh → nhận kết quả. Lớn hơn timings.total
@@ -177,26 +182,27 @@ export async function scanImage(
   }
 }
 
+/** Thông tin vé đem đi dò: user xác nhận trên form, hoặc lấy thẳng kết quả quét khi autoCheck. */
+export type TicketQuery = { ticketNumber: string; drawDate: string; province: string }
+
+export type CheckResult = {
+  extractedNumber: string
+  drawDate: string | null
+  province: string | null
+  status: 'Checked' | 'NotDrawnYet' | 'NoData' | 'Expired'
+  drawsAt: string | null
+  claimDeadline: string | null
+  isWinner: boolean
+  winnings: { tierName: string; amount: number }[]
+  totalPrize: number
+  ocrConfidence: number
+}
+
 // Bước 2: dò với info đã xác nhận
-export async function checkTicket(payload: {
-  ticketNumber: string
-  drawDate: string
-  province: string
-}) {
+export async function checkTicket(payload: TicketQuery) {
   try {
     const { data } = await api.post('/api/check', payload)
-    return data as {
-      extractedNumber: string
-      drawDate: string | null
-      province: string | null
-      status: 'Checked' | 'NotDrawnYet' | 'NoData' | 'Expired'
-      drawsAt: string | null
-      claimDeadline: string | null
-      isWinner: boolean
-      winnings: { tierName: string; amount: number }[]
-      totalPrize: number
-      ocrConfidence: number
-    }
+    return data as CheckResult
   } catch (e) {
     throw toFriendlyError(e)
   }

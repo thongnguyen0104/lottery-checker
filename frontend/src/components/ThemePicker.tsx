@@ -26,14 +26,16 @@ export default function ThemePicker({ theme, onChange, onClose }: Props) {
 
       <div role="dialog" aria-modal="true" aria-label="Tuỳ chỉnh giao diện"
            className="sheet-up absolute inset-x-0 bottom-0 max-h-[85vh] overflow-y-auto
-                      bg-surface text-ink rounded-t-[28px] border border-line shadow-2xl
+                      bg-surface text-ink rounded-t-3xl border border-line shadow-2xl
                       px-5 pt-3 pb-[calc(1.25rem+env(safe-area-inset-bottom))]
                       sm:inset-x-auto sm:bottom-auto sm:right-4 sm:top-[calc(4.5rem+env(safe-area-inset-top))]
-                      sm:w-[400px] sm:rounded-3xl sm:pt-5">
+                      sm:w-[400px] sm:rounded-2xl sm:pt-5">
         <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-line sm:hidden" aria-hidden />
 
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-bold">🎨 Giao diện của bạn</h2>
+          <h2 className="flex items-center gap-2 text-lg font-bold">
+            <Icon name="palette" className="w-5 h-5 text-brand-700 dark:text-brand-400" /> Giao diện của bạn
+          </h2>
           <button onClick={onClose} aria-label="Đóng"
                   className="w-9 h-9 rounded-full flex items-center justify-center bg-muted text-ink-soft hover:text-ink">
             <Icon name="close" className="w-4 h-4" />
@@ -41,13 +43,13 @@ export default function ThemePicker({ theme, onChange, onClose }: Props) {
         </div>
 
         <Section title="Chế độ">
-          <div className="grid grid-cols-3 gap-1 p-1 rounded-2xl bg-muted">
+          <div className="grid grid-cols-3 gap-1 p-1 rounded-xl bg-muted">
             {MODES.map(m => {
               const active = theme.mode === m.id
               return (
                 <button key={m.id} onClick={() => onChange({ mode: m.id })} aria-pressed={active}
-                        className={`flex items-center justify-center gap-1.5 py-2 rounded-xl text-sm font-semibold transition
-                                    ${active ? 'bg-surface dark:bg-white/10 shadow-sm text-brand-600 dark:text-brand-300' : 'text-ink-soft'}`}>
+                        className={`flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-semibold transition
+                                    ${active ? 'bg-surface dark:bg-brand-500/10 shadow-sm text-brand-700 dark:text-brand-400' : 'text-ink-faint'}`}>
                   <Icon name={MODE_ICONS[m.id]} className="w-4 h-4" />
                   {m.name}
                 </button>
@@ -57,15 +59,18 @@ export default function ThemePicker({ theme, onChange, onClose }: Props) {
         </Section>
 
         <Section title="Màu chủ đạo">
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-4 gap-1.5">
             {ACCENTS.map(a => {
               const active = theme.accent === a.id
               return (
                 <button key={a.id} onClick={() => onChange({ accent: a.id })} aria-pressed={active}
-                        className={`flex flex-col items-center gap-1.5 p-2.5 rounded-2xl border-2 transition
+                        className={`flex flex-col items-center gap-1.5 p-2.5 rounded-xl border-2 transition
                                     ${active ? 'border-brand-500 bg-brand-500/5' : 'border-transparent hover:bg-muted'}`}>
-                  <span className="w-10 h-10 rounded-full flex items-center justify-center text-white shadow-md"
-                        style={{ backgroundImage: `linear-gradient(135deg, ${a.from}, ${a.to})` }}>
+                  <span className="w-10 h-10 rounded-full flex items-center justify-center shadow-md"
+                        style={{
+                          backgroundImage: `linear-gradient(135deg, ${a.from}, ${a.to})`,
+                          color: 'ink' in a ? a.ink : '#fff',
+                        }}>
                     {active && <Icon name="check" className="w-5 h-5" />}
                   </span>
                   <span className="text-xs font-medium text-ink-soft text-center leading-tight">{a.name}</span>
@@ -82,9 +87,9 @@ export default function ThemePicker({ theme, onChange, onClose }: Props) {
               return (
                 <button key={b.id} onClick={() => onChange({ bg: b.id })} aria-pressed={active}
                         className="flex flex-col items-center gap-1.5">
-                  <span className={`bgfx-${b.id} block w-full aspect-[3/4] rounded-2xl bg-canvas border-2 transition
+                  <span className={`bgfx-${b.id} block w-full aspect-[3/4] rounded-xl bg-canvas border-2 transition
                                     ${active ? 'border-brand-500 ring-4 ring-brand-500/15' : 'border-line'}`} />
-                  <span className={`text-xs font-medium ${active ? 'text-brand-600 dark:text-brand-300' : 'text-ink-soft'}`}>
+                  <span className={`text-xs font-medium ${active ? 'text-brand-700 dark:text-brand-400' : 'text-ink-soft'}`}>
                     {b.name}
                   </span>
                 </button>
