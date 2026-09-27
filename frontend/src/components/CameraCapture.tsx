@@ -1,6 +1,25 @@
 import Webcam from 'react-webcam'
-import { useRef, useCallback, useState } from 'react'
+import { useRef, useCallback, useEffect, useState } from 'react'
 import Icon from './Icon'
+
+/**
+ * checking: đang hỏi trình duyệt quyền camera · off: chờ user bấm Bật camera · starting/ready: đã
+ * gọi camera, đang mở / đang chạy · denied: user chặn hoặc đóng hộp hỏi quyền · error: lỗi khác
+ * (máy không có camera, app khác đang chiếm...).
+ */
+type Cam = 'checking' | 'off' | 'starting' | 'ready' | 'denied' | 'error'
+
+// Đã mở được camera trong phiên này → quay lại khung chụp (Dò vé khác, đổi tab) thì mở luôn, khỏi bấm lại.
+let startedThisSession = false
+
+/** Quyền camera hiện tại; null = trình duyệt không cho hỏi (Firefox cũ...) → coi như chưa biết. */
+async function cameraPermission(): Promise<PermissionStatus | null> {
+  try {
+    return await navigator.permissions.query({ name: 'camera' })
+  } catch {
+    return null
+  }
+}
 
 /**
  * Chụp đúng phần user đang THẤY trong khung (video object-cover bị cắt bớt trên/dưới), ở độ
@@ -32,10 +51,53 @@ const CORNERS = [
   'bottom-0 right-0 border-b-4 border-r-4 rounded-br-2xl',
 ]
 
+// Lời trong khung khi camera chưa chạy. "off" báo trước hộp xin quyền để user không bất ngờ mà bấm Chặn;
+// lỗi thì chỉ đường gỡ, vì trình duyệt đã chặn thì app không tự hỏi lại được.
+const CAM_TEXT = {
+  off: {
+    title: 'Dò vé bằng camera',
+    body: 'Bấm Bật camera, trình duyệt hỏi thì chọn Cho phép. Camera chỉ dùng để chụp vé.',
+  },
+  denied: {
+    title: 'Chưa được dùng camera',
+    body: 'Bấm Thử lại rồi chọn Cho phép. Không thấy hỏi thì bấm biểu tượng cạnh địa chỉ web, '
+        + 'bật Camera — hoặc chọn ảnh vé có sẵn.',
+  },
+  error: {
+    title: 'Không mở được camera',
+    body: 'Máy không có camera, hoặc ứng dụng khác đang dùng. Bạn có thể chọn ảnh vé có sẵn.',
+  },
+}
+
 export default function CameraCapture({ onCapture }: { onCapture: (blob: Blob) => void }) {
   const webcamRef = useRef<Webcam>(null)
-  // Laptop không có camera / user chặn quyền thì khung đen trơn, tưởng app treo → báo rõ.
-  const [cam, setCam] = useState<'starting' | 'ready' | 'error'>('starting')
+  const [cam, setCam] = useState<Cam>('checking')
+  // Webcam chỉ được mount lúc này — mount là trình duyệt bật camera (và hỏi quyền nếu chưa có).
+  const live = cam === 'starting' || cam === 'ready'
+
+  useEffect(() => {
+    let status: PermissionStatus | null = null
+    let gone = false
+    // Đổi quyền ngay trên trình duyệt (sửa trong cài đặt trang...) → theo luôn, khỏi tải lại trang.
+    const onChange = () => setCam(c => {
+      if (status!.state === 'denied') return 'denied'
+      if (c === 'starting' || c === 'ready') return c
+      return status!.state === 'granted' ? 'starting' : 'off'
+    })
+    void cameraPermission().then(s => {
+      if (gone) return
+      status = s
+      s?.addEventListener('change', onChange)
+      if (s?.state === 'denied') return setCam('denied')
+      // Chỉ tự mở khi đã có quyền: chưa có mà mở luôn thì hộp xin quyền bật lên trước khi user kịp
+      // biết app định làm gì — dễ bấm Chặn, mà đã chặn thì phải vào cài đặt trình duyệt mới gỡ được.
+      // Máy tính (chuột) lần đầu cũng chờ bấm: webcam chĩa vào mặt, ở đó người ta hay chọn ảnh hơn.
+      const granted = s ? s.state === 'granted' : startedThisSession
+      const auto = startedThisSession || window.matchMedia('(pointer: coarse)').matches
+      setCam(granted && auto ? 'starting' : 'off')
+    })
+    return () => { gone = true; status?.removeEventListener('change', onChange) }
+  }, [])
 
   const capture = useCallback(async () => {
     const video = webcamRef.current?.video
@@ -49,26 +111,32 @@ export default function CameraCapture({ onCapture }: { onCapture: (blob: Blob) =
       {/* Khung ngang 4:3 (vé cũng nằm ngang) thay vì cao theo camera dọc của điện thoại —
           đỡ chiếm gần hết màn hình, nút Chụp và ô Chọn ảnh hiện ngay không cần cuộn. */}
       <div className="relative aspect-[4/3] overflow-hidden rounded-xl bg-slate-900">
-        <Webcam
-          ref={webcamRef}
-          videoConstraints={{ facingMode: 'environment' }}
-          onUserMedia={() => setCam('ready')}
-          onUserMediaError={() => setCam('error')}
-          className="w-full h-full object-cover"
-        />
-        {/* Khung hướng dẫn căn vé */}
-        <div className="absolute inset-x-[9%] top-1/2 -translate-y-1/2 h-[48%] pointer-events-none">
-          {CORNERS.map(c => (
-            <span key={c} className={`absolute w-8 h-8 border-brand-400 drop-shadow-[0_0_6px_rgba(0,0,0,.5)] ${c}`} />
-          ))}
-          <span className="absolute -top-9 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full
-                           bg-black/45 backdrop-blur px-3 py-1 text-xs font-medium text-white">
-            Đặt vé vào giữa khung
-          </span>
-        </div>
-        {cam !== 'ready' && (
+        {live && (
+          <>
+            <Webcam
+              ref={webcamRef}
+              videoConstraints={{ facingMode: 'environment' }}
+              onUserMedia={() => { startedThisSession = true; setCam('ready') }}
+              // NotAllowedError: bấm Chặn, hoặc bấm X đóng hộp hỏi (Chrome) — cả hai đều hỏi lại được.
+              onUserMediaError={e => setCam(e instanceof DOMException && e.name === 'NotAllowedError'
+                                            ? 'denied' : 'error')}
+              className="w-full h-full object-cover"
+            />
+            {/* Khung hướng dẫn căn vé */}
+            <div className="absolute inset-x-[9%] top-1/2 -translate-y-1/2 h-[48%] pointer-events-none">
+              {CORNERS.map(c => (
+                <span key={c} className={`absolute w-8 h-8 border-brand-400 drop-shadow-[0_0_6px_rgba(0,0,0,.5)] ${c}`} />
+              ))}
+              <span className="absolute -top-9 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full
+                               bg-black/45 backdrop-blur px-3 py-1 text-xs font-medium text-white">
+                Đặt vé vào giữa khung
+              </span>
+            </div>
+          </>
+        )}
+        {cam !== 'ready' && cam !== 'checking' && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-6 text-center
-                          text-sm text-white/80">
+                          text-sm text-white/70">
             {cam === 'starting' ? (
               <>
                 <span className="w-8 h-8 rounded-full border-2 border-white/25 border-t-white motion-safe:animate-spin" />
@@ -77,15 +145,20 @@ export default function CameraCapture({ onCapture }: { onCapture: (blob: Blob) =
             ) : (
               <>
                 <Icon name="camera" className="w-8 h-8 text-white/60" />
-                Không mở được camera. Hãy cho phép quyền camera, hoặc chọn ảnh vé có sẵn.
+                <span className="text-base font-semibold text-white">{CAM_TEXT[cam].title}</span>
+                <span className="max-w-xs">{CAM_TEXT[cam].body}</span>
               </>
             )}
           </div>
         )}
       </div>
-      <button onClick={capture} disabled={cam !== 'ready'}
+      {/* Một nút chính cho mọi trạng thái, cùng chỗ để bấm: Bật camera → Chụp vé, lỗi thì Thử lại. */}
+      <button onClick={live ? capture : () => setCam('starting')}
+              disabled={cam === 'checking' || cam === 'starting'}
               className="btn btn-primary mt-3 w-full py-3.5 text-lg">
-        <Icon name="camera" className="w-6 h-6" /> Chụp vé
+        {cam === 'denied' || cam === 'error'
+          ? <><Icon name="retry" className="w-6 h-6" /> Thử lại</>
+          : <><Icon name="camera" className="w-6 h-6" /> {cam === 'off' ? 'Bật camera' : 'Chụp vé'}</>}
       </button>
     </div>
   )
