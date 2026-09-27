@@ -11,6 +11,8 @@ Thư mục này là bản rút gọn để chạy.
 | `Caddyfile.template` | template | Caddy config (`__DOMAIN__` được thay khi setup) |
 | `oci-retry-arm.ps1` | máy Windows | thử tạo VM ARM liên tục cho tới khi Oracle có capacity |
 | `tunnel.ps1` | máy Windows | chạy app ra internet qua Cloudflare Tunnel, không cần VM |
+| `ORACLE-VM.md` | hướng dẫn | tạo VM Oracle Always Free từng bước (đăng ký → mạng → VM → IP tĩnh → DuckDNS) |
+| `VERCEL.md` | hướng dẫn | đưa frontend lên Vercel (backend vẫn cần VM/container — Vercel không chạy .NET) |
 
 ## Chưa có VM? Hai script gỡ bí
 

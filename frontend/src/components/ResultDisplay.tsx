@@ -1,9 +1,10 @@
 import { provinceName } from '../data/provinces'
+import { CLAIM_DAYS, claimDeadline } from '../utils/claim'
 
 type Winning = { tierName: string; amount: number }
 
-// 'Checked' = đã đối chiếu kết quả thật; 2 trạng thái còn lại KHÔNG kết luận trúng/trượt.
-type Status = 'Checked' | 'NotDrawnYet' | 'NoData'
+// 'Checked' = đã đối chiếu kết quả thật; các trạng thái còn lại KHÔNG kết luận trúng/trượt.
+type Status = 'Checked' | 'NotDrawnYet' | 'NoData' | 'Expired'
 
 type Props = {
   result: {
@@ -12,6 +13,7 @@ type Props = {
     province: string | null
     status?: Status
     drawsAt?: string | null   // ISO không timezone, giờ VN (vd "2026-08-23T16:15:00")
+    claimDeadline?: string | null  // 'YYYY-MM-DD' — hạn cuối lĩnh thưởng, chỉ có khi Expired
     isWinner: boolean
     winnings: Winning[]
     totalPrize: number
@@ -45,7 +47,16 @@ export default function ResultDisplay({ result, onRescan }: Props) {
         </div>
       </div>
 
-      {status === 'NotDrawnYet' ? (
+      {status === 'Expired' ? (
+        <div className="bg-red-50 border border-red-300 rounded-2xl p-6 text-center">
+          <div className="text-2xl mb-2">⌛</div>
+          <div className="font-medium text-red-800">Vé hết hạn</div>
+          <div className="text-sm text-red-700/80 mt-1">
+            Vé mở thưởng ngày <b>{formatDate(drawDate)}</b> — hạn lĩnh thưởng {CLAIM_DAYS} ngày
+            (đến hết ngày <b>{formatDate(result.claimDeadline ?? (drawDate ? claimDeadline(drawDate) : null))}</b>) đã qua.
+          </div>
+        </div>
+      ) : status === 'NotDrawnYet' ? (
         <div className="bg-amber-50 border border-amber-300 rounded-2xl p-6 text-center">
           <div className="text-2xl mb-2">⏳</div>
           <div className="font-medium text-amber-800">Vé chưa đến giờ xổ</div>
@@ -92,6 +103,10 @@ export default function ResultDisplay({ result, onRescan }: Props) {
           <div className="text-sm text-gray-500 mt-1">Chúc bạn may mắn lần sau!</div>
         </div>
       )}
+
+      <p className="text-xs text-gray-500 text-center px-2">
+        Kết quả do AI đọc và có thể mắc sai sót, chúng tôi không chịu trách nhiệm nếu bạn hủy vé.
+      </p>
 
       <button onClick={onRescan}
               className="w-full bg-blue-600 text-white py-3 rounded-lg">

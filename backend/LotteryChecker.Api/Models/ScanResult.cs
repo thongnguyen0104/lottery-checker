@@ -13,6 +13,7 @@ public enum CheckStatus
     Checked,        // đã đối chiếu với kết quả thật → IsWinner/Winnings có ý nghĩa
     NotDrawnYet,    // chưa đến giờ xổ của đài đó
     NoData,         // đã xổ nhưng DB chưa có kết quả (chưa cào được / đài không xổ ngày đó)
+    Expired,        // quá 30 ngày kể từ ngày mở thưởng → hết hạn lĩnh thưởng, không dò nữa
 }
 
 public class ScanResult
@@ -22,6 +23,7 @@ public class ScanResult
     public string? Province { get; set; }
     public CheckStatus Status { get; set; } = CheckStatus.Checked;
     public DateTime? DrawsAt { get; set; }      // giờ VN sẽ xổ — chỉ set khi NotDrawnYet
+    public DateOnly? ClaimDeadline { get; set; } // hạn cuối lĩnh thưởng — chỉ set khi Expired
     public bool IsWinner { get; set; }
     public List<WinningPrize> Winnings { get; set; } = new();
     public decimal TotalPrize { get; set; }

@@ -17,8 +17,22 @@ public class LotteryMatcher
 
     public async Task<ScanResult> Match(string ticket, DateOnly date, string province, CancellationToken ct)
     {
+        var nowVn = DrawSchedule.NowVn(_time);
+
+        // Quá 30 ngày → hết hạn lĩnh thưởng. Không dò: trúng cũng không lĩnh được, còn kết quả
+        // cũ thường cũng không có trong DB (scraper chỉ giữ ~30 ngày) → dò ra "NoData" chỉ gây rối.
+        if (DrawSchedule.IsExpired(date, nowVn))
+            return new ScanResult
+            {
+                ExtractedNumber = ticket,
+                DrawDate = date,
+                Province = province,
+                Status = CheckStatus.Expired,
+                ClaimDeadline = DrawSchedule.ClaimDeadline(date)
+            };
+
         // Chưa đến giờ xổ của đài đó → chưa thể nói trúng hay trượt.
-        if (!DrawSchedule.HasDrawn(date, province, DrawSchedule.NowVn(_time)))
+        if (!DrawSchedule.HasDrawn(date, province, nowVn))
             return new ScanResult
             {
                 ExtractedNumber = ticket,

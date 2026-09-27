@@ -1,13 +1,5 @@
+import type { ScanResponse, ScanTimings } from '../api/client'
 import { provinceName } from '../data/provinces'
-
-type Scanned = {
-  ticketNumber: string | null
-  drawDate: string | null
-  province: string | null
-  confidence: number
-  lowConfidence: boolean
-  ticketNumberFromCloud?: boolean
-}
 
 const fmtDate = (iso: string | null) => {
   if (!iso) return null
@@ -15,11 +7,45 @@ const fmtDate = (iso: string | null) => {
   return `${d}/${m}/${y}`
 }
 
+// < 1s giữ nguyên ms (so sánh chặng nhanh cho dễ), từ 1s trở lên đổi ra giây kiểu VN (2,4s).
+const fmtMs = (ms: number) =>
+  ms < 1000 ? `${Math.round(ms)}ms` : `${(ms / 1000).toFixed(1).replace('.', ',')}s`
+
+const fmtBytes = (b: number) =>
+  b < 1024 * 1024 ? `${Math.round(b / 1024)}KB` : `${(b / 1024 / 1024).toFixed(1).replace('.', ',')}MB`
+
+// Chặng nối tiếp, khớp key backend trả về (ScanController). Cộng lại đúng bằng timings.total.
+// Chặng cloud = null khi OCR cục bộ đã đủ tin → hiện "bỏ qua" cho thấy rõ là KHÔNG gọi cloud.
+const STAGES: { key: Exclude<keyof ScanTimings, 'total'>; label: string }[] = [
+  { key: 'upload',       label: 'Nhận ảnh (upload)' },
+  { key: 'preprocess',   label: 'Tiền xử lý ảnh' },
+  { key: 'localOcr',     label: 'Đọc chữ trên máy chủ' },
+  { key: 'localRetry',   label: 'Đọc lại (ảnh tăng tương phản)' },
+  { key: 'cloudPrepare', label: 'Chuẩn bị ảnh cho AI' },
+  { key: 'cloudOcr',     label: 'AI đọc lại (OCR.space)' },
+  { key: 'merge',        label: 'Gộp kết quả' },
+]
+
+// Mã lý do từ TicketResultValidator → câu dễ hiểu (vì sao phải nhờ AI đọc lại).
+const REASONS: Record<string, string> = {
+  number_missing: 'không thấy số vé',
+  number_ambiguous: 'nhiều số vé khác nhau',
+  number_normalized: 'số vé bị mờ/nhầm ký tự',
+  date_missing: 'không thấy ngày',
+  date_out_of_range: 'ngày bất thường',
+  province_missing: 'không thấy đài',
+  province_fuzzy: 'tên đài chưa rõ',
+  province_ambiguous: 'thấy nhiều tên đài',
+  low_confidence: 'ảnh chưa đủ rõ',
+}
+
 // Hiển thị kết quả OCR theo từng trường: đọc được gì (✅) / chưa đọc được gì (❌) + gợi ý chụp lại.
-export default function ScanFeedback({ scanned }: { scanned: Scanned }) {
+export default function ScanFeedback({ scanned }: { scanned: ScanResponse }) {
+  const review = new Set(scanned.needsReview ?? [])
   const fields = [
     {
       label: 'Số vé',
+      review: review.has('number'),
       ok: !!scanned.ticketNumber,
       value: scanned.ticketNumber,
       tip: 'chụp rõ dãy 6 chữ số, tránh mờ/lóa',
@@ -27,6 +53,7 @@ export default function ScanFeedback({ scanned }: { scanned: Scanned }) {
     },
     {
       label: 'Ngày',
+      review: review.has('date'),
       ok: !!scanned.drawDate,
       value: fmtDate(scanned.drawDate),
       tip: 'lấy nét vào dòng ngày (vd 16-06-2026)',
@@ -34,6 +61,7 @@ export default function ScanFeedback({ scanned }: { scanned: Scanned }) {
     },
     {
       label: 'Đài',
+      review: review.has('province'),
       ok: !!scanned.province,
       value: scanned.province ? provinceName(scanned.province) : null,
       tip: 'chụp rõ phần tên tỉnh/đài',
@@ -42,18 +70,30 @@ export default function ScanFeedback({ scanned }: { scanned: Scanned }) {
   ]
   const missing = fields.filter(f => !f.ok)
 
+  const t = scanned.timings
+  // Phần trình duyệt chờ mà máy chủ không tính: truyền dữ liệu qua mạng (4G/tunnel).
+  // Math.max(0,…) vì hai đồng hồ khác máy, chênh vài ms có thể ra số âm.
+  const networkMs = t ? Math.max(0, scanned.clientMs - t.total) : 0
+  const up = scanned.upload
+  // Tổng user cảm nhận = nén ở trình duyệt + (mạng + máy chủ).
+  const totalMs = scanned.clientMs + up.compressMs
+
   return (
     <div className="space-y-3">
       <div className="bg-white rounded-2xl shadow p-4 space-y-2">
         <div className="text-sm font-semibold text-gray-700">Kết quả đọc tự động</div>
         {fields.map(f => (
           <div key={f.label} className="flex items-start gap-2 text-sm">
-            <span>{f.ok ? '✅' : '❌'}</span>
+            {/* 3 mức: ❌ không đọc được · ⚠️ đọc được nhưng chưa chắc (kiểm tra ô bên dưới) · ✅ chắc */}
+            <span>{!f.ok ? '❌' : f.review ? '⚠️' : '✅'}</span>
             <div>
               <span className="font-medium">{f.label}:</span>{' '}
-              {f.ok
-                ? <span className="text-green-700 font-semibold">{f.value}</span>
-                : <span className="text-red-600">chưa rõ — {f.tip}</span>}
+              {!f.ok
+                ? <span className="text-red-600">chưa rõ — {f.tip}</span>
+                : f.review
+                  ? <><span className="text-amber-700 font-semibold">{f.value}</span>
+                      <span className="text-amber-700"> — chưa chắc, kiểm tra lại bên dưới</span></>
+                  : <span className="text-green-700 font-semibold">{f.value}</span>}
               {f.ok && f.badge && (
                 <span className="ml-2 text-[11px] bg-blue-50 text-blue-600 rounded px-1.5 py-0.5">
                   {f.badge}
@@ -66,6 +106,91 @@ export default function ScanFeedback({ scanned }: { scanned: Scanned }) {
           Độ tin cậy OCR: {Math.round(scanned.confidence * 100)}%
           {scanned.lowConfidence && ' (thấp — nên kiểm tra kỹ)'}
         </div>
+
+        {t && (
+          // Gấp lại mặc định: user bình thường chỉ cần tổng, còn chi tiết là để soi khi chậm.
+          <details className="text-xs text-gray-500">
+            <summary className="cursor-pointer select-none">
+              ⏱ Xử lý hết <b className="text-gray-700">{fmtMs(totalMs)}</b>
+              {' '}(máy chủ {fmtMs(t.total)}) — xem chi tiết
+            </summary>
+            <div className="mt-1.5 space-y-0.5">
+              <div className="flex justify-between gap-4">
+                <span>
+                  {up.compressed
+                    ? `Nén ảnh (${fmtBytes(up.originalBytes)} → ${fmtBytes(up.sentBytes)})`
+                    : `Gửi ảnh gốc (${fmtBytes(up.sentBytes)})`}
+                </span>
+                <span className="tabular-nums">{fmtMs(up.compressMs)}</span>
+              </div>
+              {/* Tách khâu nén ra để biết chậm ở giải mã, thu nhỏ hay mã hoá trên máy thật */}
+              {up.stages && ([
+                ['decode', `Giải mã ảnh (${up.stages.decoder})`],
+                ['resize', 'Thu nhỏ'],
+                ['encode', 'Mã hoá JPEG'],
+              ] as const).map(([k, label]) => (
+                <div key={k} className="flex justify-between gap-4 pl-3 text-gray-400">
+                  <span>↳ {label}</span>
+                  <span className="tabular-nums">{fmtMs(up.stages![k])}</span>
+                </div>
+              ))}
+              {/* undefined = backend cũ không có key này → ẩn; null = có nhưng không chạy → "bỏ qua" */}
+              {STAGES.filter(s => t[s.key] !== undefined).map(s => {
+                const ms = t[s.key]
+                return (
+                  <div key={s.key}>
+                    <div className={`flex justify-between gap-4 ${ms == null ? 'text-gray-400' : ''}`}>
+                      <span>{s.label}</span>
+                      <span className="tabular-nums">{ms == null ? 'bỏ qua' : fmtMs(ms)}</span>
+                    </div>
+                    {/* Chi tiết bên trong chặng OCR — chậm ở dò vùng chữ hay nhận dạng dòng */}
+                    {s.key === 'localOcr' && t.ocrDetect != null && (
+                      <>
+                        <div className="flex justify-between gap-4 pl-3 text-gray-400">
+                          <span>↳ Dò vùng chữ</span>
+                          <span className="tabular-nums">{fmtMs(t.ocrDetect)}</span>
+                        </div>
+                        {t.ocrRecognize != null && (
+                          <div className="flex justify-between gap-4 pl-3 text-gray-400">
+                            <span>↳ Nhận dạng {t.ocrLines != null ? `${t.ocrLines} dòng` : 'các dòng'}</span>
+                            <span className="tabular-nums">{fmtMs(t.ocrRecognize)}</span>
+                          </div>
+                        )}
+                      </>
+                    )}
+                    {s.key === 'localRetry' && ms != null && scanned.localRetry && (
+                      <div className="pl-3 text-gray-400">
+                        ↳ {scanned.localRetry.filled.length > 0
+                          ? `Lấp được: ${scanned.localRetry.filled.map(f => f === 'date' ? 'ngày' : 'đài').join(', ')}`
+                          : 'Không lấp thêm được trường nào'}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+              {scanned.ocrPath === 'local-review' && (
+                <div className="text-gray-400">↳ Số vé đã chắc — không cần AI đọc lại, chỉ cần kiểm tra trường đánh dấu ⚠️</div>
+              )}
+              {scanned.ocrPath === 'local-expired' && (
+                <div className="text-gray-400">↳ Vé đã hết hạn — không cần AI đọc lại</div>
+              )}
+              {scanned.ocrPath?.startsWith('cloud') && scanned.localValidation && !scanned.localValidation.passed && (
+                <div className="text-gray-400">
+                  ↳ Nhờ AI đọc lại vì: {scanned.localValidation.reasons.map(r => REASONS[r] ?? r).join(', ')}
+                  {scanned.ocrPath === 'cloud-failed' && ' (AI không phản hồi kịp — dùng kết quả máy chủ)'}
+                </div>
+              )}
+              <div className="flex justify-between gap-4">
+                <span>Truyền qua mạng</span>
+                <span className="tabular-nums">{fmtMs(networkMs)}</span>
+              </div>
+              <div className="flex justify-between gap-4 border-t border-gray-200 pt-0.5 font-semibold text-gray-700">
+                <span>Tổng</span>
+                <span className="tabular-nums">{fmtMs(totalMs)}</span>
+              </div>
+            </div>
+          </details>
+        )}
       </div>
 
       {missing.length > 0 && (

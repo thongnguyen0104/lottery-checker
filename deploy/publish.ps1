@@ -48,7 +48,18 @@ if ($doBackend) {
     Assert-Ok "dotnet publish"
 
     if (-not (Test-Path "$work\api\tessdata\vie.traineddata")) {
-        throw "publish thieu tessdata/vie.traineddata - OCR se chet tren server"
+        throw "publish thieu tessdata/vie.traineddata - OCR Tesseract se chet tren server"
+    }
+    # Engine OCR mac dinh la ONNX (PP-OCRv5): thieu 1 trong 4 file nay la /api/scan hong ngay
+    # tu request dau, ma loi chi lo ra luc chay chu khong phai luc publish.
+    foreach ($m in 'ch_PP-OCRv5_mobile_det.onnx', 'ch_PP-LCNet_x0_25_textline_ori_cls_mobile.onnx',
+                   'latin_PP-OCRv5_rec_mobile_infer.onnx', 'ppocrv5_latin_dict.txt') {
+        if (-not (Test-Path "$work\api\models\v5\$m")) {
+            throw "publish thieu models/v5/$m - OCR ONNX se chet tren server"
+        }
+    }
+    if (-not (Test-Path "$work\api\runtimes\linux-arm64\native\libonnxruntime.so")) {
+        throw "publish thieu native linux-arm64 cho ONNX Runtime - se chet tren VM ARM"
     }
 
     Step "Nen + day backend"

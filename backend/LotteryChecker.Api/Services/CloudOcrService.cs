@@ -29,6 +29,12 @@ public class CloudOcrService
     /// <summary>Bật khi có cấu hình hợp lệ (Enabled + ApiKey không rỗng).</summary>
     public bool IsEnabled => _opt.Enabled && !string.IsNullOrWhiteSpace(_opt.ApiKey);
 
+    /// <summary>
+    /// true (mặc định) = chỉ gọi cloud khi SỐ VÉ có rủi ro; đài/ngày chưa chắc thì để user kiểm
+    /// tra trên form. false = gọi cloud cho mọi kết quả không qua validate (hành vi cũ).
+    /// </summary>
+    public bool OnlyForTicketNumber => _opt.OnlyForTicketNumber;
+
     /// <summary>Gửi ảnh (JPEG/PNG, &lt;1MB cho gói free) lên cloud OCR, trả text đọc được hoặc null.</summary>
     public async Task<string?> ReadTextAsync(byte[] imageBytes, CancellationToken ct = default)
     {
@@ -90,6 +96,7 @@ public class CloudOcrService
         public string? ApiKey { get; set; }
         public string Language { get; set; } = "eng";  // số vé là chữ số → eng đủ; Engine 2 chỉ hỗ trợ eng
         public int Engine { get; set; } = 2;            // Engine 2 đọc font cách điệu tốt hơn Engine 1
+        public bool OnlyForTicketNumber { get; set; } = true;  // xem CloudOcrService.OnlyForTicketNumber
     }
 
     private sealed class OcrSpaceResponse

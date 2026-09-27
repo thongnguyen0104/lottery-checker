@@ -187,7 +187,7 @@ Environment=ASPNETCORE_URLS=http://127.0.0.1:5000
 # Chỉ để log dễ đọc — worker đã tự tính 19:00 theo giờ VN, không phụ thuộc dòng này
 Environment=TZ=Asia/Ho_Chi_Minh
 # DB đặt ngoài thư mục publish để deploy lại không đè mất
-Environment=ConnectionStrings__Default=Data Source=/var/lib/lottery/lottery.db
+Environment="ConnectionStrings__Default=Data Source=/var/lib/lottery/lottery.db"
 EnvironmentFile=/etc/lottery-api.env
 
 [Install]

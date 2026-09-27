@@ -46,11 +46,40 @@ public static class DrawSchedule
     public static bool HasDrawn(DateOnly date, string province, DateTime nowVn) =>
         nowVn >= DrawMoment(date, province);
 
+    // Lịch xổ Miền Nam theo thứ — chép nguyên văn từ xosodaiphat.com (nguồn scraper đang cào).
+    // Thứ 7 có 4 đài; các ngày khác 3 đài.
+    private static readonly Dictionary<DayOfWeek, string[]> MnSchedule = new()
+    {
+        [DayOfWeek.Monday]    = ["TPHCM", "DongThap", "CaMau"],
+        [DayOfWeek.Tuesday]   = ["BenTre", "VungTau", "BacLieu"],
+        [DayOfWeek.Wednesday] = ["DongNai", "CanTho", "SocTrang"],
+        [DayOfWeek.Thursday]  = ["TayNinh", "AnGiang", "BinhThuan"],
+        [DayOfWeek.Friday]    = ["VinhLong", "BinhDuong", "TraVinh"],
+        [DayOfWeek.Saturday]  = ["TPHCM", "LongAn", "BinhPhuoc", "HauGiang"],
+        [DayOfWeek.Sunday]    = ["TienGiang", "KienGiang", "DaLat"],
+    };
+
+    /// <summary>Các đài Miền Nam xổ vào ngày này (theo lịch cố định trong tuần).</summary>
+    public static IReadOnlyList<string> MnProvincesOn(DateOnly date) => MnSchedule[date.DayOfWeek];
+
+    /// <summary>Vé XSKT được lĩnh thưởng trong 30 ngày kể từ ngày mở thưởng.</summary>
+    public const int ClaimDays = 30;
+
+    /// <summary>Ngày cuối cùng còn lĩnh thưởng được (tính cả ngày này).</summary>
+    public static DateOnly ClaimDeadline(DateOnly drawDate) => drawDate.AddDays(ClaimDays);
+
+    /// <summary>Vé đã quá hạn lĩnh thưởng chưa — so theo NGÀY giờ VN.</summary>
+    public static bool IsExpired(DateOnly drawDate, DateTime nowVn) =>
+        DateOnly.FromDateTime(nowVn) > ClaimDeadline(drawDate);
+
+    /// <summary>Giờ trong ngày (VN) kết quả MN bắt đầu lên web đủ — mốc cào đầu tiên của worker.</summary>
+    public static TimeSpan MnPublishedAt => MnDraw.ToTimeSpan() + PublishDelay;
+
     /// <summary>Ngày gần nhất mà kết quả MN đã xổ VÀ đã lên web — mốc để biết cần cào tới đâu.</summary>
     public static DateOnly LatestPublishedDate(DateTime nowVn)
     {
         var today = DateOnly.FromDateTime(nowVn);
-        return nowVn.TimeOfDay >= MnDraw.ToTimeSpan() + PublishDelay ? today : today.AddDays(-1);
+        return nowVn.TimeOfDay >= MnPublishedAt ? today : today.AddDays(-1);
     }
 
     private static TimeZoneInfo ResolveVietnamZone()
