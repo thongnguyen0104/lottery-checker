@@ -94,6 +94,26 @@ public class TicketResultValidator
         return fields;
     }
 
+    /// <summary>
+    /// Kết quả CUỐI đủ chắc để FE dò luôn, bỏ qua bước user xác nhận. Chặt hơn "needsReview rỗng":
+    /// <list type="bullet">
+    /// <item>Số vé hợp lệ và từ nguồn đáng tin: cloud đọc, hoặc OCR cục bộ qua cả ngưỡng confidence.
+    /// needsReview không xét confidence — cloud lỗi/không trả số thì số vé confidence thấp vẫn "sạch".</item>
+    /// <item>Đài khớp nguyên văn, không mơ hồ.</item>
+    /// <item>Ngày trong khoảng hợp lý, hoặc cũ mà đọc khớp ở ≥2 chỗ (dò ra "Vé hết hạn"). Ngày cũ chỉ
+    /// đọc được 1 chỗ có thể là nhầm năm của vé còn hạn — needsReview không đánh dấu nên phải chặn ở đây.</item>
+    /// </list>
+    /// </summary>
+    /// <param name="localCheck">Kết quả validate OCR cục bộ TRƯỚC khi gộp cloud; null = OCR cục bộ không chạy.</param>
+    public bool CanAutoCheck(TicketInfo info, TicketValidation? localCheck)
+    {
+        var check = Validate(info);
+        var numberTrusted = info.TicketNumberFromCloud || localCheck is { NumberOk: true, ConfidenceOk: true };
+        var dateSure = check.DateOk
+            || (info.DrawDate is { } date && info.DrawDateVotes >= 2 && DrawSchedule.IsExpired(date, DrawSchedule.NowVn(_time)));
+        return check.NumberOk && numberTrusted && check.ProvinceOk && dateSure;
+    }
+
     /// <summary>Ngày mở thưởng nằm trong khoảng hợp lý quanh hôm nay (giờ VN).</summary>
     public bool IsPlausibleDrawDate(DateOnly date)
     {
