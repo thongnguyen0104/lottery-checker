@@ -95,8 +95,8 @@ export default function ScanFeedback({ scanned }: { scanned: ScanResponse }) {
 
   return (
     <div className="space-y-3">
-      <div className="bg-white rounded-2xl shadow p-4 space-y-2">
-        <div className="text-sm font-semibold text-gray-700">Kết quả đọc tự động</div>
+      <div className="card p-4 space-y-2">
+        <div className="text-sm font-semibold text-ink">Kết quả đọc tự động</div>
         {fields.map(f => (
           <div key={f.label} className="flex items-start gap-2 text-sm">
             {/* 3 mức: ❌ không đọc được · ⚠️ đọc được nhưng chưa chắc (kiểm tra ô bên dưới) · ✅ chắc */}
@@ -104,13 +104,13 @@ export default function ScanFeedback({ scanned }: { scanned: ScanResponse }) {
             <div>
               <span className="font-medium">{f.label}:</span>{' '}
               {!f.ok
-                ? <span className="text-red-600">chưa rõ — {f.tip}</span>
+                ? <span className="text-bad">chưa rõ — {f.tip}</span>
                 : f.review
-                  ? <><span className="text-amber-700 font-semibold">{f.value}</span>
-                      <span className="text-amber-700"> — chưa chắc, kiểm tra lại bên dưới</span></>
-                  : <span className="text-green-700 font-semibold">{f.value}</span>}
+                  ? <><span className="text-warn font-semibold">{f.value}</span>
+                      <span className="text-warn"> — chưa chắc, kiểm tra lại bên dưới</span></>
+                  : <span className="text-ok font-semibold">{f.value}</span>}
               {f.ok && f.badge && (
-                <span className="ml-2 text-[11px] bg-blue-50 text-blue-600 rounded px-1.5 py-0.5">
+                <span className="ml-2 text-[11px] bg-info/10 text-info rounded px-1.5 py-0.5">
                   {f.badge}
                 </span>
               )}
@@ -119,7 +119,7 @@ export default function ScanFeedback({ scanned }: { scanned: ScanResponse }) {
         ))}
         {/* null = OCR cục bộ không chạy, AI đọc thẳng — AI không trả điểm tin cậy, trường chưa chắc đã có ⚠️ */}
         {scanned.confidence != null && (
-          <div className="text-xs text-gray-500 pt-1">
+          <div className="text-xs text-ink-faint pt-1">
             Độ tin cậy OCR: {Math.round(scanned.confidence * 100)}%
             {scanned.lowConfidence && ' (thấp — nên kiểm tra kỹ)'}
           </div>
@@ -127,9 +127,9 @@ export default function ScanFeedback({ scanned }: { scanned: ScanResponse }) {
 
         {t && (
           // Gấp lại mặc định: user bình thường chỉ cần tổng, còn chi tiết là để soi khi chậm.
-          <details className="text-xs text-gray-500">
+          <details className="text-xs text-ink-faint">
             <summary className="cursor-pointer select-none">
-              ⏱ Xử lý hết <b className="text-gray-700">{fmtMs(totalMs)}</b>
+              ⏱ Xử lý hết <b className="text-ink">{fmtMs(totalMs)}</b>
               {' '}(máy chủ {fmtMs(t.total)}) — xem chi tiết
             </summary>
             <div className="mt-1.5 space-y-0.5">
@@ -147,7 +147,7 @@ export default function ScanFeedback({ scanned }: { scanned: ScanResponse }) {
                 ['resize', 'Thu nhỏ'],
                 ['encode', 'Mã hoá JPEG'],
               ] as const).map(([k, label]) => (
-                <div key={k} className="flex justify-between gap-4 pl-3 text-gray-400">
+                <div key={k} className="flex justify-between gap-4 pl-3 text-ink-faint/70">
                   <span>↳ {label}</span>
                   <span className="tabular-nums">{fmtMs(up.stages![k])}</span>
                 </div>
@@ -157,7 +157,7 @@ export default function ScanFeedback({ scanned }: { scanned: ScanResponse }) {
                 const ms = t[s.key]
                 return (
                   <div key={s.key}>
-                    <div className={`flex justify-between gap-4 ${ms == null ? 'text-gray-400' : ''}`}>
+                    <div className={`flex justify-between gap-4 ${ms == null ? 'text-ink-faint/70' : ''}`}>
                       <span>
                         {s.label}
                         {s.key === 'cloudOcr' && scanned.cloudProvider && ` (${PROVIDER_NAMES[scanned.cloudProvider]})`}
@@ -167,12 +167,12 @@ export default function ScanFeedback({ scanned }: { scanned: ScanResponse }) {
                     {/* Chi tiết bên trong chặng OCR — chậm ở dò vùng chữ hay nhận dạng dòng */}
                     {s.key === 'localOcr' && t.ocrDetect != null && (
                       <>
-                        <div className="flex justify-between gap-4 pl-3 text-gray-400">
+                        <div className="flex justify-between gap-4 pl-3 text-ink-faint/70">
                           <span>↳ Dò vùng chữ</span>
                           <span className="tabular-nums">{fmtMs(t.ocrDetect)}</span>
                         </div>
                         {t.ocrRecognize != null && (
-                          <div className="flex justify-between gap-4 pl-3 text-gray-400">
+                          <div className="flex justify-between gap-4 pl-3 text-ink-faint/70">
                             <span>↳ Nhận dạng {t.ocrLines != null ? `${t.ocrLines} dòng` : 'các dòng'}</span>
                             <span className="tabular-nums">{fmtMs(t.ocrRecognize)}</span>
                           </div>
@@ -182,17 +182,17 @@ export default function ScanFeedback({ scanned }: { scanned: ScanResponse }) {
                     {/* Chặng AI = tổng các lượt thử: tách ra để thấy lượt chậm là do Gemini lỗi/treo
                         rồi mới lùi về OCR.space, hay do chính nguồn đã trả lời */}
                     {s.key === 'cloudOcr' && scanned.cloudAttempts?.map((a, i) => (
-                      <div key={i} className="flex justify-between gap-4 pl-3 text-gray-400">
+                      <div key={i} className="flex justify-between gap-4 pl-3 text-ink-faint/70">
                         <span>
                           ↳ {PROVIDER_NAMES[a.provider] ?? a.provider}
                           {a.retried && a.retried.length > 0 && ` (gọi lại sau lỗi ${a.retried.map(cloudErrorText).join(', ')})`}
-                          {a.error && <span className="text-amber-600"> — {cloudErrorText(a.error)}</span>}
+                          {a.error && <span className="text-warn"> — {cloudErrorText(a.error)}</span>}
                         </span>
                         <span className="tabular-nums">{fmtMs(a.ms)}</span>
                       </div>
                     ))}
                     {s.key === 'localRetry' && ms != null && scanned.localRetry && (
-                      <div className="pl-3 text-gray-400">
+                      <div className="pl-3 text-ink-faint/70">
                         ↳ {scanned.localRetry.filled.length > 0
                           ? `Lấp được: ${scanned.localRetry.filled.map(f => f === 'date' ? 'ngày' : 'đài').join(', ')}`
                           : 'Không lấp thêm được trường nào'}
@@ -202,28 +202,28 @@ export default function ScanFeedback({ scanned }: { scanned: ScanResponse }) {
                 )
               })}
               {scanned.ocrPath === 'local-review' && (
-                <div className="text-gray-400">↳ Số vé đã chắc — không cần AI đọc lại, chỉ cần kiểm tra trường đánh dấu ⚠️</div>
+                <div className="text-ink-faint/70">↳ Số vé đã chắc — không cần AI đọc lại, chỉ cần kiểm tra trường đánh dấu ⚠️</div>
               )}
               {scanned.ocrPath === 'local-expired' && (
-                <div className="text-gray-400">↳ Vé đã hết hạn — không cần AI đọc lại</div>
+                <div className="text-ink-faint/70">↳ Vé đã hết hạn — không cần AI đọc lại</div>
               )}
               {scanned.ocrPath?.startsWith('cloud') && scanned.localValidation && !scanned.localValidation.passed && (
-                <div className="text-gray-400">
+                <div className="text-ink-faint/70">
                   ↳ Nhờ AI đọc lại vì: {scanned.localValidation.reasons.map(r => REASONS[r] ?? r).join(', ')}
                   {scanned.ocrPath === 'cloud-failed' && ' (AI không phản hồi kịp — dùng kết quả máy chủ)'}
                 </div>
               )}
               {scanned.ocrPath === 'cloud-only' && (
-                <div className="text-gray-400">↳ AI đọc thẳng ảnh (không chạy OCR trên máy chủ)</div>
+                <div className="text-ink-faint/70">↳ AI đọc thẳng ảnh (không chạy OCR trên máy chủ)</div>
               )}
               {scanned.ocrPath === 'cloud-only-failed' && (
-                <div className="text-gray-400">↳ AI không phản hồi — vui lòng điền tay bên dưới</div>
+                <div className="text-ink-faint/70">↳ AI không phản hồi — vui lòng điền tay bên dưới</div>
               )}
               <div className="flex justify-between gap-4">
                 <span>Truyền qua mạng</span>
                 <span className="tabular-nums">{fmtMs(networkMs)}</span>
               </div>
-              <div className="flex justify-between gap-4 border-t border-gray-200 pt-0.5 font-semibold text-gray-700">
+              <div className="flex justify-between gap-4 border-t border-line pt-0.5 font-semibold text-ink">
                 <span>Tổng</span>
                 <span className="tabular-nums">{fmtMs(totalMs)}</span>
               </div>
@@ -233,7 +233,7 @@ export default function ScanFeedback({ scanned }: { scanned: ScanResponse }) {
       </div>
 
       {missing.length > 0 && (
-        <div className="bg-yellow-50 border border-yellow-300 rounded-xl p-3 text-sm text-yellow-800">
+        <div className="alert bg-warn/10 border-warn/30 text-warn">
           📷 Chưa đọc được: <b>{missing.map(f => f.label.toLowerCase()).join(', ')}</b>.
           Bạn có thể điền tay bên dưới, hoặc <b>chụp lại rõ hơn</b>: đủ sáng, chụp thẳng
           (không nghiêng), tránh bóng/lóa, lấy nét vào dãy số và chữ.

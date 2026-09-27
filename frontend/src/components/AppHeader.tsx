@@ -1,63 +1,59 @@
-import { useEffect, useState } from 'react'
+import Icon from './Icon'
+import { VIEWS, type View } from '../views'
 
-export type View = 'check' | 'lucky' | 'results'
+type Props = {
+  view: View
+  onChange: (v: View) => void
+  onOpenTheme: () => void
+}
 
-const VIEWS: { id: View; icon: string; title: string; hint: string }[] = [
-  { id: 'check', icon: '🎫', title: 'Dò Vé Số', hint: 'Chụp vé, tự đọc số và dò giải' },
-  { id: 'lucky', icon: '🍀', title: '6 Số May Mắn', hint: 'Chọn ngẫu nhiên kiểu Vietlott 6/45, 6/55' },
-  { id: 'results', icon: '📅', title: 'Kết Quả Xổ Số', hint: 'Xem bảng kết quả chi tiết từng đài' },
-]
-
-/** Tiêu đề = tính năng đang mở; bấm vào (hoặc ▾ bên cạnh) để chọn tính năng khác. */
-export default function AppHeader({ view, onChange }: { view: View; onChange: (v: View) => void }) {
-  const [open, setOpen] = useState(false)
+/** Thanh trên cùng: logo + tên tính năng đang mở; màn rộng có thêm tab chuyển tính năng
+ *  (điện thoại dùng BottomNav cho vừa tầm ngón cái). Nút bảng màu mở ThemePicker. */
+export default function AppHeader({ view, onChange, onOpenTheme }: Props) {
   const current = VIEWS.find(v => v.id === view)!
 
-  useEffect(() => {
-    if (!open) return
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [open])
-
-  const select = (v: View) => {
-    setOpen(false)
-    onChange(v)
-  }
-
   return (
-    <header className="relative z-20 flex justify-center bg-brand-500 text-white shadow">
-      <button onClick={() => setOpen(o => !o)} aria-haspopup="menu" aria-expanded={open}
-              className="inline-flex items-center gap-2 py-4 px-3 text-xl font-bold">
-        {current.icon} {current.title}
-        <span aria-hidden
-              className={`text-xs opacity-80 transition-transform ${open ? 'rotate-180' : ''}`}>▼</span>
-      </button>
+    <header className="sticky top-0 z-30 pt-[env(safe-area-inset-top)]
+                       bg-canvas/75 backdrop-blur-xl border-b border-line/60">
+      {/* Cùng bề rộng với <main> (App.tsx) để logo thẳng mép với nội dung bên dưới */}
+      <div className="max-w-md md:max-w-3xl lg:max-w-5xl mx-auto h-16 px-4 flex items-center gap-3">
+        <button onClick={() => onChange('check')} className="flex items-center gap-2.5 min-w-0 text-left">
+          <img src="/favicon.svg" alt="" className="w-10 h-10 rounded-xl shadow-md shadow-brand-500/30" />
+          <span className="min-w-0">
+            <span className="block text-lg font-extrabold leading-tight bg-gradient-to-r from-brand-600 to-accent
+                             bg-clip-text text-transparent dark:from-brand-400">
+              Dò Vé Số
+            </span>
+            {/* Điện thoại không có tab ở trên → ghi tính năng đang mở ngay dưới tên app */}
+            <span className="block text-xs text-ink-faint truncate md:hidden">{current.hint}</span>
+            <span className="hidden md:block text-xs text-ink-faint">Chụp là biết trúng ✨</span>
+          </span>
+        </button>
 
-      {open && (
-        <>
-          {/* Lớp phủ trong suốt: chạm ra ngoài menu là đóng (kể cả trên điện thoại). */}
-          <div className="fixed inset-0" onClick={() => setOpen(false)} aria-hidden />
-          <ul role="menu"
-              className="absolute top-full mt-2 w-72 max-w-[calc(100vw-2rem)] bg-white text-gray-800
-                         rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
-            {VIEWS.map(v => (
-              <li key={v.id} role="none">
-                <button role="menuitem" onClick={() => select(v.id)}
-                        className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-50
-                                    ${v.id === view ? 'bg-brand-50' : ''}`}>
-                  <span className="text-xl">{v.icon}</span>
-                  <span className="flex-1">
-                    <span className="block font-semibold">{v.title}</span>
-                    <span className="block text-xs text-gray-500">{v.hint}</span>
-                  </span>
-                  {v.id === view && <span className="text-brand-600 font-bold">✓</span>}
-                </button>
-              </li>
-            ))}
-          </ul>
-        </>
-      )}
+        <nav className="hidden md:flex mx-auto items-center gap-1 p-1 rounded-2xl bg-muted/80 border border-line/60"
+             aria-label="Tính năng">
+          {VIEWS.map(v => {
+            const active = v.id === view
+            return (
+              <button key={v.id} onClick={() => onChange(v.id)} aria-current={active ? 'page' : undefined}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition
+                                  ${active
+                                    ? 'bg-surface dark:bg-white/10 text-brand-600 shadow-sm dark:text-brand-300'
+                                    : 'text-ink-soft hover:text-ink'}`}>
+                <Icon name={v.icon} className="w-[18px] h-[18px]" />
+                {v.title}
+              </button>
+            )
+          })}
+        </nav>
+
+        <button onClick={onOpenTheme} title="Đổi màu & hình nền" aria-label="Đổi màu và hình nền"
+                className="ml-auto md:ml-0 shrink-0 w-11 h-11 rounded-2xl flex items-center justify-center
+                           bg-surface border border-line text-ink-soft hover:text-brand-600
+                           shadow-sm transition active:scale-95">
+          <Icon name="palette" className="w-[22px] h-[22px]" />
+        </button>
+      </div>
     </header>
   )
 }
