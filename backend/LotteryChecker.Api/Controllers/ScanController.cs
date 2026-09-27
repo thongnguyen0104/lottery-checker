@@ -200,16 +200,17 @@ public class ScanController : ControllerBase
         // Confidence chỉ có nghĩa với OCR cục bộ; cloud không trả điểm tin cậy → null, FE ẩn dòng đó.
         var localRan = localCheck != null;
         var lowConfidence = localRan && info.OcrConfidence < 0.55;
+        var autoCheck = _validator.CanAutoCheck(info, localCheck);
 
-        // Log đủ để thống kê sau này: tỷ lệ vé phải gọi cloud (ocrPath) và VÌ SAO (reasons) —
-        // đó là số liệu để chỉnh ngưỡng validate / tiền xử lý.
+        // Log đủ để thống kê sau này: tỷ lệ vé phải gọi cloud (ocrPath) và VÌ SAO (reasons), tỷ lệ
+        // vé được dò luôn (auto) — đó là số liệu để chỉnh ngưỡng validate / tiền xử lý.
         _log.LogInformation(
             "Quét ảnh {SizeKb}KB (resize={Resized}, gửi cloud {CloudKb}KB) bằng {Engine}/{Preprocess}: " +
-            "path={Path} cloud={Cloud} attempts=[{Attempts}] reasons=[{Reasons}] retry={Retry} conf={Confidence:0.00} | {Stages}",
+            "path={Path} cloud={Cloud} attempts=[{Attempts}] reasons=[{Reasons}] retry={Retry} conf={Confidence:0.00} auto={AutoCheck} | {Stages}",
             image.Length / 1024, resized, cloudUploadKb, _ocr.Name, _preprocessor.LocalMode,
             ocrPath, cloudProvider ?? "-", string.Join(", ", cloudAttempts), string.Join(",", localCheck?.Reasons ?? []),
             retry == null ? "-" : $"{_retry.Strategy}/{_preprocessor.RetryMode}(lines={retry.CroppedLines},full={retry.UsedFull})[{string.Join(",", retry.Filled)}]",
-            info.OcrConfidence, timer);
+            info.OcrConfidence, autoCheck, timer);
 
         return Ok(new
         {
@@ -238,6 +239,8 @@ public class ScanController : ControllerBase
             },
             // Trường nào của kết quả CUỐI user nên kiểm tra lại trên form (đánh dấu vàng).
             needsReview = _validator.FieldsToReview(info),
+            // true = đủ chắc cả số vé, đài, ngày → FE dò luôn, không hiện form xác nhận.
+            autoCheck,
             // Thời gian từng chặng (ms), chặng không chạy = null. Là số liệu để biết nên tối ưu
             // chỗ nào khi chạy trên máy thật (VM prod chậm hơn máy dev nhiều).
             timings = timer.ToTimings()
