@@ -36,10 +36,16 @@ export default function ProcessingScreen({ title, imageUrl, steps, current, deta
             <div className="w-72 aspect-[2/1] m-8 rounded-lg border-2 border-dashed border-gray-600
                             flex items-center justify-center text-4xl opacity-60">🎫</div>
           )}
-          <div className="scan-sweep absolute inset-0 pointer-events-none">
-            <div className="absolute inset-x-0 bottom-0 h-0.5 bg-teal-300
-                            shadow-[0_0_14px_3px_rgba(94,234,212,0.75)]" />
-          </div>
+          {/* Chỉ gắn vạch khi khung đã đủ cỡ (ảnh tải xong, hoặc khung vé giả cỡ cố định). Safari
+              đổi translateY(-100%) ra px theo chiều cao khung lúc animation BẮT ĐẦU và không tính lại
+              khi khung đổi cỡ: bắt đầu lúc ảnh chưa tải (khung cao 0) thì -100% = 0px, vạch nằm im ở
+              đáy. Ảnh tải nhanh hay chậm hơn nhịp đó thì tuỳ lượt, nên lỗi lúc có lúc không. */}
+          {(!showImage || imgLoaded) && (
+            <div className="scan-sweep absolute inset-0 pointer-events-none">
+              <div className="absolute inset-x-0 bottom-0 h-0.5 bg-teal-300
+                              shadow-[0_0_14px_3px_rgba(94,234,212,0.75)]" />
+            </div>
+          )}
         </div>
       </div>
 
