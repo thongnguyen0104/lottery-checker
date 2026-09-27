@@ -1,12 +1,12 @@
 <!DOCTYPE html>
-<html lang="vi" data-mode="light" data-accent="red" data-bg="aurora">
+<html lang="vi" data-mode="dark" data-accent="gold" data-bg="aurora">
   <head>
     <meta charset="UTF-8" />
     <!-- SVG nét ở mọi mật độ điểm ảnh (Chrome/Edge/Firefox); .ico 16/32/48 cho Safari + trình duyệt cũ -->
     <link rel="icon" href="/favicon.ico" sizes="32x32" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
-    <meta name="theme-color" content="#F7F6FB" />
+    <meta name="theme-color" content="#0F172A" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>Dò Vé Số</title>
     <!-- Đặt theme đã lưu TRƯỚC khi trang vẽ (React chạy sau) để không nháy theme mặc định.
@@ -14,13 +14,15 @@
     <script>
       (function () {
         var d = document.documentElement, t = {}
-        try { t = JSON.parse(localStorage.getItem('dvs-theme') || '{}') || {} } catch (e) {}
-        var dark = t.mode === 'dark' ||
-          (t.mode !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches)
+        try { t = JSON.parse(localStorage.getItem('dvs-theme-v2') || '{}') || {} } catch (e) {}
+        // Mặc định Tối; chỉ sáng khi chọn Sáng, hoặc Theo máy mà máy đang sáng.
+        var dark = t.mode === 'light' ? false
+          : t.mode === 'system' ? window.matchMedia('(prefers-color-scheme: dark)').matches
+          : true
         d.dataset.mode = dark ? 'dark' : 'light'
         if (t.accent) d.dataset.accent = t.accent
         if (t.bg) d.dataset.bg = t.bg
-        document.querySelector('meta[name="theme-color"]').content = dark ? '#0D0D16' : '#F7F6FB'
+        document.querySelector('meta[name="theme-color"]').content = dark ? '#0F172A' : '#F8FAFC'
       })()
     </script>
   </head>

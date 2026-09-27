@@ -6,38 +6,58 @@
    Giá trị "R G B" để Tailwind ghép độ trong (xem tailwind.config.js). <html> mang 3 thuộc tính,
    đặt sẵn bởi script trong index.html (khỏi nháy theme mặc định) rồi do src/theme.ts cập nhật:
    data-mode = light | dark (đã giải "Theo máy"), data-accent = bảng màu, data-bg = hình nền. */
+/* Nền/chữ theo thang slate để chế độ sáng cùng họ màu với nền navy của chế độ tối. */
 :root {
   color-scheme: light;
-  --canvas: 247 246 251;
+  --canvas: 248 250 252;
   --surface: 255 255 255;
-  --muted: 241 241 247;
-  --line: 228 228 238;
-  --ink: 22 22 38;
-  --ink-soft: 74 76 99;
-  --ink-faint: 110 114 138;
-  --ok: 4 120 87;
-  --warn: 180 83 9;
-  --bad: 220 38 38;
+  --muted: 241 245 249;
+  --line: 226 232 240;
+  --ink: 15 23 42;
+  --ink-soft: 51 65 85;
+  --ink-faint: 100 116 139;
+  --ok: 4 120 87;       /* Deep Emerald — trúng giải, vé khớp */
+  --warn: 194 65 12;    /* cam, cố ý lệch khỏi vàng để không lẫn với màu Hoàng kim */
+  --bad: 185 28 28;     /* đỏ gạch trầm — không trúng, lỗi */
   --info: 37 99 235;
+  --shadow-soft: 0 1px 2px rgb(15 23 42 / .04), 0 8px 28px -8px rgb(15 23 42 / .12);
 }
+/* Tối = Deep Slate Navy: nền #0F172A, thẻ #1E293B, viền #334155, chữ #F8FAFC / #94A3B8. */
 [data-mode="dark"] {
   color-scheme: dark;   /* thanh cuộn, ô ngày, danh sách <select> cũng tối theo */
-  --canvas: 13 13 22;
-  --surface: 25 25 39;
-  --muted: 36 36 54;
-  --line: 52 52 74;
-  --ink: 241 241 248;
-  --ink-soft: 196 197 214;
-  --ink-faint: 142 144 168;
-  --ok: 52 211 153;
-  --warn: 251 191 36;
-  --bad: 248 113 113;
+  --canvas: 15 23 42;
+  --surface: 30 41 59;
+  --muted: 39 52 73;
+  --line: 51 65 85;
+  --ink: 248 250 252;
+  --ink-soft: 203 213 225;
+  --ink-faint: 148 163 184;
+  --ok: 16 185 129;     /* Emerald Fortune */
+  --warn: 251 146 60;
+  --bad: 248 113 113;   /* đỏ gạch #B91C1C quá tối để làm chữ trên nền navy → tông sáng hơn */
   --info: 96 165 250;
+  /* Bóng nhạt vô hình trên nền tối → bóng đen đậm hơn + vệt sáng mảnh ở mép trên cho thẻ nổi khối. */
+  --shadow-soft: inset 0 1px 0 rgb(255 255 255 / .04), 0 1px 2px rgb(0 0 0 / .3), 0 12px 32px -12px rgb(0 0 0 / .55);
 }
 
-/* Bảng màu brand — trùng thang màu Tailwind cùng tên; --accent là màu cuối dải gradient
-   (chọn tông đủ đậm để chữ trắng trên nút vẫn đọc được). Đỏ là mặc định, khớp icon app. */
-:root, [data-accent="red"] {
+/* Bảng màu brand — trùng thang màu Tailwind cùng tên; --accent là màu thứ hai (cuối dải gradient,
+   quầng nền cực quang). --primary → --primary-end là nền của nút chính, tấm vé, huy hiệu;
+   --on-primary là chữ trên nền đó. Các bảng màu thường: gradient brand-600 → accent, chữ trắng. */
+[data-accent]:not([data-accent="gold"]) {
+  --primary: var(--brand-600);
+  --primary-end: var(--accent);
+  --on-primary: 255 255 255;
+}
+/* Hoàng kim (thang amber) là mặc định: vàng #FBBF24 → #F59E0B đặc, chữ navy — vàng sáng thì
+   chữ trắng không đọc được. */
+:root, [data-accent="gold"] {
+  --brand-50: 255 251 235;  --brand-100: 254 243 199; --brand-200: 253 230 138;
+  --brand-300: 252 211 77;  --brand-400: 251 191 36;  --brand-500: 245 158 11;
+  --brand-600: 217 119 6;   --brand-700: 180 83 9;    --brand-800: 146 64 14;
+  --brand-900: 120 53 15;   --accent: 217 119 6;
+  --primary: 251 191 36;    --primary-end: 245 158 11; --on-primary: 15 23 42;
+}
+[data-accent="red"] {
   --brand-50: 254 242 242; --brand-100: 254 226 226; --brand-200: 254 202 202;
   --brand-300: 252 165 165; --brand-400: 248 113 113; --brand-500: 239 68 68;
   --brand-600: 220 38 38;   --brand-700: 185 28 28;   --brand-800: 153 27 27;
@@ -95,6 +115,13 @@ html {
     radial-gradient(55% 40% at 100% 8%, rgb(var(--accent) / .22), transparent 70%),
     radial-gradient(70% 45% at 50% 105%, rgb(var(--brand-300) / .25), transparent 70%);
 }
+/* Nền tối chỉ để quầng sáng le lói ở góc: quầng vàng 30% trên navy thành một mảng loè. */
+[data-mode="dark"] .bgfx-aurora {
+  background-image:
+    radial-gradient(60% 45% at 0% 0%, rgb(var(--brand-400) / .13), transparent 70%),
+    radial-gradient(55% 40% at 100% 8%, rgb(var(--accent) / .10), transparent 70%),
+    radial-gradient(70% 45% at 50% 105%, rgb(var(--brand-300) / .07), transparent 70%);
+}
 .bgfx-dots {
   background-image: radial-gradient(rgb(var(--brand-500) / .22) 1.2px, transparent 1.7px);
   background-size: 18px 18px;
@@ -107,25 +134,33 @@ html {
 }
 
 @layer components {
-  .card { @apply bg-surface border border-line/70 rounded-3xl shadow-soft; }
+  /* Thẻ: bo 16px, viền mảnh 1px + bóng mềm tạo chiều sâu thay vì dùng màu gắt. */
+  .card { @apply bg-surface border border-line rounded-2xl shadow-soft; }
 
   .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-2xl px-4 py-3 font-semibold
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-3 font-semibold
            transition duration-150 active:scale-[.98] disabled:cursor-not-allowed;
   }
+  /* Nút chính: nền primary đặc (Hoàng kim: vàng, chữ navy) — thứ đậm nhất trên màn. */
   .btn-primary {
-    @apply text-white bg-gradient-to-r from-brand-600 to-accent shadow-lg shadow-brand-500/25
-           hover:brightness-110 disabled:opacity-40 disabled:shadow-none disabled:hover:brightness-100;
+    @apply text-on-primary bg-gradient-to-r from-primary to-primary-end shadow-lg shadow-primary/20
+           hover:brightness-105 disabled:opacity-40 disabled:shadow-none disabled:hover:brightness-100;
   }
-  .btn-soft { @apply bg-surface text-ink border border-line hover:bg-muted; }
+  /* Nút phụ: viền brand, nền trong suốt. */
+  .btn-secondary {
+    @apply border border-brand-500/80 text-brand-700 dark:text-brand-400 hover:bg-brand-500/10;
+  }
+  /* Nút trung tính (quay lại, điều hướng): không tranh chú ý với hai loại trên. */
+  .btn-soft { @apply bg-surface text-ink-soft border border-line hover:bg-muted hover:text-ink; }
 
-  /* Ô nhập: text-base (16px) để iOS không tự phóng to trang khi chạm vào. */
+  /* Ô nhập: text-base (16px) để iOS không tự phóng to trang khi chạm vào. Nền canvas mờ cho ô
+     trông lõm xuống so với thẻ chứa nó (rõ nhất ở chế độ tối). */
   .field {
-    @apply w-full p-3 text-base rounded-2xl border border-line bg-surface text-ink outline-none
+    @apply w-full p-3 text-base rounded-xl border border-line bg-canvas/60 text-ink outline-none
            placeholder:text-ink-faint transition focus:border-brand-500 focus:ring-4 focus:ring-brand-500/15;
   }
 
-  .alert { @apply rounded-2xl border p-3 text-sm; }
+  .alert { @apply rounded-xl border p-3 text-sm; }
 
   /* Tấm vé có khấc bán nguyệt hai bên: mỗi nửa một mask khoét lỗ ở mép ngoài. Mask cắt luôn
      box-shadow nên bóng phải đặt bằng filter: drop-shadow ở thẻ bọc ngoài (.ticket-shadow). */
@@ -137,7 +172,7 @@ html {
       radial-gradient(circle 13px at 0 50%, #0000 98%, #000) 0 0 / 51% 100% no-repeat,
       radial-gradient(circle 13px at 100% 50%, #0000 98%, #000) 100% 0 / 51% 100% no-repeat;
   }
-  .ticket-shadow { filter: drop-shadow(0 12px 18px rgb(var(--brand-600) / .28)); }
+  .ticket-shadow { filter: drop-shadow(0 12px 18px rgb(var(--primary) / .25)); }
 
   /* Bi số Vietlott: màu nền do từng loại vé đặt, lớp này chỉ thêm đốm sáng + bóng cho ra khối. */
   .ball {

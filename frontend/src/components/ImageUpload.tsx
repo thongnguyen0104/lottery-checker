@@ -16,9 +16,9 @@ export default function ImageUpload({ onSelect }: { onSelect: (f: File) => void 
         const file = e.dataTransfer.files[0]
         if (file?.type.startsWith('image/')) onSelect(file)
       }}
-      className={`group flex flex-col items-center gap-2 p-6 md:p-8 rounded-3xl border-2 border-dashed
+      className={`group flex flex-col items-center gap-2 p-6 md:p-8 rounded-2xl border-2 border-dashed
                   text-center cursor-pointer transition
-                  ${dragging ? 'border-brand-500 bg-brand-500/10' : 'border-line bg-surface/70 hover:border-brand-400'}`}>
+                  ${dragging ? 'border-brand-500 bg-brand-500/10' : 'border-line bg-surface/70 hover:border-brand-500/70'}`}>
       {/* KHÔNG đặt capture="environment": trên iPhone/Android nó ép mở thẳng camera, mất lựa
           chọn Thư viện ảnh. Bỏ đi thì hệ điều hành hiện menu Thư viện / Chụp ảnh / Chọn tệp. */}
       <input type="file" accept="image/*"
@@ -29,8 +29,8 @@ export default function ImageUpload({ onSelect }: { onSelect: (f: File) => void 
                if (file) onSelect(file)
              }}
              className="hidden" />
-      <span className="w-12 h-12 rounded-2xl flex items-center justify-center bg-brand-500/10 text-brand-600
-                       dark:text-brand-300 transition group-hover:scale-110">
+      <span className="w-12 h-12 rounded-xl flex items-center justify-center bg-brand-500/10 text-brand-700
+                       dark:text-brand-400 transition group-hover:scale-110">
         <Icon name="upload" className="w-6 h-6" />
       </span>
       <span className="font-semibold">Chọn ảnh vé từ máy</span>
