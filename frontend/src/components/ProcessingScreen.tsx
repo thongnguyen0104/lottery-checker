@@ -20,7 +20,7 @@ export default function ProcessingScreen({ title, imageUrl, steps, current, deta
   const showImage = imageUrl && !imgFailed
 
   return (
-    <div className="bg-gray-950 rounded-[28px] p-3 pt-5 shadow-xl">
+    <div className="bg-gray-950 rounded-[28px] p-3 pt-5 shadow-2xl shadow-brand-900/30 ring-1 ring-white/5">
       <h2 className="text-white text-center font-semibold mb-4">{title}</h2>
 
       <div className="bg-gray-800/60 rounded-2xl min-h-[300px] flex items-center justify-center overflow-hidden">
@@ -42,24 +42,23 @@ export default function ProcessingScreen({ title, imageUrl, steps, current, deta
               đáy. Ảnh tải nhanh hay chậm hơn nhịp đó thì tuỳ lượt, nên lỗi lúc có lúc không. */}
           {(!showImage || imgLoaded) && (
             <div className="scan-sweep absolute inset-0 pointer-events-none">
-              <div className="absolute inset-x-0 bottom-0 h-0.5 bg-teal-300
-                              shadow-[0_0_14px_3px_rgba(94,234,212,0.75)]" />
+              <div className="scan-line absolute inset-x-0 bottom-0 h-0.5 bg-brand-300" />
             </div>
           )}
         </div>
       </div>
 
-      <ol className="bg-white rounded-2xl mt-3 px-5 py-4 space-y-3.5" role="status" aria-live="polite">
+      <ol className="bg-surface rounded-2xl mt-3 px-5 py-4 space-y-3.5" role="status" aria-live="polite">
         {steps.map((label, i) => {
           const state = i < current ? 'done' : i === current ? 'active' : 'pending'
           return (
             <li key={label} className="flex items-center gap-3">
               <StepIcon state={state} />
-              <span className={state === 'pending' ? 'text-gray-400' : 'text-gray-900 font-medium'}>
+              <span className={state === 'pending' ? 'text-ink-faint' : 'text-ink font-medium'}>
                 {label}
               </span>
               {state === 'active' && detail && (
-                <span className="ml-auto text-sm text-teal-700 tabular-nums">{detail}</span>
+                <span className="ml-auto text-sm text-brand-600 dark:text-brand-300 tabular-nums">{detail}</span>
               )}
             </li>
           )
@@ -72,7 +71,7 @@ export default function ProcessingScreen({ title, imageUrl, steps, current, deta
 function StepIcon({ state }: { state: 'done' | 'active' | 'pending' }) {
   if (state === 'done') {
     return (
-      <span className="step-pop shrink-0 w-6 h-6 rounded-full bg-teal-700 flex items-center justify-center">
+      <span className="step-pop shrink-0 w-6 h-6 rounded-full bg-gradient-to-br from-brand-500 to-accent flex items-center justify-center">
         <svg viewBox="0 0 16 16" className="w-3.5 h-3.5 text-white" fill="none"
              stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
           <path d="M3.5 8.5l3 3 6-7" />
@@ -82,9 +81,9 @@ function StepIcon({ state }: { state: 'done' | 'active' | 'pending' }) {
   }
   if (state === 'active') {
     return (
-      <span className="shrink-0 w-6 h-6 rounded-full border-2 border-teal-100 border-t-teal-600
+      <span className="shrink-0 w-6 h-6 rounded-full border-2 border-brand-500/20 border-t-brand-500
                        motion-safe:animate-spin" />
     )
   }
-  return <span className="shrink-0 w-6 h-6 rounded-full border-2 border-gray-200" />
+  return <span className="shrink-0 w-6 h-6 rounded-full border-2 border-line" />
 }

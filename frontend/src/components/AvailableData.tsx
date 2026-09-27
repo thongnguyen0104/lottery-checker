@@ -2,11 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { getAvailableDraws } from '../api/client'
 import { provinceName } from '../data/provinces'
 import ProvinceResult from './ProvinceResult'
-
-const formatDate = (iso: string) => {
-  const [y, m, d] = iso.split('-')
-  return `${d}/${m}/${y}`
-}
+import Icon from './Icon'
+import { formatDate, todayIso, weekday } from '../utils/date'
 
 /** Mở thẳng bảng của 1 đài từ màn kết quả dò vé — tô các số trùng với vé đó. */
 export type ResultsFocus = { drawDate: string; province: string; ticketNumber: string }
@@ -54,46 +51,80 @@ export default function AvailableData({ focus, onBack }: Props) {
         sameDay={data?.find(d => d.drawDate === selected.drawDate)?.provinces ?? []}
         ticketNumber={ofTicket ? focus.ticketNumber : undefined}
         onSelectProvince={province => setSelected({ ...selected, province })}
-        backLabel={focus ? '← Vé của bạn' : '← Danh sách'}
+        backLabel={focus ? 'Vé của bạn' : 'Danh sách'}
         onBack={focus ? onBack : closeDetail}
       />
     )
   }
 
+  const today = todayIso()
+
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-bold">📅 Kết quả xổ số</h2>
-        <button onClick={onBack} className="text-sm text-blue-600">← Quay lại</button>
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <h1 className="text-xl md:text-3xl font-extrabold tracking-tight">Kết quả xổ số 📅</h1>
+          {!loading && !error && !!data?.length && (
+            <p className="text-sm md:text-base text-ink-soft mt-0.5">Chạm vào tên đài để xem bảng kết quả chi tiết.</p>
+          )}
+        </div>
+        <button onClick={onBack} className="btn btn-soft shrink-0 px-3 py-2 text-sm">
+          <Icon name="back" className="w-4 h-4" /> Quay lại
+        </button>
       </div>
 
-      {loading && <div className="p-6 text-center text-gray-500">Đang tải...</div>}
-      {error && <div className="p-4 text-center text-red-600">❌ {error}</div>}
+      {error && (
+        <div className="card p-6 text-center">
+          <div className="text-4xl mb-2">😵‍💫</div>
+          <div className="text-sm text-bad">{error}</div>
+        </div>
+      )}
 
       {!loading && !error && data?.length === 0 && (
-        <div className="bg-gray-50 border border-gray-200 rounded-2xl p-6 text-center text-sm text-gray-600">
+        <div className="card p-6 text-center text-sm text-ink-soft">
+          <div className="text-4xl mb-2">📭</div>
           Chưa có dữ liệu. Hãy chạy cào kết quả (POST <code>/api/admin/fetch</code>) hoặc đợi worker tự cào lúc 19h.
         </div>
       )}
 
-      {!loading && !error && !!data?.length && (
-        <p className="text-sm text-gray-500">Chạm vào tên đài để xem bảng kết quả chi tiết.</p>
-      )}
-
-      {!loading && !error && data?.map(d => (
-        <div key={d.drawDate} className="bg-white rounded-2xl shadow p-4">
-          <div className="font-semibold text-brand-600 mb-2">{formatDate(d.drawDate)}</div>
-          <div className="flex flex-wrap gap-2">
-            {d.provinces.map(code => (
-              <button key={code} onClick={() => openDetail(d.drawDate, code)}
-                      className="bg-brand-50 text-brand-700 text-sm px-2.5 py-1 rounded-full
-                                 hover:bg-brand-500 hover:text-white active:bg-brand-600 active:text-white">
-                {provinceName(code)} ›
-              </button>
-            ))}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {/* Khung xương trong lúc tải: giữ đúng bố cục, đỡ giật trang khi dữ liệu về */}
+        {loading && Array.from({ length: 6 }, (_, i) => (
+          <div key={i} className="card p-4 motion-safe:animate-pulse">
+            <div className="h-4 w-32 rounded-full bg-muted mb-4" />
+            <div className="flex flex-wrap gap-2">
+              {['w-20', 'w-24', 'w-16'].map(w => <div key={w} className={`h-8 ${w} rounded-full bg-muted`} />)}
+            </div>
           </div>
-        </div>
-      ))}
+        ))}
+
+        {!loading && !error && data?.map(d => (
+          <div key={d.drawDate} className="card p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="w-1.5 h-5 rounded-full bg-gradient-to-b from-brand-500 to-accent" aria-hidden />
+              <span className="font-bold">{weekday(d.drawDate)}</span>
+              <span className="text-ink-faint">{formatDate(d.drawDate)}</span>
+              {d.drawDate === today && (
+                <span className="ml-auto text-[11px] font-bold uppercase tracking-wide text-white rounded-full px-2 py-0.5
+                                 bg-gradient-to-r from-brand-600 to-accent">
+                  Hôm nay
+                </span>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {d.provinces.map(code => (
+                <button key={code} onClick={() => openDetail(d.drawDate, code)}
+                        className="text-sm font-medium px-3 py-1.5 rounded-full transition
+                                   bg-brand-500/10 text-brand-700 dark:text-brand-300
+                                   hover:bg-brand-500 hover:text-white active:bg-brand-600 active:text-white
+                                   dark:hover:text-white">
+                  {provinceName(code)} ›
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   )
 }

@@ -1,15 +1,8 @@
 import { useEffect, useState } from 'react'
 import { getProvinceResult, type ProvinceResult as Result } from '../api/client'
 import { provinceName } from '../data/provinces'
-
-const WEEKDAYS = ['Chủ Nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy']
-
-// Dựng Date từ từng thành phần (giờ địa phương), KHÔNG new Date('YYYY-MM-DD') — chuỗi đó bị
-// hiểu là UTC nên máy ở múi giờ âm sẽ lùi sang hôm trước.
-const formatDay = (iso: string) => {
-  const [y, m, d] = iso.split('-').map(Number)
-  return `${WEEKDAYS[new Date(y, m - 1, d).getDay()]}, ${iso.split('-').reverse().join('/')}`
-}
+import { formatDay } from '../utils/date'
+import Icon from './Icon'
 
 // Kết quả đã xổ không đổi nữa → giữ trong phiên, bấm qua lại giữa các đài khỏi tải lại.
 const cache = new Map<string, Result>()
@@ -56,14 +49,16 @@ export default function ProvinceResult({
   const rows = data ? [...data.prizes].reverse() : []
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-bold">Xổ số {provinceName(province)}</h2>
-        <button onClick={onBack} className="text-sm text-blue-600">{backLabel}</button>
+    <div className="space-y-4 max-w-2xl mx-auto">
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="text-xl md:text-3xl font-extrabold tracking-tight">Xổ số {provinceName(province)}</h1>
+        <button onClick={onBack} className="btn btn-soft shrink-0 px-3 py-2 text-sm">
+          <Icon name="back" className="w-4 h-4" /> {backLabel}
+        </button>
       </div>
 
       {ticketNumber && (
-        <div className="bg-yellow-50 border border-yellow-300 rounded-xl p-3 text-sm text-yellow-900">
+        <div className="alert bg-yellow-400/15 border-yellow-400/50">
           Đang so với vé <b className="tracking-wider">{ticketNumber}</b> — số trùng được tô vàng.
         </div>
       )}
@@ -73,21 +68,27 @@ export default function ProvinceResult({
           {sameDay.map(code => (
             <button key={code} onClick={() => onSelectProvince(code)}
                     aria-pressed={code === province}
-                    className={`text-sm px-2.5 py-1 rounded-full ${code === province
-                      ? 'bg-brand-500 text-white' : 'bg-brand-50 text-brand-700'}`}>
+                    className={`text-sm font-medium px-3 py-1.5 rounded-full transition ${code === province
+                      ? 'bg-gradient-to-r from-brand-600 to-accent text-white shadow-md shadow-brand-500/25'
+                      : 'bg-brand-500/10 text-brand-700 dark:text-brand-300 hover:bg-brand-500/20'}`}>
               {provinceName(code)}
             </button>
           ))}
         </div>
       )}
 
-      <div className="bg-white rounded-2xl shadow overflow-hidden">
-        <div className="bg-brand-50 text-brand-700 text-center font-semibold py-2 text-sm">
+      <div className="card overflow-hidden">
+        <div className="bg-gradient-to-r from-brand-600 to-accent text-white text-center font-semibold py-2.5 text-sm">
           {formatDay(drawDate)}
         </div>
 
-        {!data && !error && <div className="p-6 text-center text-gray-500">Đang tải...</div>}
-        {error && <div className="p-6 text-center text-red-600">❌ {error}</div>}
+        {!data && !error && (
+          <div className="p-6 flex items-center justify-center gap-2 text-ink-faint">
+            <span className="w-5 h-5 rounded-full border-2 border-brand-500/20 border-t-brand-500 motion-safe:animate-spin" />
+            Đang tải...
+          </div>
+        )}
+        {error && <div className="p-6 text-center text-bad">😵‍💫 {error}</div>}
 
         {data && (
           <table className="w-full">
@@ -95,9 +96,9 @@ export default function ProvinceResult({
               {rows.map(({ tier, numbers }) => {
                 const special = tier === 'DB'
                 return (
-                  <tr key={tier} className="border-t border-gray-100 odd:bg-gray-50/60">
+                  <tr key={tier} className="border-t border-line/70 first:border-t-0 odd:bg-muted/50">
                     <th scope="row"
-                        className="w-14 py-2.5 text-sm font-medium text-gray-500 border-r border-gray-100">
+                        className="w-14 py-2.5 text-sm font-semibold text-ink-faint border-r border-line/70">
                       {special ? 'ĐB' : `G.${tier}`}
                     </th>
                     <td className="py-2.5 px-3">
@@ -105,10 +106,10 @@ export default function ProvinceResult({
                         {numbers.map((n, i) => (
                           <span key={i}
                                 className={`tabular-nums tracking-wider font-bold ${special
-                                  ? 'text-2xl text-brand-600'
-                                  : tier === '8' ? 'text-xl text-brand-600' : 'text-lg text-gray-800'
+                                  ? 'text-2xl md:text-3xl text-brand-600 dark:text-brand-400'
+                                  : tier === '8' ? 'text-xl text-brand-600 dark:text-brand-400' : 'text-lg text-ink'
                                 } ${matches(ticketNumber, tier, n)
-                                  ? 'bg-yellow-200 ring-2 ring-yellow-400 rounded-md px-1.5' : ''}`}>
+                                  ? 'bg-yellow-300 text-yellow-950 dark:text-yellow-950 ring-2 ring-yellow-400 rounded-md px-1.5' : ''}`}>
                             {n}
                           </span>
                         ))}
