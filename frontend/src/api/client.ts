@@ -211,3 +211,21 @@ export async function getAvailableDraws() {
     throw toFriendlyError(e)
   }
 }
+
+/** Bảng kết quả 1 đài 1 ngày. tier: 'DB' | '1'..'8', xếp ĐB → 8; numbers giữ thứ tự trên trang nguồn. */
+export type ProvinceResult = {
+  drawDate: string
+  province: string
+  region: string
+  prizes: { tier: string; numbers: string[] }[]
+}
+
+export async function getProvinceResult(drawDate: string, province: string) {
+  try {
+    const { data } = await api.get(
+      `/api/results/${encodeURIComponent(drawDate)}/${encodeURIComponent(province)}`)
+    return data as ProvinceResult
+  } catch (e) {
+    throw toFriendlyError(e)
+  }
+}
