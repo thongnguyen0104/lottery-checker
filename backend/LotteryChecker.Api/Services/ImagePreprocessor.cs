@@ -1,6 +1,7 @@
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Formats.Jpeg;
 using SixLabors.ImageSharp.Formats.Png;
+using SixLabors.ImageSharp.Metadata.Profiles.Exif;
 using SixLabors.ImageSharp.PixelFormats;
 using SixLabors.ImageSharp.Processing;
 
@@ -67,6 +68,28 @@ public class ImagePreprocessor
         {
             image.Dispose();
             throw;
+        }
+    }
+
+    /// <summary>
+    /// Ảnh upload gửi NGUYÊN cho cloud được không, khỏi giải mã + nén lại: đúng thứ FE gửi — JPEG
+    /// &lt;1MB, rộng ≤1600px, đã xoay đúng chiều (canvas đã áp EXIF) — thì giải mã rồi nén lại chỉ
+    /// tốn CPU mà ảnh không tốt hơn. Chỉ đọc header (vài ms). Ảnh khác (PNG/HEIC, quá to, còn cờ
+    /// xoay EXIF — vd gọi API trực tiếp bằng ảnh gốc điện thoại) thì false → đi đường Load thường.
+    /// </summary>
+    public static bool CanSendAsIs(byte[] image)
+    {
+        if (image.Length >= CloudMaxBytes) return false;
+        try
+        {
+            var info = Image.Identify(image);
+            if (info.Metadata.DecodedImageFormat is not JpegFormat || info.Width > MaxWidth) return false;
+            var exif = info.Metadata.ExifProfile;
+            return exif == null || !exif.TryGetValue(ExifTag.Orientation, out var o) || o.Value is 0 or 1;
+        }
+        catch (Exception)
+        {
+            return false;   // header hỏng → để Load báo lỗi như mọi ảnh khác
         }
     }
 

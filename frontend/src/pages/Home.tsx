@@ -1,11 +1,11 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import CameraCapture from '../components/CameraCapture'
 import ImageUpload from '../components/ImageUpload'
 import TicketInfoConfirm from '../components/TicketInfoConfirm'
 import ResultDisplay from '../components/ResultDisplay'
 import AvailableData from '../components/AvailableData'
 import ProcessingScreen from '../components/ProcessingScreen'
-import { scanImage, checkTicket } from '../api/client'
+import { scanImage, checkTicket, loadCompressOptions } from '../api/client'
 import { ALL_PROVINCES, provinceName } from '../data/provinces'
 
 type Stage = 'capture' | 'confirm' | 'result' | 'data'
@@ -28,6 +28,9 @@ export default function Home() {
   const [imageUrl, setImageUrl] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const timers = useRef<number[]>([])
+
+  // Hỏi sẵn cỡ ảnh cần nén trong lúc user còn đang ngắm camera — lượt quét đầu khỏi chờ thêm 1 request.
+  useEffect(() => { void loadCompressOptions() }, [])
 
   const clearTimers = () => { timers.current.forEach(clearTimeout); timers.current = [] }
   // Chỉ tiến, không lùi: timer tự chuyển bước có thể bắn sau khi bước thật đã qua.

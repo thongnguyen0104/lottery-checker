@@ -1,5 +1,7 @@
 import axios from 'axios'
-import { compressImage, type CompressStages } from '../utils/compressImage'
+import {
+  compressImage, DEFAULT_COMPRESS, type CompressOptions, type CompressStages,
+} from '../utils/compressImage'
 
 // Rỗng = gọi cùng origin (/api/...) → đi qua Vite proxy sang backend.
 // Đặt VITE_API_URL chỉ khi muốn trỏ thẳng tới backend ở host khác.
@@ -12,25 +14,40 @@ const api = axios.create({
 
 /**
  * Thời gian từng chặng phía máy chủ (ms) — xem StageTimer/ScanController ở backend.
- * Các chặng chạy NỐI TIẾP; chặng cloud = null khi OCR cục bộ đã đủ tin (không gọi OCR.space).
+ * Các chặng chạy NỐI TIẾP; chặng cloud = null khi OCR cục bộ đã đủ tin (không gọi cloud),
+ * chặng local = null khi OCR cục bộ bị tắt (cloud đọc thẳng).
  */
 export type ScanTimings = {
   upload?: number               // nhận ảnh upload + đọc vào bộ nhớ
-  preprocess?: number           // giải mã + xoay + (resize nếu >1600px) + lọc ảnh
-  localOcr?: number             // OCR trên máy chủ (PP-OCRv5) + parse + validate
+  preprocess?: number | null    // giải mã + xoay + (resize nếu >1600px) + lọc ảnh — null khi gửi nguyên ảnh cho cloud
+  localOcr?: number | null      // OCR trên máy chủ (PP-OCRv5) + parse + validate — null khi OCR cục bộ tắt
   ocrDetect?: number            //   ↳ trong localOcr: model dò vùng chữ
   ocrRecognize?: number         //   ↳ trong localOcr: cắt + nhận dạng các dòng
   ocrLines?: number             //   ↳ số dòng chữ tìm thấy (không phải ms)
   localRetry?: number | null    // đọc lại trên ảnh lọc khác — chỉ khi lượt chính thiếu/sai ngày hoặc đài
-  cloudPrepare?: number | null  // nén JPEG cho cloud — chỉ khi local không qua validate
-  cloudOcr?: number | null      // gọi OCR.space
+  cloudPrepare?: number | null  // chuẩn bị ảnh JPEG cho cloud — chỉ khi gọi cloud
+  cloudOcr?: number | null      // gọi cloud (Gemini, lỗi thì OCR.space) — xem cloudProvider
   merge?: number | null         // gộp kết quả cloud vào local
   total: number                 // tổng thời gian máy chủ xử lý request
 }
 
-/** Đường đi của kết quả: local đủ tin, hay phải nhờ cloud (và cloud có trả lời không). */
+/**
+ * Đường đi của kết quả: local đủ tin, hay phải nhờ cloud (và cloud có trả lời không).
+ * 'cloud-only*' = OCR cục bộ bị tắt, cloud là đường chính.
+ */
 export type OcrPath =
   | 'local' | 'local-expired' | 'local-review' | 'cloud' | 'cloud-failed' | 'cloud-disabled'
+  | 'cloud-only' | 'cloud-only-failed'
+
+/** Nguồn cloud đã cho kết quả. */
+export type CloudProvider = 'gemini' | 'ocrspace'
+
+/**
+ * Một lượt gọi một nguồn cloud (backend thử Gemini trước, lỗi thì OCR.space). error null = trả lời
+ * được; Gemini: 'timeout' | 'http_429' | 'http_503' | 'http_<mã>' | 'empty' | 'bad_json' | 'network';
+ * OCR.space: 'failed'. retried = mã lỗi các lượt Gemini đã tự gọi lại (vd 503 quá tải) — ms gồm cả chúng.
+ */
+export type CloudAttempt = { provider: CloudProvider; ms: number; error: string | null; retried?: string[] | null }
 
 /** Trường của kết quả cuối mà user nên kiểm tra lại (đọc được nhưng chưa chắc chắn). */
 export type ReviewField = 'number' | 'date' | 'province'
@@ -39,14 +56,21 @@ export type ScanResponse = {
   ticketNumber: string | null
   drawDate: string | null
   province: string | null
-  confidence: number
+  /** Độ tin cậy của OCR cục bộ (0..1); null khi OCR cục bộ không chạy — cloud không trả điểm này. */
+  confidence: number | null
   lowConfidence: boolean
   ticketNumberFromCloud: boolean
   allProvinces: string[] | null
   warning: string | null
   ocrPath?: OcrPath
-  /** Mã lý do OCR cục bộ không qua (vd 'low_confidence', 'province_fuzzy') — rỗng khi passed. */
-  localValidation?: { passed: boolean; reasons: string[] }
+  cloudProvider?: CloudProvider | null
+  /** Từng nguồn cloud đã thử, theo thứ tự — timings.cloudOcr là tổng các lượt. null = không gọi cloud. */
+  cloudAttempts?: CloudAttempt[] | null
+  /**
+   * Mã lý do OCR cục bộ không qua (vd 'low_confidence', 'province_fuzzy') — rỗng khi passed.
+   * null khi OCR cục bộ không chạy.
+   */
+  localValidation?: { passed: boolean; reasons: string[] } | null
   /** Lượt đọc lại lấp được trường nào (null = không cần đọc lại). localValidation là kết quả SAU khi lấp. */
   localRetry?: {
     mode: string
@@ -69,11 +93,36 @@ export type ScanResponse = {
     compressMs: number
     compressed: boolean
     stages?: CompressStages
+    /** Cỡ/chất lượng đã dùng để nén (backend quyết, xem loadCompressOptions). */
+    options?: CompressOptions
   }
 }
 
 // Thêm ?nocompress vào URL để gửi ảnh gốc — dùng để A/B đo xem nén ở FE có nhanh hơn không.
 const compressEnabled = () => !new URLSearchParams(window.location.search).has('nocompress')
+
+let compressOptions: Promise<CompressOptions> | null = null
+
+/**
+ * Hỏi backend nên nén ảnh cỡ nào (GET /api/scan/options) — 1600px khi OCR cục bộ đọc, 1280px khi
+ * Gemini đọc thẳng. Gọi sớm lúc mở app để lượt quét đầu không phải chờ; kết quả dùng lại cho mọi
+ * lượt sau. Lỗi (mạng, backend cũ chưa có endpoint) → mặc định 1600px, an toàn cho cả hai đường,
+ * và lần sau hỏi lại. Timeout ngắn: đây chỉ là tối ưu, không được bắt user chờ.
+ */
+export function loadCompressOptions(): Promise<CompressOptions> {
+  compressOptions ??= api.get('/api/scan/options', { timeout: 3_000 })
+    .then(({ data }) => {
+      const o = data as Partial<CompressOptions>
+      const valid = typeof o.maxWidth === 'number' && o.maxWidth >= 320
+        && typeof o.quality === 'number' && o.quality > 0 && o.quality <= 1
+      return valid ? { maxWidth: o.maxWidth!, quality: o.quality! } : DEFAULT_COMPRESS
+    })
+    .catch(() => {
+      compressOptions = null
+      return DEFAULT_COMPRESS
+    })
+  return compressOptions
+}
 
 // Chuẩn hoá lỗi axios thành thông báo tiếng Việt dễ hiểu
 function toFriendlyError(e: unknown): Error {
@@ -99,8 +148,9 @@ export async function scanImage(
   onUploadProgress?: (ratio: number) => void,
 ): Promise<ScanResponse> {
   try {
-    const c = compressEnabled()
-      ? await compressImage(blob)
+    const options = compressEnabled() ? await loadCompressOptions() : undefined
+    const c = options
+      ? await compressImage(blob, options)
       : { blob, originalBytes: blob.size, sentBytes: blob.size, compressMs: 0 }
     const fd = new FormData()
     fd.append('image', c.blob, 'ticket.jpg')
@@ -119,6 +169,7 @@ export async function scanImage(
         compressMs: c.compressMs,
         compressed: c.blob !== blob,
         stages: 'stages' in c ? c.stages : undefined,
+        options,
       },
     }
   } catch (e) {

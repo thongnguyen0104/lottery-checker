@@ -18,16 +18,18 @@ public class AdminController : ControllerBase
     private readonly ImagePreprocessor _preprocessor;
     private readonly OcrService _ocr;
     private readonly CloudOcrService _cloudOcr;
+    private readonly GeminiTicketReader _gemini;
     private readonly RapidOcrService _onnx;
     private readonly TicketResultValidator _validator;
     private readonly LocalRetryReader _retry;
 
     public AdminController(ResultScraper scraper, AppDbContext db, IWebHostEnvironment env,
                            ImagePreprocessor preprocessor, OcrService ocr, CloudOcrService cloudOcr,
-                           RapidOcrService onnx, TicketResultValidator validator, LocalRetryReader retry)
+                           GeminiTicketReader gemini, RapidOcrService onnx, TicketResultValidator validator,
+                           LocalRetryReader retry)
     {
         _scraper = scraper; _db = db; _env = env; _preprocessor = preprocessor; _ocr = ocr;
-        _cloudOcr = cloudOcr; _onnx = onnx; _validator = validator; _retry = retry;
+        _cloudOcr = cloudOcr; _gemini = gemini; _onnx = onnx; _validator = validator; _retry = retry;
     }
 
     // Tên file mang đáp án để tính accuracy: "288921_2026-06-05_BinhDuong.jpg".
@@ -43,19 +45,27 @@ public class AdminController : ControllerBase
     ///
     /// unclip = thử UnClipRatio khác cấu hình (nới khung chữ); grid=false = bỏ lưới 4 kiểu lọc × DoAngle,
     /// chỉ chạy các dòng Main/Pipeline (luồng thật) cho nhanh.
+    ///
+    /// gemini=true = thêm dòng "Gemini:&lt;model&gt;" (cần Gemini:Enabled + ApiKey); local=false = bỏ hết các
+    /// dòng OCR cục bộ, chỉ đo Gemini. Với Gemini, falsePass = đủ 3 trường hợp lệ mà SAI — lỗi user không
+    /// được cảnh báo. Gói free giới hạn số request/phút: nhiều ảnh × repeat dễ bị 429 (xem log).
     /// </summary>
     [HttpPost("/api/admin/ocr-benchmark")]
     [RequestSizeLimit(200_000_000)]
     public async Task<IActionResult> OcrBenchmark(List<IFormFile> images, [FromQuery] int repeat = 1,
                                                   [FromQuery] bool includeText = false,
                                                   [FromQuery] float? unclip = null, [FromQuery] bool grid = true,
+                                                  [FromQuery] bool gemini = false, [FromQuery] bool local = true,
                                                   CancellationToken ct = default)
     {
         if (!_env.IsDevelopment()) return NotFound();
         if (images == null || images.Count == 0) return BadRequest(new { error = "Chưa có ảnh (field 'images')" });
+        if (gemini && !_gemini.IsEnabled)
+            return BadRequest(new { error = "Gemini đang tắt hoặc thiếu ApiKey (Gemini:Enabled / Gemini:ApiKey)" });
+        if (!local && !gemini) return BadRequest(new { error = "local=false thì phải bật gemini=true" });
         repeat = Math.Clamp(repeat, 1, 10);
 
-        var configs = grid
+        var configs = grid && local
             ? Enum.GetValues<LocalPreprocess>()
                 .SelectMany(mode => new[] { true, false }.Select(doAngle => (mode, doAngle)))
                 .ToArray()
@@ -75,6 +85,26 @@ public class AdminController : ControllerBase
             var sw = System.Diagnostics.Stopwatch.StartNew();
             using var prepared = _preprocessor.Load(new MemoryStream(bytes));
             var loadMs = sw.Elapsed.TotalMilliseconds;
+
+            // Gemini nhận đúng loại ảnh luồng thật gửi: JPEG ≤1600px (FE đã nén sẵn, hoặc EncodeForCloud).
+            // prepMs = nén JPEG; ocrMs = một lượt gọi Gemini (gồm cả mạng), trung bình repeat lần.
+            if (gemini)
+            {
+                sw.Restart();
+                var jpeg = prepared.EncodeForCloud();
+                var encodeMs = sw.Elapsed.TotalMilliseconds;
+                double geminiMs = 0;
+                TicketInfo? read = null;
+                for (var i = 0; i < repeat; i++)
+                {
+                    sw.Restart();
+                    read = await _gemini.ReadAsync(jpeg, ct);
+                    geminiMs += sw.Elapsed.TotalMilliseconds;
+                }
+                rows.Add(ToRow(file.FileName, $"Gemini:{_gemini.Model}", loadMs, encodeMs, geminiMs / repeat,
+                               read ?? new TicketInfo { RawText = "(Gemini lỗi — xem log)" }, expected, includeText));
+            }
+            if (!local) continue;
 
             // Chạy mồi 1 lần (không tính): lần OCR đầu trên ảnh kích thước mới chậm hơn hẳn
             // (ONNX cấp phát buffer), nếu tính vào thì kiểu chạy đầu tiên luôn bị thiệt.
