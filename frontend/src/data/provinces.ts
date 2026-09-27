@@ -23,6 +23,7 @@ export const ALL_PROVINCES = [
   { code: 'TienGiang', name: 'Tiền Giang' },
   { code: 'DaLat', name: 'Đà Lạt' },
   { code: 'LamDong', name: 'Lâm Đồng' },
+  { code: 'BinhPhuoc', name: 'Bình Phước' },
   // Miền Trung
   { code: 'PhuYen', name: 'Phú Yên' },
   { code: 'Hue', name: 'Huế' },

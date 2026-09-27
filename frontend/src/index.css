@@ -7,3 +7,39 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   background: #FAFAFA;
 }
+
+/* iOS Safari vẽ <input type="date"> bằng control gốc: có bề rộng tối thiểu riêng nên lờ đi
+   w-full và tràn ra ngoài khung (lệch phải so với các ô khác), chữ căn giữa, nền xám.
+   Bỏ giao diện gốc + min-width 0 để nó co đúng theo khung; giữ chiều cao bằng ô text
+   (p-3 + line-height 24px + viền = 50px) vì bỏ appearance thì iOS co ô ngày lại thấp hơn. */
+input[type="date"] {
+  -webkit-appearance: none;
+  appearance: none;
+  display: block;
+  min-width: 0;
+  min-height: 3.125rem;
+}
+input[type="date"]::-webkit-date-and-time-value {
+  text-align: left;
+}
+/* Vạch quét của ProcessingScreen: khung trong suốt cao bằng ảnh, vạch nằm ở đáy khung; dịch
+   khung từ -100% (vạch ở mép trên ảnh) tới 0 (mép dưới) rồi quay lại. Dùng transform thay vì
+   top để trình duyệt không phải tính lại layout mỗi khung hình. */
+@keyframes scan-sweep {
+  from { transform: translateY(-100%); }
+  to   { transform: translateY(0); }
+}
+.scan-sweep { animation: scan-sweep 1.8s ease-in-out infinite alternate; }
+
+/* Dấu ✓ "nảy" lên khi một bước vừa xong */
+@keyframes step-pop {
+  0%   { transform: scale(0.4); opacity: 0; }
+  70%  { transform: scale(1.15); opacity: 1; }
+  100% { transform: scale(1); }
+}
+.step-pop { animation: step-pop 0.3s ease-out; }
+
+@media (prefers-reduced-motion: reduce) {
+  .scan-sweep { display: none; }
+  .step-pop { animation: none; }
+}
