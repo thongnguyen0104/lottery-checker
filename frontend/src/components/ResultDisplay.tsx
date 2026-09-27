@@ -19,6 +19,8 @@ type Props = {
     totalPrize: number
   }
   onRescan: () => void
+  /** Mở bảng kết quả đầy đủ của đài/ngày trên vé (chỉ hiện nút khi đã có kết quả để dò). */
+  onShowTable: (focus: { drawDate: string; province: string; ticketNumber: string }) => void
 }
 
 const formatVND = (n: number) =>
@@ -33,7 +35,7 @@ const formatDate = (iso: string | null | undefined) => {
 // Giờ xổ lấy trực tiếp từ chuỗi, KHÔNG qua new Date() — tránh browser lệch múi giờ.
 const formatTime = (iso: string | null | undefined) => iso?.slice(11, 16) ?? null
 
-export default function ResultDisplay({ result, onRescan }: Props) {
+export default function ResultDisplay({ result, onRescan, onShowTable }: Props) {
   const { isWinner, winnings, totalPrize, extractedNumber, drawDate, province, drawsAt } = result
   const status: Status = result.status ?? 'Checked'
 
@@ -107,6 +109,15 @@ export default function ResultDisplay({ result, onRescan }: Props) {
       <p className="text-xs text-gray-500 text-center px-2">
         Kết quả do AI đọc và có thể mắc sai sót, chúng tôi không chịu trách nhiệm nếu bạn hủy vé.
       </p>
+
+      {/* Chỉ 'Checked' mới chắc có bảng trong DB: chưa xổ/chưa cào thì chưa có, còn vé hết hạn
+          thì kết quả >30 ngày đã bị scraper dọn. */}
+      {status === 'Checked' && drawDate && province && (
+        <button onClick={() => onShowTable({ drawDate, province, ticketNumber: extractedNumber })}
+                className="w-full border border-gray-300 text-gray-700 bg-white py-3 rounded-lg">
+          📋 Xem bảng kết quả đài này
+        </button>
+      )}
 
       <button onClick={onRescan}
               className="w-full bg-blue-600 text-white py-3 rounded-lg">
