@@ -58,14 +58,28 @@ builder.Services.AddScoped<OcrService>();
 // InitModels — phần chạy thật là InferenceSession.Run của ONNX Runtime, vốn an toàn đa luồng.
 builder.Services.AddSingleton<RapidOcrService>();
 
+// Cờ bật/tắt OCR cục bộ (Ocr:LocalEnabled). Tắt thì ITicketOcrEngine là bản giữ chỗ: không nạp
+// model ONNX/Tesseract nào cả — cloud (Gemini / OCR.space) đọc thẳng mọi vé.
+var localOcr = LocalOcrSwitch.From(builder.Configuration, out var localForcedOn);
+builder.Services.AddSingleton(localOcr);
+// Cỡ ảnh FE nên gửi đi theo đường đọc chính (local cần 1600px, Gemini 1280px là đủ) — /api/scan/options.
+builder.Services.AddSingleton(ScanUploadOptions.From(builder.Configuration, localOcr.Enabled));
+
 var ocrEngine = builder.Configuration["Ocr:Engine"] ?? "onnx";
 var useOnnx = !ocrEngine.Equals("tesseract", StringComparison.OrdinalIgnoreCase);
-if (useOnnx)
+if (!localOcr.Enabled)
+    builder.Services.AddSingleton<ITicketOcrEngine, DisabledOcrEngine>();
+else if (useOnnx)
     builder.Services.AddSingleton<ITicketOcrEngine>(sp => sp.GetRequiredService<RapidOcrService>());
 else
     builder.Services.AddScoped<ITicketOcrEngine>(sp => sp.GetRequiredService<OcrService>());
 
-// Cloud OCR (OCR.space) — đọc số vé cách điệu mà Tesseract cục bộ đọc sai. Best-effort.
+// Cloud — best-effort, lỗi thì trả null chứ không làm vỡ scan. Khi local bật, cloud chỉ là
+// fallback lúc local đọc không chắc; thứ tự thử: Gemini rồi OCR.space (xem ScanController).
+// Gemini: đọc thẳng ảnh → số/ngày/đài. Flash-Lite thường trả lời trong 1–3s; trần 15s cho mạng xấu.
+builder.Services.AddHttpClient<GeminiTicketReader>(c =>
+    c.Timeout = TimeSpan.FromSeconds(builder.Configuration.GetValue("Gemini:TimeoutSeconds", 15)));
+// OCR.space — đọc số vé cách điệu mà Tesseract cục bộ đọc sai.
 builder.Services.AddHttpClient<CloudOcrService>(c => c.Timeout = TimeSpan.FromSeconds(30));
 
 // Scraper kết quả XSKT + worker tự động cào hằng ngày
@@ -97,7 +111,16 @@ _ = Task.Run(() =>
 {
     try
     {
-        if (useOnnx)
+        if (!localOcr.Enabled)
+        {
+            var sources = new List<string>();
+            if (LocalOcrSwitch.CloudUsable(builder.Configuration, "Gemini")) sources.Add("Gemini");
+            if (LocalOcrSwitch.CloudUsable(builder.Configuration, "CloudOcr")) sources.Add("OCR.space");
+            app.Logger.LogInformation(
+                "Khởi động: OCR cục bộ TẮT (Ocr:LocalEnabled=false) — mọi vé do cloud đọc: {Sources}.",
+                string.Join(" → ", sources));
+        }
+        else if (useOnnx)
         {
             // Lấy service ra là ctor chạy InitModels (~0,4s).
             var engine = app.Services.GetRequiredService<ITicketOcrEngine>();
@@ -135,6 +158,18 @@ if (builder.Configuration.GetValue<bool>("CloudOcr:Enabled")
     app.Logger.LogWarning(
         "CloudOcr đang bật nhưng thiếu ApiKey — chỉ dùng Tesseract cục bộ, số vé cách điệu dễ đọc sai. " +
         "Lấy key free tại https://ocr.space/ocrapi rồi set CloudOcr:ApiKey (user-secrets ở dev / env ở prod).");
+
+// Gemini — cùng cách giữ key: dev dùng user-secrets "Gemini:ApiKey", prod dùng env Gemini__ApiKey.
+if (builder.Configuration.GetValue<bool>("Gemini:Enabled")
+    && string.IsNullOrWhiteSpace(builder.Configuration["Gemini:ApiKey"]))
+    app.Logger.LogWarning(
+        "Gemini đang bật nhưng thiếu ApiKey — bỏ qua Gemini. Lấy key free tại https://aistudio.google.com/apikey " +
+        "rồi set Gemini:ApiKey (user-secrets ở dev / env Gemini__ApiKey ở prod).");
+
+if (localForcedOn)
+    app.Logger.LogWarning(
+        "Ocr:LocalEnabled=false nhưng không có nguồn cloud nào dùng được (Gemini/CloudOcr tắt hoặc thiếu ApiKey) " +
+        "— vẫn BẬT OCR cục bộ để app đọc được vé.");
 
 if (app.Environment.IsDevelopment())
 {

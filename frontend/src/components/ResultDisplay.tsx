@@ -1,3 +1,6 @@
+import type { ReactNode } from 'react'
+import Confetti from './Confetti'
+import Icon, { IconBadge, type IconName } from './Icon'
 import { provinceName } from '../data/provinces'
 import { CLAIM_DAYS, claimDeadline } from '../utils/claim'
 
@@ -19,6 +22,10 @@ type Props = {
     totalPrize: number
   }
   onRescan: () => void
+  /** Mở lại form với thông tin vừa dò — nhất là khi vé được dò luôn mà máy đọc nhầm. */
+  onEdit: () => void
+  /** Mở bảng kết quả đầy đủ của đài/ngày trên vé (chỉ hiện nút khi đã có kết quả để dò). */
+  onShowTable: (focus: { drawDate: string; province: string; ticketNumber: string }) => void
 }
 
 const formatVND = (n: number) =>
@@ -33,85 +40,136 @@ const formatDate = (iso: string | null | undefined) => {
 // Giờ xổ lấy trực tiếp từ chuỗi, KHÔNG qua new Date() — tránh browser lệch múi giờ.
 const formatTime = (iso: string | null | undefined) => iso?.slice(11, 16) ?? null
 
-export default function ResultDisplay({ result, onRescan }: Props) {
+export default function ResultDisplay({ result, onRescan, onEdit, onShowTable }: Props) {
   const { isWinner, winnings, totalPrize, extractedNumber, drawDate, province, drawsAt } = result
   const status: Status = result.status ?? 'Checked'
+  const won = status === 'Checked' && isWinner
 
   return (
-    <div className="p-4 space-y-4">
-      <div className="bg-white rounded-2xl shadow p-5 text-center">
-        <div className="text-sm text-gray-500">Vé số</div>
-        <div className="text-3xl font-bold tracking-widest my-1">{extractedNumber}</div>
-        <div className="text-sm text-gray-500">
-          {province ? provinceName(province) : '—'} — {formatDate(drawDate)}
+    <div className="space-y-4">
+      {won && <Confetti />}
+
+      {/* Tấm vé màu primary (Hoàng kim: vàng, chữ navy); ô số dùng màu chữ pha loãng nên hợp mọi bảng màu */}
+      <div className="ticket-shadow">
+        <div className="ticket-shape relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary to-primary-end
+                        text-on-primary px-6 py-5 text-center">
+          {/* Vân sáng chéo cho tấm vé đỡ phẳng, như ánh kim */}
+          <div aria-hidden className="absolute -top-16 -right-10 w-48 h-48 rounded-full bg-white/15" />
+          <div className="relative">
+            <div className="text-xs font-bold uppercase tracking-[.25em] opacity-75">Vé số của bạn</div>
+            <div className="flex justify-center gap-1.5 my-3" aria-label={extractedNumber}>
+              {extractedNumber.split('').map((d, i) => (
+                <span key={i} aria-hidden
+                      className="w-10 h-12 sm:w-11 sm:h-14 rounded-lg bg-on-primary/10 ring-1 ring-on-primary/15
+                                 flex items-center justify-center text-3xl sm:text-4xl font-extrabold tabular-nums">
+                  {d}
+                </span>
+              ))}
+            </div>
+            <div className="flex items-center justify-center gap-4 border-t border-dashed border-on-primary/30 pt-3
+                            text-sm font-semibold opacity-90">
+              <span className="inline-flex items-center gap-1.5">
+                <Icon name="pin" className="w-4 h-4" /> {province ? provinceName(province) : '—'}
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <Icon name="calendar" className="w-4 h-4" /> {formatDate(drawDate)}
+              </span>
+            </div>
+          </div>
         </div>
       </div>
 
+      {/* Ngay dưới tấm vé: vé đọc chắc thì được dò luôn không qua form — số/đài/ngày trên vé mà sai
+          thì user thấy ngay ở đây và sửa được, khỏi phải chụp lại. */}
+      <button onClick={onEdit}
+              className="mx-auto flex items-center gap-1.5 text-sm font-medium text-ink-faint transition
+                         hover:text-brand-700 dark:hover:text-brand-400">
+        <Icon name="edit" className="w-4 h-4" /> Sai số vé, đài hoặc ngày? Sửa lại
+      </button>
+
       {status === 'Expired' ? (
-        <div className="bg-red-50 border border-red-300 rounded-2xl p-6 text-center">
-          <div className="text-2xl mb-2">⌛</div>
-          <div className="font-medium text-red-800">Vé hết hạn</div>
-          <div className="text-sm text-red-700/80 mt-1">
-            Vé mở thưởng ngày <b>{formatDate(drawDate)}</b> — hạn lĩnh thưởng {CLAIM_DAYS} ngày
-            (đến hết ngày <b>{formatDate(result.claimDeadline ?? (drawDate ? claimDeadline(drawDate) : null))}</b>) đã qua.
-          </div>
-        </div>
+        <StatusCard tone="bad" icon="expired" title="Vé hết hạn">
+          Vé mở thưởng ngày <b>{formatDate(drawDate)}</b> — hạn lĩnh thưởng {CLAIM_DAYS} ngày
+          (đến hết ngày <b>{formatDate(result.claimDeadline ?? (drawDate ? claimDeadline(drawDate) : null))}</b>) đã qua.
+        </StatusCard>
       ) : status === 'NotDrawnYet' ? (
-        <div className="bg-amber-50 border border-amber-300 rounded-2xl p-6 text-center">
-          <div className="text-2xl mb-2">⏳</div>
-          <div className="font-medium text-amber-800">Vé chưa đến giờ xổ</div>
-          <div className="text-sm text-amber-700/80 mt-1">
-            {province ? provinceName(province) : 'Đài này'} xổ lúc{' '}
-            <b>{formatTime(drawsAt) ?? '16:15'}</b> ngày <b>{formatDate(drawDate)}</b>. Quay lại sau nhé!
-          </div>
-        </div>
+        <StatusCard tone="warn" icon="clock" title="Vé chưa đến giờ xổ">
+          {province ? provinceName(province) : 'Đài này'} xổ lúc{' '}
+          <b>{formatTime(drawsAt) ?? '16:15'}</b> ngày <b>{formatDate(drawDate)}</b>. Quay lại sau nhé!
+        </StatusCard>
       ) : status === 'NoData' ? (
-        <div className="bg-blue-50 border border-blue-300 rounded-2xl p-6 text-center">
-          <div className="text-2xl mb-2">📭</div>
-          <div className="font-medium text-blue-800">Chưa có kết quả để dò</div>
-          <div className="text-sm text-blue-700/80 mt-1">
-            Hệ thống chưa tải được kết quả của {province ? provinceName(province) : 'đài này'} ngày{' '}
-            {formatDate(drawDate)}. Kiểm tra lại ngày/đài, hoặc thử lại sau ít phút —
-            <b> chưa kết luận được vé trúng hay không</b>.
-          </div>
-        </div>
+        <StatusCard tone="info" icon="empty" title="Chưa có kết quả để dò">
+          Hệ thống chưa tải được kết quả của {province ? provinceName(province) : 'đài này'} ngày{' '}
+          {formatDate(drawDate)}. Kiểm tra lại ngày/đài, hoặc thử lại sau ít phút —
+          <b> chưa kết luận được vé trúng hay không</b>.
+        </StatusCard>
       ) : isWinner ? (
         <>
-          <div className="bg-green-50 border border-green-300 rounded-2xl p-5 text-center">
-            <div className="text-green-700 font-medium mb-1">🎉 Chúc mừng! Vé trúng:</div>
-            <div className="text-4xl font-bold text-green-700">{formatVND(totalPrize)}</div>
+          {/* Trúng: khung xanh ngọc (trạng thái thành công), số tiền màu vàng brand */}
+          <StatusCard tone="ok" icon="trophy" title="Chúc mừng! Vé trúng thưởng">
+            <div className="text-4xl sm:text-5xl font-extrabold tracking-tight tabular-nums mt-1
+                            text-brand-700 dark:text-brand-400">
+              {formatVND(totalPrize)}
+            </div>
             {winnings.length > 1 && (
-              <div className="text-xs text-green-700/70 mt-2">
-                ({winnings.length} giải cộng dồn)
-              </div>
+              <div className="text-xs font-medium text-ink-faint mt-2">({winnings.length} giải cộng dồn)</div>
             )}
-          </div>
+          </StatusCard>
 
-          <ul className="bg-white rounded-2xl shadow divide-y">
+          <ul className="card divide-y divide-line overflow-hidden">
             {winnings.map((w, i) => (
-              <li key={i} className="flex items-center justify-between p-4">
-                <span className="font-medium">{w.tierName}</span>
-                <span className="text-brand-600 font-semibold">{formatVND(w.amount)}</span>
+              <li key={i} className="flex items-center justify-between gap-3 p-4">
+                <span className="flex items-center gap-2.5 font-medium">
+                  <Icon name="award" className="w-5 h-5 shrink-0 text-ok" /> {w.tierName}
+                </span>
+                <span className="text-brand-700 dark:text-brand-400 font-bold tabular-nums">{formatVND(w.amount)}</span>
               </li>
             ))}
           </ul>
         </>
       ) : (
-        <div className="bg-gray-50 border border-gray-200 rounded-2xl p-6 text-center">
-          <div className="text-2xl mb-2">😔</div>
-          <div className="font-medium">Tiếc quá, vé không trúng giải nào</div>
-          <div className="text-sm text-gray-500 mt-1">Chúc bạn may mắn lần sau!</div>
-        </div>
+        <StatusCard tone="bad" icon="ticketX" title="Tiếc quá, vé không trúng giải nào">
+          Chúc bạn may mắn lần sau!
+        </StatusCard>
       )}
 
-      <p className="text-xs text-gray-500 text-center px-2">
+      <p className="text-xs text-ink-faint text-center px-2">
         Kết quả do AI đọc và có thể mắc sai sót, chúng tôi không chịu trách nhiệm nếu bạn hủy vé.
       </p>
 
-      <button onClick={onRescan}
-              className="w-full bg-blue-600 text-white py-3 rounded-lg">
-        🔄 Dò vé khác
-      </button>
+      <div className="grid sm:grid-flow-col sm:auto-cols-fr gap-3">
+        {/* Chỉ 'Checked' mới chắc có bảng trong DB: chưa xổ/chưa cào thì chưa có, còn vé hết hạn
+            thì kết quả >30 ngày đã bị scraper dọn. */}
+        {status === 'Checked' && drawDate && province && (
+          <button onClick={() => onShowTable({ drawDate, province, ticketNumber: extractedNumber })}
+                  className="btn btn-secondary">
+            <Icon name="list" /> Xem bảng kết quả đài này
+          </button>
+        )}
+        <button onClick={onRescan} className="btn btn-primary">
+          <Icon name="retry" /> Dò vé khác
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// Nền thẻ đặc (bg-surface) + dải màu nhạt từ mép trên: không lộ hình nền phía sau như nền trong suốt.
+const TONES = {
+  ok: { box: 'border-ok/35 from-ok/15', title: 'text-ok' },
+  bad: { box: 'border-bad/30 from-bad/10', title: 'text-bad' },
+  warn: { box: 'border-warn/30 from-warn/10', title: 'text-warn' },
+  info: { box: 'border-info/30 from-info/10', title: 'text-info' },
+}
+
+function StatusCard({ tone, icon, title, children }: {
+  tone: keyof typeof TONES; icon: IconName; title: string; children: ReactNode
+}) {
+  return (
+    <div className={`rounded-2xl border p-6 text-center shadow-soft bg-surface bg-gradient-to-b ${TONES[tone].box}`}>
+      <IconBadge name={icon} tone={tone} />
+      <div className={`font-bold text-lg mt-3 ${TONES[tone].title}`}>{title}</div>
+      <div className="text-sm text-ink-soft mt-1">{children}</div>
     </div>
   )
 }

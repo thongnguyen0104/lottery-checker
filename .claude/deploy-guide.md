@@ -55,6 +55,41 @@ dotnet user-secrets set "CloudOcr:ApiKey" "<KEY_CUA_BAN>"
 
 Prod: đặt biến môi trường `CloudOcr__ApiKey` (xem §5). .NET tự map `__` → `:`.
 
+### 1.2b Gemini + cờ bật/tắt nguồn đọc vé (tuỳ chọn)
+
+Ba cờ, đọc lúc khởi động (đổi xong phải restart):
+
+| Cờ | Mặc định | Ý nghĩa |
+|---|---|---|
+| `Ocr:LocalEnabled` | `true` | OCR cục bộ (ONNX). Tắt = không nạp model, mọi vé do cloud đọc thẳng |
+| `Gemini:Enabled` | `false` | Gemini (`gemini-3.1-flash-lite`) đọc ảnh → trả thẳng số/ngày/đài |
+| `CloudOcr:Enabled` | `true` | OCR.space (text) |
+
+- Local bật: cloud chỉ là fallback khi local đọc không chắc, thử Gemini trước rồi tới OCR.space.
+- Local tắt: cloud là đường chính (Gemini → OCR.space). Nếu không còn nguồn cloud nào dùng được
+  (tắt hết / thiếu key) thì app **tự bật lại local** và log cảnh báo — không bao giờ trả form trống.
+- Gemini hay trả **503 "model is overloaded"** lúc cao điểm. Lỗi 500/502/503/504 được tự gọi lại
+  `Gemini:MaxRetries` lần (mặc định 1, `0` = tắt) sau `Gemini:RetryDelayMs` (mặc định 1000) rồi mới
+  lùi về OCR.space (có lúc gần 20s). 429 (hết quota) và timeout (`Gemini:TimeoutSeconds`, mặc định 15)
+  thì lùi ngay. Lượt nào lỗi, mất bao lâu: xem `cloudAttempts` trong response /api/scan (FE hiện ở
+  "xem chi tiết" dưới dòng "AI đọc") hoặc `attempts=[...]` trong log.
+- Cỡ ảnh FE gửi lên đi theo cờ này (FE hỏi `GET /api/scan/options` lúc mở app): local 1600px q0.85,
+  cloud 1280px q0.7 (Gemini đúng 16/16 mà nhanh hơn ~1s). Chỉnh bằng env
+  `Ocr__Upload__Cloud__MaxWidth` / `Ocr__Upload__Cloud__Quality` (tương tự `...Local...`).
+
+Lấy key free tại https://aistudio.google.com/apikey, rồi:
+
+```powershell
+# dev
+dotnet user-secrets set "Gemini:ApiKey" "<KEY>"
+dotnet user-secrets set "Gemini:Enabled" "true"
+dotnet user-secrets set "Ocr:LocalEnabled" "false"   # chỉ dùng Gemini
+```
+
+Prod: thêm vào `/etc/lottery-api.env` (§5): `Gemini__ApiKey=...`, `Gemini__Enabled=true`,
+`Ocr__LocalEnabled=false`. Đo trước khi bật trên prod:
+`/api/admin/ocr-benchmark?gemini=true&local=false` (chỉ Development) với 8 vé trong `backend/TestData`.
+
 ### 1.3 Timezone — ĐÃ SỬA TRONG CODE
 
 Vòng lặp 19h của `DailyResultFetchWorker` từng dùng `DateTime.Now` → trên server UTC sẽ cào lúc
@@ -167,6 +202,10 @@ scp -i key.key -r D:\Projects\lottery-checker\frontend\dist\*                   
 ```bash
 sudo tee /etc/lottery-api.env > /dev/null << 'EOF'
 CloudOcr__ApiKey=<KEY_OCRSPACE_THAT_CUA_BAN>
+# Tuỳ chọn — dùng Gemini (xem §1.2b):
+# Gemini__ApiKey=<KEY_GEMINI>
+# Gemini__Enabled=true
+# Ocr__LocalEnabled=false
 EOF
 sudo chmod 600 /etc/lottery-api.env
 

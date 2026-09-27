@@ -5,7 +5,7 @@
       .\deploy\tunnel.ps1
 
   Script se:
-    1. Doc CloudOcr:ApiKey tu dotnet user-secrets (khong can ban dan tay)
+    1. Doc CloudOcr:ApiKey (+ Gemini:ApiKey, Gemini:Enabled, Ocr:LocalEnabled neu co) tu dotnet user-secrets
     2. Chay backend o che do Production tren 127.0.0.1:5177
     3. Build frontend roi chay `vite preview` (ban build that, service worker PWA hoat dong)
     4. Mo Cloudflare Tunnel tro vao vite preview -> in ra link https://....trycloudflare.com
@@ -49,6 +49,15 @@ if ($idMatch) {
         if ($key) {
             $env:CloudOcr__ApiKey = $key
             Write-Host "    tim thay key (dai $($key.Length) ky tu)"
+        }
+        # Gemini + co bat/tat OCR (xem .claude/deploy-guide.md 1.2b). Production khong doc
+        # user-secrets nen phai chep sang bien moi truong.
+        foreach ($name in 'Gemini:ApiKey', 'Gemini:Enabled', 'Ocr:LocalEnabled') {
+            $value = $secrets.$name
+            if ($null -ne $value -and "$value" -ne '') {
+                Set-Item -Path "env:$($name -replace ':', '__')" -Value "$value"
+                Write-Host "    chep $name tu user-secrets"
+            }
         }
     }
 }

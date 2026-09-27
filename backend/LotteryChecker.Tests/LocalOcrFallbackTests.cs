@@ -196,6 +196,79 @@ public class LocalOcrFallbackTests
         Validator().FieldsToReview(old).Should().BeEmpty();
     }
 
+    // ---- Dò luôn (bỏ qua form xác nhận): sai ở đây là dò vé bằng số/đài/ngày máy đọc nhầm ----
+
+    [Fact(DisplayName = "25. Dò luôn: vé rõ, OCR cục bộ qua hết luật")]
+    public void AutoCheck_ClearLocalTicket()
+    {
+        var info = Parser.Parse(ClearTicket, 0.93);
+        Validator().CanAutoCheck(info, Validator().Validate(info)).Should().BeTrue();
+    }
+
+    [Fact(DisplayName = "26. Không dò luôn: đủ trường nhưng confidence thấp, cloud lỗi — dù needsReview rỗng")]
+    public void AutoCheck_LowConfidenceWithoutCloud()
+    {
+        var info = Parser.Parse(ClearTicket, 0.6);
+        Validator().FieldsToReview(info).Should().BeEmpty();
+        Validator().CanAutoCheck(info, Validator().Validate(info)).Should().BeFalse();
+    }
+
+    [Fact(DisplayName = "27. Dò luôn: confidence local thấp nhưng số vé đã được cloud đọc lại")]
+    public void AutoCheck_NumberFromCloud()
+    {
+        var local = Parser.Parse(ClearTicket, 0.6);
+        var check = Validator().Validate(local);
+        var merged = Merge(local, check, "XO SO KIEN THIET BINH DUONG 288921 05-06-2026");
+        merged.TicketNumberFromCloud.Should().BeTrue();
+        Validator().CanAutoCheck(merged, check).Should().BeTrue();
+
+        // Cloud trả lời mà không có số vé → vẫn là số local confidence thấp → không dò luôn.
+        var noNumber = Parser.Parse(ClearTicket, 0.6);
+        var noNumberCheck = Validator().Validate(noNumber);
+        Validator().CanAutoCheck(Merge(noNumber, noNumberCheck, "BINH DUONG"), noNumberCheck).Should().BeFalse();
+    }
+
+    [Fact(DisplayName = "28. Không dò luôn: thiếu đài / đài gần đúng / ngày tương lai xa")]
+    public void AutoCheck_UncertainProvinceOrDate()
+    {
+        foreach (var text in new[]
+                 {
+                     "288921 288921 05-06-2026",                    // thiếu đài
+                     "vinh long 288921 can tho 05-06-2026",         // hai đài ngang điểm
+                     "BINH DUONG 288921 288921 05-06-2028",         // ngày ngoài khoảng ở tương lai
+                 })
+        {
+            var info = Parser.Parse(text, 0.95);
+            Validator().CanAutoCheck(info, Validator().Validate(info)).Should().BeFalse(text);
+        }
+    }
+
+    [Fact(DisplayName = "29. Ngày cũ: khớp ≥2 chỗ → dò luôn (ra 'Vé hết hạn'); 1 chỗ có thể nhầm năm → hỏi lại")]
+    public void AutoCheck_OldDateNeedsTwoReadings()
+    {
+        var sure = Parser.Parse("BINH DUONG 288921 288921 05-03-2026 05-03-2026", 0.95);
+        Validator().CanAutoCheck(sure, Validator().Validate(sure)).Should().BeTrue();
+
+        var single = Parser.Parse("BINH DUONG 288921 288921 05-06-2025", 0.95);
+        Validator().FieldsToReview(single).Should().BeEmpty();
+        Validator().CanAutoCheck(single, Validator().Validate(single)).Should().BeFalse();
+    }
+
+    [Fact(DisplayName = "30. Dò luôn: chỉ AI đọc (OCR cục bộ tắt), đủ trường hợp lệ")]
+    public void AutoCheck_CloudOnly()
+    {
+        var info = new TicketInfo
+        {
+            TicketNumber = "288921", TicketNumberFromCloud = true,
+            DrawDate = new DateOnly(2026, 6, 5), DrawDateVotes = 1,
+            Province = "BinhDuong", ProvinceExact = true, OcrConfidence = GeminiTicketReader.AssumedConfidence,
+        };
+        Validator().CanAutoCheck(info, localCheck: null).Should().BeTrue();
+
+        info.Province = null;
+        Validator().CanAutoCheck(info, localCheck: null).Should().BeFalse();
+    }
+
     // Gọi merge đúng như ScanController.
     private static TicketInfo Merge(TicketInfo local, TicketValidation check, string cloudText) =>
         Parser.MergeFromCloudText(local, cloudText,

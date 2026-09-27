@@ -137,6 +137,41 @@ public class TicketTextParser
     }
 
     /// <summary>
+    /// Như <see cref="MergeFromCloudText"/> nhưng cloud đã trả sẵn số/ngày/đài (Gemini) thay vì text
+    /// thô — cùng luật gộp: số vé cloud chỉ đè khi <paramref name="preferCloudNumber"/> hoặc local
+    /// trống; đài cloud (luôn là mã hợp lệ) chỉ thay khi local trống/gần đúng/mơ hồ; ngày cloud chỉ
+    /// thay khi local trống hoặc thoả <paramref name="replaceDateIf"/>. Confidence giữ của local.
+    /// </summary>
+    public static TicketInfo MergeFromCloudInfo(TicketInfo local, TicketInfo cloud,
+                                                bool preferCloudNumber = true,
+                                                Func<DateOnly, bool>? replaceDateIf = null)
+    {
+        local.CloudText = cloud.RawText;
+
+        if (cloud.TicketNumber != null && (preferCloudNumber || local.TicketNumber == null))
+        {
+            local.TicketNumber = cloud.TicketNumber;
+            local.TicketNumberFromCloud = true;
+            local.TicketNumberAmbiguous = false;
+            local.TicketNumberNormalized = false;
+        }
+
+        if (cloud.Province != null && (local.Province == null || !local.ProvinceExact || local.ProvinceAmbiguous))
+        {
+            local.Province = cloud.Province;
+            local.ProvinceExact = cloud.ProvinceExact;
+            local.ProvinceAmbiguous = cloud.ProvinceAmbiguous;
+        }
+
+        if (cloud.DrawDate is { } cd && (local.DrawDate == null || replaceDateIf?.Invoke(cd) == true))
+        {
+            local.DrawDate = cd;
+            local.DrawDateVotes = cloud.DrawDateVotes;
+        }
+        return local;
+    }
+
+    /// <summary>
     /// Lấp ngày/đài mà lượt OCR chính đọc thiếu/sai bằng lượt đọc lại trên ảnh lọc khác (vd tăng
     /// tương phản). Mỗi kiểu lọc hỏng ở một vé khác nhau — Contrast đọc đúng ngày vé Vĩnh Long mà
     /// Original cụt năm, nhưng lại đọc năm 2026 → 2028 ở vé Bình Dương mà Original đọc đúng — nên

@@ -1,14 +1,17 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import CameraCapture from '../components/CameraCapture'
 import ImageUpload from '../components/ImageUpload'
 import TicketInfoConfirm from '../components/TicketInfoConfirm'
 import ResultDisplay from '../components/ResultDisplay'
-import AvailableData from '../components/AvailableData'
 import ProcessingScreen from '../components/ProcessingScreen'
-import { scanImage, checkTicket } from '../api/client'
+import Icon, { IconBadge, type IconName } from '../components/Icon'
+import type { ResultsFocus } from '../components/AvailableData'
+import {
+  scanImage, checkTicket, loadCompressOptions, type CheckResult, type ScanResponse, type TicketQuery,
+} from '../api/client'
 import { ALL_PROVINCES, provinceName } from '../data/provinces'
 
-type Stage = 'capture' | 'confirm' | 'result' | 'data'
+type Stage = 'capture' | 'confirm' | 'result'
 type Progress = { title: string; steps: string[]; step: number; detail?: string }
 
 const SCAN_STEPS = ['Tải ảnh lên', 'Đọc chữ trên vé', 'Nhận diện số vé, đài và ngày']
@@ -20,14 +23,45 @@ const DONE_HOLD_MS = 350
 
 const fmtDate = (iso: string) => iso.split('-').reverse().join('/')
 
-export default function Home() {
+const errorText = (e: unknown) => (e instanceof Error && e.message) || 'Lỗi không xác định'
+
+/** Máy chủ chắc cả 3 trường → thông tin để dò luôn; null = phải hỏi lại user trên form. */
+function autoQuery(s: ScanResponse): TicketQuery | null {
+  if (!s.autoCheck || !s.ticketNumber || !s.drawDate || !s.province) return null
+  return { ticketNumber: s.ticketNumber, drawDate: s.drawDate, province: s.province }
+}
+
+const TIPS: [IconName, string][] = [
+  ['sun', 'Đủ sáng, tránh bóng đổ và lóa đèn'],
+  ['frame', 'Chụp thẳng, vé nằm gọn trong khung'],
+  ['focus', 'Lấy nét vào dãy 6 số và dòng ngày'],
+]
+
+type Props = {
+  /** false = đang ở tính năng khác (Home chỉ bị ẩn để giữ state) → tắt camera. */
+  active: boolean
+  /** Mở thẳng bảng kết quả của đài/ngày trên vé vừa dò (danh sách đài thì mở từ menu Kết quả). */
+  onShowResults: (focus: ResultsFocus) => void
+}
+
+export default function Home({ active, onShowResults }: Props) {
   const [stage, setStage] = useState<Stage>('capture')
-  const [scanned, setScanned] = useState<any>(null)
-  const [result, setResult] = useState<any>(null)
+  const [scanned, setScanned] = useState<ScanResponse | null>(null)
+  // Thông tin vé của lượt dò gần nhất — mở lại form để sửa (từ màn kết quả, hoặc khi dò lỗi) thì
+  // điền đúng những gì đã dò, kể cả chỗ user đã sửa tay, thay vì kết quả quét ban đầu.
+  const [checked, setChecked] = useState<TicketQuery | null>(null)
+  const [result, setResult] = useState<CheckResult | null>(null)
   const [progress, setProgress] = useState<Progress | null>(null)
   const [imageUrl, setImageUrl] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const timers = useRef<number[]>([])
+
+  // Hỏi sẵn cỡ ảnh cần nén trong lúc user còn đang ngắm camera — lượt quét đầu khỏi chờ thêm 1 request.
+  useEffect(() => { void loadCompressOptions() }, [])
+
+  // Nút Dò ngay / Dò vé khác nằm cuối trang dài: sang bước mới thì về đầu trang, không thì
+  // màn mới mở ra ở lưng chừng (tấm vé + kết quả bị cuộn khuất dưới header).
+  useEffect(() => { window.scrollTo(0, 0) }, [stage])
 
   const clearTimers = () => { timers.current.forEach(clearTimeout); timers.current = [] }
   // Chỉ tiến, không lùi: timer tự chuyển bước có thể bắn sau khi bước thật đã qua.
@@ -46,10 +80,14 @@ export default function Home() {
     if (imageUrl) URL.revokeObjectURL(imageUrl)
     setImageUrl(URL.createObjectURL(blob))
     setError(null)
+    // Xoá vé cũ: quét lỗi thì nút Thử lại quay về camera, không mở form của vé trước.
+    setScanned(null)
+    setChecked(null)
     setProgress({ title: 'Đang đọc vé số...', steps: SCAN_STEPS, step: 0 })
     let uploaded = false
+    let data: ScanResponse
     try {
-      const data = await scanImage(blob, ratio => {
+      data = await scanImage(blob, ratio => {
         if (ratio < 1) return advanceTo(0, `${Math.round(ratio * 100)}%`)
         if (uploaded) return
         uploaded = true
@@ -57,18 +95,24 @@ export default function Home() {
         advanceLater(2, OCR_STEP_MS)
       })
       await finishProgress()
-      setScanned(data)
-      setStage('confirm')
-    } catch (e: any) {
-      setError(e?.message ?? 'Lỗi không xác định')
-    } finally {
+    } catch (e) {
       clearTimers()
       setProgress(null)
+      setError(errorText(e))
+      return
     }
+    setScanned(data)
+    // Đọc chắc chắn → dò luôn: màn chờ chuyển thẳng sang checklist dò (cùng ảnh vé), không lộ form.
+    // Còn nghi ngờ trường nào → hiện form cho user xác nhận/sửa như cũ.
+    const query = autoQuery(data)
+    if (query) return runCheck(query)
+    setProgress(null)
+    setStage('confirm')
   }
 
-  const handleConfirm = async (info: { ticketNumber: string; drawDate: string; province: string }) => {
+  const runCheck = async (info: TicketQuery) => {
     setError(null)
+    setChecked(info)
     setProgress({
       title: 'Đang dò kết quả...',
       steps: [
@@ -86,8 +130,8 @@ export default function Home() {
       await finishProgress()
       setResult(res)
       setStage('result')
-    } catch (e: any) {
-      setError(e?.message ?? 'Lỗi không xác định')
+    } catch (e) {
+      setError(errorText(e))
     } finally {
       clearTimers()
       setProgress(null)
@@ -95,57 +139,105 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen">
-      <header className="bg-brand-500 text-white py-4 text-center shadow">
-        <h1 className="text-xl font-bold">🎫 Dò Vé Số</h1>
-      </header>
-
-      <main className="max-w-md mx-auto p-4">
-        {progress && (
+    <>
+      {progress && (
+        <div className="max-w-lg mx-auto">
           <ProcessingScreen title={progress.title} imageUrl={imageUrl} steps={progress.steps}
                             current={progress.step} detail={progress.detail} />
-        )}
+        </div>
+      )}
 
-        {!progress && error && (
-          <div className="p-8 text-center text-red-600">
-            <div className="mb-2">❌ {error}</div>
-            <button onClick={() => { setError(null); setStage('capture') }}
-                    className="bg-blue-600 text-white px-4 py-2 rounded">
-              Thử lại
+      {!progress && error && (
+        <div className="fade-up card max-w-md mx-auto p-8 text-center">
+          <IconBadge name="error" tone="bad" />
+          <div className="text-lg font-bold mt-4 mb-1">Ối, có lỗi rồi</div>
+          <div className="text-sm text-bad mb-5">{error}</div>
+          {/* Lỗi lúc dò (đã có thông tin vé): dò lại ngay, khỏi chụp lại — nhất là vé được dò luôn
+              chưa qua form. Lỗi lúc quét: về camera. */}
+          <div className="grid gap-3">
+            <button onClick={() => {
+                      if (checked) return runCheck(checked)
+                      setError(null)
+                      setStage('capture')
+                    }}
+                    className="btn btn-primary w-full">
+              <Icon name="retry" /> Thử lại
             </button>
-          </div>
-        )}
-
-        {!progress && !error && (
-          <>
-            {stage === 'capture' && (
-              <>
-                <CameraCapture onCapture={handleCapture} />
-                <div className="my-4 text-center text-gray-500">— hoặc —</div>
-                <ImageUpload onSelect={f => handleCapture(f)} />
-                <button onClick={() => setStage('data')}
-                        className="mt-4 w-full border border-gray-300 text-gray-700 py-2.5 rounded-lg">
-                  📅 Dữ liệu đã có
-                </button>
-              </>
+            {checked && scanned && (
+              <button onClick={() => { setError(null); setStage('confirm') }} className="btn btn-secondary w-full">
+                <Icon name="edit" /> Sửa thông tin vé
+              </button>
             )}
-            {stage === 'confirm' && (
+          </div>
+        </div>
+      )}
+
+      {!progress && !error && (
+        <>
+          {stage === 'capture' && (
+            <div className="fade-up">
+              <div className="mb-4 md:mb-6">
+                {/* Nhãn nhỏ chỉ ở màn rộng: điện thoại đã có dòng mô tả dưới tên app, và cần giữ nút
+                    Chụp + ô Chọn ảnh trong màn đầu tiên */}
+                <p className="hidden md:flex items-center gap-1.5 mb-1 text-xs font-semibold uppercase tracking-[.18em]
+                              text-brand-700 dark:text-brand-400">
+                  <Icon name="sparkles" className="w-3.5 h-3.5" /> Dò vé tự động
+                </p>
+                <h1 className="text-xl md:text-3xl font-extrabold tracking-tight">Chụp vé, dò liền tay</h1>
+                <p className="hidden md:block text-ink-soft mt-1">
+                  Đưa vé vào khung rồi bấm chụp — máy tự đọc số vé, đài và ngày để dò giải giúp bạn.
+                </p>
+              </div>
+
+              {/* Màn rộng: camera bên trái, chọn ảnh + mẹo bên phải. Điện thoại: xếp dọc, nút Chụp
+                  và ô Chọn ảnh vẫn nằm trong màn đầu tiên không cần cuộn. */}
+              <div className="md:grid md:grid-cols-[1.25fr_1fr] md:gap-6 md:items-start">
+                <div className="card p-3 md:p-4">
+                  {active && <CameraCapture onCapture={handleCapture} />}
+                </div>
+
+                <div className="space-y-4 mt-4 md:mt-0">
+                  <div className="md:hidden flex items-center gap-3 text-xs font-medium text-ink-faint">
+                    <span className="h-px flex-1 bg-line" /> hoặc <span className="h-px flex-1 bg-line" />
+                  </div>
+                  <ImageUpload onSelect={f => handleCapture(f)} />
+                  <div className="card p-4">
+                    <div className="flex items-center gap-2 font-semibold mb-3">
+                      <Icon name="tip" className="w-[18px] h-[18px] text-brand-700 dark:text-brand-400" />
+                      Mẹo chụp rõ nét
+                    </div>
+                    <ul className="space-y-2 text-sm text-ink-soft">
+                      {TIPS.map(([icon, text]) => (
+                        <li key={icon} className="flex items-center gap-2.5">
+                          <Icon name={icon} className="w-4 h-4 shrink-0 text-ink-faint" /> {text}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+          {stage === 'confirm' && scanned && (
+            <div className="fade-up">
               <TicketInfoConfirm
                 scanned={scanned}
+                initial={checked}
+                imageUrl={imageUrl}
                 allProvinces={ALL_PROVINCES}
-                onConfirm={handleConfirm}
+                onConfirm={runCheck}
                 onRescan={() => setStage('capture')}
               />
-            )}
-            {stage === 'result' && (
-              <ResultDisplay result={result} onRescan={() => setStage('capture')} />
-            )}
-            {stage === 'data' && (
-              <AvailableData onBack={() => setStage('capture')} />
-            )}
-          </>
-        )}
-      </main>
-    </div>
+            </div>
+          )}
+          {stage === 'result' && result && (
+            <div className="fade-up max-w-xl mx-auto">
+              <ResultDisplay result={result} onRescan={() => setStage('capture')}
+                             onEdit={() => setStage('confirm')} onShowTable={onShowResults} />
+            </div>
+          )}
+        </>
+      )}
+    </>
   )
 }

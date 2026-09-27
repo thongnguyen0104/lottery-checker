@@ -49,7 +49,7 @@ ssh -i D:\Projects\lottery.key ubuntu@<IP>
 sudo bash ~/deploy/setup-server.sh dove-so.duckdns.org
 
 # 3. Điền key OCR.space (lấy từ máy dev: dotnet user-secrets list)
-sudo nano /etc/lottery-api.env      # CloudOcr__ApiKey=...
+sudo nano /etc/lottery-api.env      # CloudOcr__ApiKey=...  (tuỳ chọn: Gemini__ApiKey, Gemini__Enabled, Ocr__LocalEnabled — xem .claude/deploy-guide.md §1.2b)
 exit
 
 # 4. Đẩy code (từ máy Windows)

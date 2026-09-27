@@ -115,7 +115,7 @@ chmod 755 /var/www/lottery      # caddy chạy user khác, cần đọc được
 if [[ -f /etc/lottery-api.env ]]; then
     echo "    /etc/lottery-api.env đã có, giữ nguyên"
 else
-    printf 'CloudOcr__ApiKey=\n' > /etc/lottery-api.env
+    printf 'CloudOcr__ApiKey=\n# Gemini__ApiKey=\n# Gemini__Enabled=true\n# Ocr__LocalEnabled=false\n' > /etc/lottery-api.env
     chmod 600 /etc/lottery-api.env
     echo "    tạo /etc/lottery-api.env (CHƯA có key — xem phần việc còn lại ở dưới)"
 fi

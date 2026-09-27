@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using LotteryChecker.Api.Middleware;
 using LotteryChecker.Api.Models;
 using LotteryChecker.Api.Services;
@@ -9,21 +10,30 @@ namespace LotteryChecker.Api.Controllers;
 public class ScanController : ControllerBase
 {
     private readonly ImagePreprocessor _preprocessor;
+    private readonly LocalOcrSwitch _localOcr;
     private readonly ITicketOcrEngine _ocr;
     private readonly TicketTextParser _parser;
+    private readonly GeminiTicketReader _gemini;
     private readonly CloudOcrService _cloudOcr;
     private readonly TicketResultValidator _validator;
     private readonly LocalRetryReader _retry;
     private readonly LotteryMatcher _matcher;
     private readonly ILogger<ScanController> _log;
 
-    public ScanController(ImagePreprocessor p, ITicketOcrEngine o, TicketTextParser parser,
-                          CloudOcrService cloud, TicketResultValidator validator, LocalRetryReader retry,
-                          LotteryMatcher m, ILogger<ScanController> log)
+    public ScanController(ImagePreprocessor p, LocalOcrSwitch localOcr, ITicketOcrEngine o, TicketTextParser parser,
+                          GeminiTicketReader gemini, CloudOcrService cloud, TicketResultValidator validator,
+                          LocalRetryReader retry, LotteryMatcher m, ILogger<ScanController> log)
     {
-        _preprocessor = p; _ocr = o; _parser = parser; _cloudOcr = cloud; _validator = validator;
-        _retry = retry; _matcher = m; _log = log;
+        _preprocessor = p; _localOcr = localOcr; _ocr = o; _parser = parser; _gemini = gemini; _cloudOcr = cloud;
+        _validator = validator; _retry = retry; _matcher = m; _log = log;
     }
+
+    /// <summary>
+    /// Frontend hỏi 1 lần lúc mở app: thu ảnh về rộng bao nhiêu, nén chất lượng bao nhiêu trước khi
+    /// gửi /api/scan. Đổi Ocr:LocalEnabled là FE tự đổi theo — xem <see cref="ScanUploadOptions"/>.
+    /// </summary>
+    [HttpGet("/api/scan/options")]
+    public ScanUploadOptions Options([FromServices] ScanUploadOptions options) => options;
 
     /// <summary>Bước 1: gửi ảnh → trả info đã OCR (số vé, ngày, đài) kèm thời gian từng chặng.</summary>
     [HttpPost("/api/scan")]
@@ -37,12 +47,16 @@ public class ScanController : ControllerBase
         if (image == null || image.Length == 0)
             return BadRequest(new { error = "Chưa có ảnh" });
 
-        // Luồng: OCR cục bộ là đường chính; OCR.space (~5s) chỉ là FALLBACK khi kết quả cục bộ
-        // không qua validate nghiệp vụ. Vé chụp rõ không bao giờ chạm tới cloud.
+        // Luồng mặc định: OCR cục bộ là đường chính; cloud (Gemini rồi OCR.space, nguồn nào đang bật)
+        // chỉ là FALLBACK khi kết quả cục bộ không qua validate nghiệp vụ — vé chụp rõ không chạm tới
+        // cloud. Tắt local (Ocr:LocalEnabled=false) thì mọi vé đều do cloud đọc thẳng.
         TicketInfo info;
-        TicketValidation localCheck;
+        TicketValidation? localCheck = null;   // null = không chạy OCR cục bộ
         // "local" | "local-expired" | "local-review" | "cloud" | "cloud-failed" | "cloud-disabled"
+        // | "cloud-only" | "cloud-only-failed" (hai cái cuối: local tắt, cloud là đường chính)
         string ocrPath;
+        string? cloudProvider = null;          // nguồn cloud đã cho kết quả: "gemini" | "ocrspace"
+        var cloudAttempts = new List<CloudAttempt>();   // từng nguồn cloud đã thử, theo thứ tự
         var cloudUploadKb = 0;
         var resized = false;
         RetryOutcome? retry = null;   // null = không đọc lại
@@ -56,76 +70,122 @@ public class ScanController : ControllerBase
             }
             timer.Mark("upload");       // upload từ điện thoại + đọc ảnh vào bộ nhớ
 
-            // Giải mã 1 lần, giữ ảnh trong RAM: ảnh cloud chỉ dựng từ đây khi thật sự cần.
-            using var prepared = _preprocessor.Load(new MemoryStream(original));
-            resized = prepared.Resized;
-            var localImage = prepared.GetLocal(_preprocessor.LocalMode);
-            timer.Mark("preprocess");
-
-            info = _ocr.Extract(localImage);
-            localCheck = _validator.Validate(info);
-            timer.Mark("localOcr");     // OCR + parse + validate (2 bước sau chỉ vài ms)
-            // Chi tiết bên trong localOcr (dò vùng chữ / nhận dạng dòng / số dòng) — để tối ưu đúng
-            // chỗ trên máy thật, nơi endpoint dò cấu hình (chỉ Development) không chạy được.
-            foreach (var (name, value) in info.EngineTimings ?? [])
-                timer.Record(name, value);
-
-            // Thiếu/sai ngày hoặc đài → đọc lại trên ảnh lọc khác để lấp đúng trường đó, trước khi
-            // tính tới cloud (2–30s). Chỉ lấp, không đè — xem LocalRetryReader.
-            if (_preprocessor.RetryMode is { } retryMode && LocalRetryReader.Needed(localCheck))
+            if (!_localOcr.Enabled)
             {
-                retry = _retry.Run(info, localCheck, prepared, retryMode, img => _ocr.Extract(img));
-                if (retry.Filled.Count > 0) localCheck = _validator.Validate(info);
-                timer.Mark("localRetry");
-            }
-            else timer.Skip("localRetry");
-
-            if (localCheck.Passed)
-            {
-                ocrPath = "local";
-                SkipCloudStages(timer);
-            }
-            else if (_validator.IsConfidentlyExpired(info, localCheck))
-            {
-                // Số vé + đài đã chắc, chỉ có ngày là quá cũ (và đọc khớp ở ≥2 chỗ) → vé hết hạn.
-                ocrPath = "local-expired";
-                SkipCloudStages(timer);
-            }
-            else if (_cloudOcr.OnlyForTicketNumber && !TicketResultValidator.CloudCanHelp(localCheck))
-            {
-                // Số vé đã chắc, chỉ đài/ngày chưa chắc → trả ngay, form đánh dấu trường cần kiểm
-                // tra (needsReview) thay vì bắt user chờ cloud vài giây cho thứ tự chọn được.
-                ocrPath = "local-review";
-                SkipCloudStages(timer);
-            }
-            else if (!_cloudOcr.IsEnabled)
-            {
-                ocrPath = "cloud-disabled";
-                SkipCloudStages(timer);
-            }
-            else
-            {
-                var cloudImage = prepared.EncodeForCloud();
-                cloudUploadKb = cloudImage.Length / 1024;
-                timer.Mark("cloudPrepare");
-
-                // Chờ OCR.space trả lời hẳn (ưu tiên kết quả chính xác hơn tốc độ) — trần duy nhất là
-                // HttpClient.Timeout của CloudOcrService ở Program.cs.
-                var cloudText = await _cloudOcr.ReadTextAsync(cloudImage, ct);
-                timer.Mark("cloudOcr");
-
-                if (cloudText != null)
+                // Ảnh FE gửi (JPEG ≤1600px, đã xoay đúng) gửi NGUYÊN cho cloud; chỉ ảnh khác mới
+                // phải giải mã + xoay + nén lại như đường local.
+                byte[] cloudImage;
+                if (ImagePreprocessor.CanSendAsIs(original))
                 {
-                    ocrPath = "cloud";
-                    info = _parser.MergeFromCloudText(info, cloudText,
-                        preferCloudNumber: !localCheck.NumberOk || !localCheck.ConfidenceOk,
-                        replaceDateIf: localCheck.DateOk ? null : _validator.IsPlausibleDrawDate);
-                    timer.Mark("merge");
+                    cloudImage = original;
+                    timer.Skip("preprocess");
                 }
                 else
                 {
-                    ocrPath = "cloud-failed";
-                    timer.Skip("merge");
+                    using var prepared = _preprocessor.Load(new MemoryStream(original));
+                    resized = prepared.Resized;
+                    timer.Mark("preprocess");
+                    cloudImage = prepared.EncodeForCloud();
+                }
+                timer.Skip("localOcr");
+                timer.Skip("localRetry");
+                cloudUploadKb = cloudImage.Length / 1024;
+                timer.Mark("cloudPrepare");
+
+                var cloud = await ReadCloudAsync(cloudImage, cloudAttempts, ct);
+                timer.Mark("cloudOcr");
+                timer.Skip("merge");
+
+                if (cloud != null)
+                {
+                    ocrPath = "cloud-only";
+                    cloudProvider = cloud.Provider;
+                    info = cloud.Info ?? FromCloudText(cloud.Text!);
+                }
+                else
+                {
+                    // Không nguồn nào trả lời → form trống, user điền tay (warning bên dưới nói rõ).
+                    ocrPath = "cloud-only-failed";
+                    info = new TicketInfo();
+                }
+            }
+            else
+            {
+                // Giải mã 1 lần, giữ ảnh trong RAM: ảnh cloud chỉ dựng từ đây khi thật sự cần.
+                using var prepared = _preprocessor.Load(new MemoryStream(original));
+                resized = prepared.Resized;
+                var localImage = prepared.GetLocal(_preprocessor.LocalMode);
+                timer.Mark("preprocess");
+
+                info = _ocr.Extract(localImage);
+                var check = _validator.Validate(info);
+                timer.Mark("localOcr");     // OCR + parse + validate (2 bước sau chỉ vài ms)
+                // Chi tiết bên trong localOcr (dò vùng chữ / nhận dạng dòng / số dòng) — để tối ưu đúng
+                // chỗ trên máy thật, nơi endpoint dò cấu hình (chỉ Development) không chạy được.
+                foreach (var (name, value) in info.EngineTimings ?? [])
+                    timer.Record(name, value);
+
+                // Thiếu/sai ngày hoặc đài → đọc lại trên ảnh lọc khác để lấp đúng trường đó, trước khi
+                // tính tới cloud (1–30s). Chỉ lấp, không đè — xem LocalRetryReader.
+                if (_preprocessor.RetryMode is { } retryMode && LocalRetryReader.Needed(check))
+                {
+                    retry = _retry.Run(info, check, prepared, retryMode, img => _ocr.Extract(img));
+                    if (retry.Filled.Count > 0) check = _validator.Validate(info);
+                    timer.Mark("localRetry");
+                }
+                else timer.Skip("localRetry");
+                localCheck = check;
+
+                if (check.Passed)
+                {
+                    ocrPath = "local";
+                    SkipCloudStages(timer);
+                }
+                else if (_validator.IsConfidentlyExpired(info, check))
+                {
+                    // Số vé + đài đã chắc, chỉ có ngày là quá cũ (và đọc khớp ở ≥2 chỗ) → vé hết hạn.
+                    ocrPath = "local-expired";
+                    SkipCloudStages(timer);
+                }
+                else if (_cloudOcr.OnlyForTicketNumber && !TicketResultValidator.CloudCanHelp(check))
+                {
+                    // Số vé đã chắc, chỉ đài/ngày chưa chắc → trả ngay, form đánh dấu trường cần kiểm
+                    // tra (needsReview) thay vì bắt user chờ cloud vài giây cho thứ tự chọn được.
+                    ocrPath = "local-review";
+                    SkipCloudStages(timer);
+                }
+                else if (!_gemini.IsEnabled && !_cloudOcr.IsEnabled)
+                {
+                    ocrPath = "cloud-disabled";
+                    SkipCloudStages(timer);
+                }
+                else
+                {
+                    var cloudImage = prepared.EncodeForCloud();
+                    cloudUploadKb = cloudImage.Length / 1024;
+                    timer.Mark("cloudPrepare");
+
+                    // Chờ cloud trả lời hẳn (ưu tiên kết quả chính xác hơn tốc độ) — trần duy nhất là
+                    // HttpClient.Timeout của từng service ở Program.cs.
+                    var cloud = await ReadCloudAsync(cloudImage, cloudAttempts, ct);
+                    timer.Mark("cloudOcr");
+
+                    if (cloud != null)
+                    {
+                        ocrPath = "cloud";
+                        cloudProvider = cloud.Provider;
+                        var preferCloudNumber = !check.NumberOk || !check.ConfidenceOk;
+                        Func<DateOnly, bool>? replaceDateIf = check.DateOk ? null : _validator.IsPlausibleDrawDate;
+                        info = cloud.Info != null
+                            ? TicketTextParser.MergeFromCloudInfo(info, cloud.Info, preferCloudNumber, replaceDateIf)
+                            : _parser.MergeFromCloudText(info, cloud.Text!, preferCloudNumber, replaceDateIf);
+                        timer.Mark("merge");
+                    }
+                    else
+                    {
+                        ocrPath = "cloud-failed";
+                        timer.Skip("merge");
+                    }
                 }
             }
         }
@@ -137,31 +197,39 @@ public class ScanController : ControllerBase
             return UnprocessableEntity(new { error = $"Không xử lý được ảnh: {ex.Message}" });
         }
 
-        var lowConfidence = info.OcrConfidence < 0.55;
+        // Confidence chỉ có nghĩa với OCR cục bộ; cloud không trả điểm tin cậy → null, FE ẩn dòng đó.
+        var localRan = localCheck != null;
+        var lowConfidence = localRan && info.OcrConfidence < 0.55;
+        var autoCheck = _validator.CanAutoCheck(info, localCheck);
 
-        // Log đủ để thống kê sau này: tỷ lệ vé phải gọi cloud (ocrPath) và VÌ SAO (reasons) —
-        // đó là số liệu để chỉnh ngưỡng validate / tiền xử lý.
+        // Log đủ để thống kê sau này: tỷ lệ vé phải gọi cloud (ocrPath) và VÌ SAO (reasons), tỷ lệ
+        // vé được dò luôn (auto) — đó là số liệu để chỉnh ngưỡng validate / tiền xử lý.
         _log.LogInformation(
             "Quét ảnh {SizeKb}KB (resize={Resized}, gửi cloud {CloudKb}KB) bằng {Engine}/{Preprocess}: " +
-            "path={Path} reasons=[{Reasons}] retry={Retry} conf={Confidence:0.00} | {Stages}",
+            "path={Path} cloud={Cloud} attempts=[{Attempts}] reasons=[{Reasons}] retry={Retry} conf={Confidence:0.00} auto={AutoCheck} | {Stages}",
             image.Length / 1024, resized, cloudUploadKb, _ocr.Name, _preprocessor.LocalMode,
-            ocrPath, string.Join(",", localCheck.Reasons),
+            ocrPath, cloudProvider ?? "-", string.Join(", ", cloudAttempts), string.Join(",", localCheck?.Reasons ?? []),
             retry == null ? "-" : $"{_retry.Strategy}/{_preprocessor.RetryMode}(lines={retry.CroppedLines},full={retry.UsedFull})[{string.Join(",", retry.Filled)}]",
-            info.OcrConfidence, timer);
+            info.OcrConfidence, autoCheck, timer);
 
         return Ok(new
         {
             ticketNumber = info.TicketNumber,
             drawDate = info.DrawDate?.ToString("yyyy-MM-dd"),
             province = info.Province,
-            confidence = info.OcrConfidence,
+            confidence = localRan ? info.OcrConfidence : (double?)null,
             lowConfidence,
             ticketNumberFromCloud = info.TicketNumberFromCloud,
             allProvinces = info.Province == null ? ProvinceMatcher.AllCodes : null,
             warning = BuildWarning(info),
             // Kết quả đi đường nào + vì sao local không qua — để benchmark biết tỷ lệ fallback.
             ocrPath,
-            localValidation = new { passed = localCheck.Passed, reasons = localCheck.Reasons },
+            cloudProvider,
+            // Từng nguồn cloud đã thử (null = không gọi cloud): Gemini lỗi gì, mất bao lâu trước khi
+            // lùi về OCR.space — chặng cloudOcr ở timings là TỔNG các lượt này.
+            cloudAttempts = cloudAttempts.Count > 0 ? cloudAttempts : null,
+            // null = OCR cục bộ không chạy (Ocr:LocalEnabled=false).
+            localValidation = localCheck == null ? null : new { passed = localCheck.Passed, reasons = localCheck.Reasons },
             // Lượt đọc lại lấp được trường nào (null = không cần đọc lại). localValidation ở trên
             // là kết quả SAU khi lấp.
             localRetry = retry == null ? null : new
@@ -171,10 +239,66 @@ public class ScanController : ControllerBase
             },
             // Trường nào của kết quả CUỐI user nên kiểm tra lại trên form (đánh dấu vàng).
             needsReview = _validator.FieldsToReview(info),
+            // true = đủ chắc cả số vé, đài, ngày → FE dò luôn, không hiện form xác nhận.
+            autoCheck,
             // Thời gian từng chặng (ms), chặng không chạy = null. Là số liệu để biết nên tối ưu
             // chỗ nào khi chạy trên máy thật (VM prod chậm hơn máy dev nhiều).
             timings = timer.ToTimings()
         });
+    }
+
+    /// <summary>Kết quả của một nguồn cloud: Gemini trả sẵn <see cref="Info"/>, OCR.space trả <see cref="Text"/>.</summary>
+    private sealed record CloudRead(string Provider, TicketInfo? Info, string? Text);
+
+    /// <summary>
+    /// Một lượt gọi một nguồn cloud. <see cref="Error"/> null = trả lời được; Gemini có mã lỗi cụ thể
+    /// (xem <see cref="GeminiTicketReader.TryReadAsync"/>), OCR.space chỉ có "failed" (chi tiết ở log).
+    /// <see cref="Retried"/> = mã lỗi các lượt Gemini đã tự gọi lại (503...) — <see cref="Ms"/> gồm cả chúng.
+    /// </summary>
+    private sealed record CloudAttempt(string Provider, double Ms, string? Error, IReadOnlyList<string>? Retried = null)
+    {
+        public override string ToString() =>
+            $"{Provider}:{Error ?? "ok"}/{Ms}ms" + (Retried is { Count: > 0 } r ? $"(retried {string.Join(",", r)})" : "");
+    }
+
+    /// <summary>
+    /// Thử lần lượt các nguồn cloud đang bật: Gemini trước (nhanh hơn, trả thẳng số/ngày/đài), lỗi
+    /// thì OCR.space. Null = không nguồn nào trả lời được (hoặc không nguồn nào bật). Mỗi lượt thử
+    /// ghi vào <paramref name="attempts"/> — để biết lượt chậm là do Gemini lỗi/treo hay do OCR.space.
+    /// </summary>
+    private async Task<CloudRead?> ReadCloudAsync(byte[] jpeg, List<CloudAttempt> attempts, CancellationToken ct)
+    {
+        if (_gemini.IsEnabled)
+        {
+            var started = Stopwatch.GetTimestamp();
+            var gemini = await _gemini.TryReadAsync(jpeg, ct);
+            attempts.Add(new CloudAttempt("gemini", ElapsedMs(started), gemini.Error,
+                                          gemini.Retried.Count > 0 ? gemini.Retried : null));
+            if (gemini.Info is { } fromGemini) return new CloudRead("gemini", fromGemini, null);
+        }
+        if (_cloudOcr.IsEnabled)
+        {
+            var started = Stopwatch.GetTimestamp();
+            var text = await _cloudOcr.ReadTextAsync(jpeg, ct);
+            attempts.Add(new CloudAttempt("ocrspace", ElapsedMs(started), text == null ? "failed" : null));
+            if (text != null) return new CloudRead("ocrspace", null, text);
+        }
+        return null;
+    }
+
+    private static double ElapsedMs(long started) =>
+        Math.Round(Stopwatch.GetElapsedTime(started).TotalMilliseconds, 1);
+
+    /// <summary>
+    /// Text OCR.space khi nó là đường chính (local tắt, Gemini tắt/lỗi): parse như text OCR cục bộ.
+    /// OCR.space không trả điểm tin cậy → đặt như Gemini để validator chỉ xét luật nghiệp vụ.
+    /// </summary>
+    private TicketInfo FromCloudText(string text)
+    {
+        var info = _parser.Parse(text, GeminiTicketReader.AssumedConfidence);
+        info.CloudText = text;
+        info.TicketNumberFromCloud = info.TicketNumber != null;
+        return info;
     }
 
     // Local đã đủ tin (hoặc cloud tắt): vẫn ghi đủ key cloud = null để JSON có cấu trúc cố định.

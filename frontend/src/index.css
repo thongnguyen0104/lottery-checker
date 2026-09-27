@@ -2,10 +2,183 @@
 @tailwind components;
 @tailwind utilities;
 
-html, body, #root { height: 100%; }
-body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  background: #FAFAFA;
+/* ---------- Theme ----------
+   Giá trị "R G B" để Tailwind ghép độ trong (xem tailwind.config.js). <html> mang 3 thuộc tính,
+   đặt sẵn bởi script trong index.html (khỏi nháy theme mặc định) rồi do src/theme.ts cập nhật:
+   data-mode = light | dark (đã giải "Theo máy"), data-accent = bảng màu, data-bg = hình nền. */
+/* Nền/chữ theo thang slate để chế độ sáng cùng họ màu với nền navy của chế độ tối. */
+:root {
+  color-scheme: light;
+  --canvas: 248 250 252;
+  --surface: 255 255 255;
+  --muted: 241 245 249;
+  --line: 226 232 240;
+  --ink: 15 23 42;
+  --ink-soft: 51 65 85;
+  --ink-faint: 100 116 139;
+  --ok: 4 120 87;       /* Deep Emerald — trúng giải, vé khớp */
+  --warn: 194 65 12;    /* cam, cố ý lệch khỏi vàng để không lẫn với màu Hoàng kim */
+  --bad: 185 28 28;     /* đỏ gạch trầm — không trúng, lỗi */
+  --info: 37 99 235;
+  --shadow-soft: 0 1px 2px rgb(15 23 42 / .04), 0 8px 28px -8px rgb(15 23 42 / .12);
+}
+/* Tối = Deep Slate Navy: nền #0F172A, thẻ #1E293B, viền #334155, chữ #F8FAFC / #94A3B8. */
+[data-mode="dark"] {
+  color-scheme: dark;   /* thanh cuộn, ô ngày, danh sách <select> cũng tối theo */
+  --canvas: 15 23 42;
+  --surface: 30 41 59;
+  --muted: 39 52 73;
+  --line: 51 65 85;
+  --ink: 248 250 252;
+  --ink-soft: 203 213 225;
+  --ink-faint: 148 163 184;
+  --ok: 16 185 129;     /* Emerald Fortune */
+  --warn: 251 146 60;
+  --bad: 248 113 113;   /* đỏ gạch #B91C1C quá tối để làm chữ trên nền navy → tông sáng hơn */
+  --info: 96 165 250;
+  /* Bóng nhạt vô hình trên nền tối → bóng đen đậm hơn + vệt sáng mảnh ở mép trên cho thẻ nổi khối. */
+  --shadow-soft: inset 0 1px 0 rgb(255 255 255 / .04), 0 1px 2px rgb(0 0 0 / .3), 0 12px 32px -12px rgb(0 0 0 / .55);
+}
+
+/* Bảng màu brand — trùng thang màu Tailwind cùng tên; --accent là màu thứ hai (cuối dải gradient,
+   quầng nền cực quang). --primary → --primary-end là nền của nút chính, tấm vé, huy hiệu;
+   --on-primary là chữ trên nền đó. Các bảng màu thường: gradient brand-600 → accent, chữ trắng. */
+[data-accent]:not([data-accent="gold"]) {
+  --primary: var(--brand-600);
+  --primary-end: var(--accent);
+  --on-primary: 255 255 255;
+}
+/* Hoàng kim (thang amber) là mặc định: vàng #FBBF24 → #F59E0B đặc, chữ navy — vàng sáng thì
+   chữ trắng không đọc được. */
+:root, [data-accent="gold"] {
+  --brand-50: 255 251 235;  --brand-100: 254 243 199; --brand-200: 253 230 138;
+  --brand-300: 252 211 77;  --brand-400: 251 191 36;  --brand-500: 245 158 11;
+  --brand-600: 217 119 6;   --brand-700: 180 83 9;    --brand-800: 146 64 14;
+  --brand-900: 120 53 15;   --accent: 217 119 6;
+  --primary: 251 191 36;    --primary-end: 245 158 11; --on-primary: 15 23 42;
+}
+[data-accent="red"] {
+  --brand-50: 254 242 242; --brand-100: 254 226 226; --brand-200: 254 202 202;
+  --brand-300: 252 165 165; --brand-400: 248 113 113; --brand-500: 239 68 68;
+  --brand-600: 220 38 38;   --brand-700: 185 28 28;   --brand-800: 153 27 27;
+  --brand-900: 127 29 29;   --accent: 234 88 12;
+}
+[data-accent="orange"] {
+  --brand-50: 255 247 237; --brand-100: 255 237 213; --brand-200: 254 215 170;
+  --brand-300: 253 186 116; --brand-400: 251 146 60;  --brand-500: 249 115 22;
+  --brand-600: 234 88 12;   --brand-700: 194 65 12;   --brand-800: 154 52 18;
+  --brand-900: 124 45 18;   --accent: 225 29 72;
+}
+[data-accent="pink"] {
+  --brand-50: 253 242 248; --brand-100: 252 231 243; --brand-200: 251 207 232;
+  --brand-300: 249 168 212; --brand-400: 244 114 182; --brand-500: 236 72 153;
+  --brand-600: 219 39 119;  --brand-700: 190 24 93;   --brand-800: 157 23 77;
+  --brand-900: 131 24 67;   --accent: 147 51 234;
+}
+[data-accent="violet"] {
+  --brand-50: 245 243 255; --brand-100: 237 233 254; --brand-200: 221 214 254;
+  --brand-300: 196 181 253; --brand-400: 167 139 250; --brand-500: 139 92 246;
+  --brand-600: 124 58 237;  --brand-700: 109 40 217;  --brand-800: 91 33 182;
+  --brand-900: 76 29 149;   --accent: 192 38 211;
+}
+[data-accent="blue"] {
+  --brand-50: 239 246 255; --brand-100: 219 234 254; --brand-200: 191 219 254;
+  --brand-300: 147 197 253; --brand-400: 96 165 250;  --brand-500: 59 130 246;
+  --brand-600: 37 99 235;   --brand-700: 29 78 216;   --brand-800: 30 64 175;
+  --brand-900: 30 58 138;   --accent: 8 145 178;
+}
+[data-accent="mint"] {
+  --brand-50: 236 253 245; --brand-100: 209 250 229; --brand-200: 167 243 208;
+  --brand-300: 110 231 183; --brand-400: 52 211 153;  --brand-500: 16 185 129;
+  --brand-600: 5 150 105;   --brand-700: 4 120 87;    --brand-800: 6 95 70;
+  --brand-900: 6 78 59;     --accent: 101 163 13;
+}
+
+html, body, #root { min-height: 100%; }
+/* Nền đặt ở <html>: lớp hình nền .backdrop (z-index âm, fixed) vẽ ngay trên nó, dưới nội dung. */
+html {
+  background: rgb(var(--canvas));
+  color: rgb(var(--ink));
+  -webkit-tap-highlight-color: transparent;
+}
+/* Viền focus khi dùng bàn phím (Tab) theo màu theme thay vì viền đen mặc định */
+:focus-visible { outline: 2px solid rgb(var(--brand-500)); outline-offset: 2px; }
+
+/* ---------- Hình nền ----------
+   .backdrop phủ cả màn hình, đứng yên khi cuộn (thay cho background-attachment: fixed mà
+   iOS Safari bỏ qua). Các lớp .bgfx-* dùng chung cho nền thật và ô xem trước trong bảng
+   chọn giao diện — kích thước theo % nên ô nhỏ vẫn giống nền lớn. */
+.backdrop { position: fixed; inset: 0; z-index: -1; pointer-events: none; }
+.bgfx-aurora {
+  background-image:
+    radial-gradient(60% 45% at 0% 0%, rgb(var(--brand-400) / .30), transparent 70%),
+    radial-gradient(55% 40% at 100% 8%, rgb(var(--accent) / .22), transparent 70%),
+    radial-gradient(70% 45% at 50% 105%, rgb(var(--brand-300) / .25), transparent 70%);
+}
+/* Nền tối chỉ để quầng sáng le lói ở góc: quầng vàng 30% trên navy thành một mảng loè. */
+[data-mode="dark"] .bgfx-aurora {
+  background-image:
+    radial-gradient(60% 45% at 0% 0%, rgb(var(--brand-400) / .13), transparent 70%),
+    radial-gradient(55% 40% at 100% 8%, rgb(var(--accent) / .10), transparent 70%),
+    radial-gradient(70% 45% at 50% 105%, rgb(var(--brand-300) / .07), transparent 70%);
+}
+.bgfx-dots {
+  background-image: radial-gradient(rgb(var(--brand-500) / .22) 1.2px, transparent 1.7px);
+  background-size: 18px 18px;
+}
+.bgfx-grid {
+  background-image:
+    linear-gradient(rgb(var(--brand-500) / .10) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(var(--brand-500) / .10) 1px, transparent 1px);
+  background-size: 26px 26px;
+}
+
+@layer components {
+  /* Thẻ: bo 16px, viền mảnh 1px + bóng mềm tạo chiều sâu thay vì dùng màu gắt. */
+  .card { @apply bg-surface border border-line rounded-2xl shadow-soft; }
+
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-3 font-semibold
+           transition duration-150 active:scale-[.98] disabled:cursor-not-allowed;
+  }
+  /* Nút chính: nền primary đặc (Hoàng kim: vàng, chữ navy) — thứ đậm nhất trên màn. */
+  .btn-primary {
+    @apply text-on-primary bg-gradient-to-r from-primary to-primary-end shadow-lg shadow-primary/20
+           hover:brightness-105 disabled:opacity-40 disabled:shadow-none disabled:hover:brightness-100;
+  }
+  /* Nút phụ: viền brand, nền trong suốt. */
+  .btn-secondary {
+    @apply border border-brand-500/80 text-brand-700 dark:text-brand-400 hover:bg-brand-500/10;
+  }
+  /* Nút trung tính (quay lại, điều hướng): không tranh chú ý với hai loại trên. */
+  .btn-soft { @apply bg-surface text-ink-soft border border-line hover:bg-muted hover:text-ink; }
+
+  /* Ô nhập: text-base (16px) để iOS không tự phóng to trang khi chạm vào. Nền canvas mờ cho ô
+     trông lõm xuống so với thẻ chứa nó (rõ nhất ở chế độ tối). */
+  .field {
+    @apply w-full p-3 text-base rounded-xl border border-line bg-canvas/60 text-ink outline-none
+           placeholder:text-ink-faint transition focus:border-brand-500 focus:ring-4 focus:ring-brand-500/15;
+  }
+
+  .alert { @apply rounded-xl border p-3 text-sm; }
+
+  /* Tấm vé có khấc bán nguyệt hai bên: mỗi nửa một mask khoét lỗ ở mép ngoài. Mask cắt luôn
+     box-shadow nên bóng phải đặt bằng filter: drop-shadow ở thẻ bọc ngoài (.ticket-shadow). */
+  .ticket-shape {
+    -webkit-mask:
+      radial-gradient(circle 13px at 0 50%, #0000 98%, #000) 0 0 / 51% 100% no-repeat,
+      radial-gradient(circle 13px at 100% 50%, #0000 98%, #000) 100% 0 / 51% 100% no-repeat;
+    mask:
+      radial-gradient(circle 13px at 0 50%, #0000 98%, #000) 0 0 / 51% 100% no-repeat,
+      radial-gradient(circle 13px at 100% 50%, #0000 98%, #000) 100% 0 / 51% 100% no-repeat;
+  }
+  .ticket-shadow { filter: drop-shadow(0 12px 18px rgb(var(--primary) / .25)); }
+
+  /* Bi số Vietlott: màu nền do từng loại vé đặt, lớp này chỉ thêm đốm sáng + bóng cho ra khối. */
+  .ball {
+    background-image: radial-gradient(circle at 32% 28%, rgb(255 255 255 / .55), rgb(255 255 255 / 0) 45%);
+    box-shadow: inset 0 -3px 6px rgb(0 0 0 / .18), 0 4px 10px -3px rgb(0 0 0 / .25);
+  }
 }
 
 /* iOS Safari vẽ <input type="date"> bằng control gốc: có bề rộng tối thiểu riêng nên lờ đi
@@ -30,6 +203,7 @@ input[type="date"]::-webkit-date-and-time-value {
   to   { transform: translateY(0); }
 }
 .scan-sweep { animation: scan-sweep 1.8s ease-in-out infinite alternate; }
+.scan-line { box-shadow: 0 0 14px 3px rgb(var(--brand-400) / .75); }
 
 /* Dấu ✓ "nảy" lên khi một bước vừa xong */
 @keyframes step-pop {
@@ -39,7 +213,36 @@ input[type="date"]::-webkit-date-and-time-value {
 }
 .step-pop { animation: step-pop 0.3s ease-out; }
 
+/* Màn chuyển nhẹ khi đổi tính năng / bước */
+@keyframes fade-up {
+  from { transform: translateY(8px); opacity: 0; }
+  to   { transform: none; opacity: 1; }
+}
+.fade-up { animation: fade-up 0.25s ease-out; }
+
+/* Bảng chọn giao diện: trượt từ đáy lên trên điện thoại, hiện dần trên màn rộng */
+@keyframes sheet-up {
+  from { transform: translateY(100%); }
+  to   { transform: none; }
+}
+.sheet-up { animation: sheet-up 0.28s cubic-bezier(.2, .8, .2, 1); }
+@media (min-width: 640px) {
+  .sheet-up { animation: fade-up 0.2s ease-out; }
+}
+
+/* Pháo giấy khi trúng: vị trí/màu/tốc độ mỗi mảnh đặt qua biến CSS (xem Confetti.tsx).
+   fill-mode both: đang chờ delay thì mảnh đứng ở khung 0% (trên mép màn hình), không lộ ra. */
+@keyframes confetti-fall {
+  from { transform: translate3d(0, -12vh, 0) rotate(0deg); }
+  to   { transform: translate3d(var(--drift), 110vh, 0) rotate(var(--spin)); }
+}
+.confetti-piece {
+  position: absolute;
+  top: 0;
+  animation: confetti-fall var(--dur) cubic-bezier(.3, .6, .5, 1) var(--delay) both;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .scan-sweep { display: none; }
-  .step-pop { animation: none; }
+  .scan-sweep, .confetti-piece { display: none; }
+  .step-pop, .fade-up, .sheet-up { animation: none; }
 }
