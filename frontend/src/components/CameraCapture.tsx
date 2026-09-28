@@ -71,7 +71,12 @@ const CAM_TEXT = {
 
 export default function CameraCapture({ onCapture }: { onCapture: (blob: Blob) => void }) {
   const webcamRef = useRef<Webcam>(null)
+  const autoTimer = useRef<number | null>(null)
+  const stableHits = useRef(0)
+  const prevScore = useRef<number | null>(null)
   const [cam, setCam] = useState<Cam>('checking')
+  const [autoCapture, setAutoCapture] = useState(true)
+  const [ticketInFrame, setTicketInFrame] = useState(false)
   // Webcam chỉ được mount lúc này — mount là trình duyệt bật camera (và hỏi quyền nếu chưa có).
   const live = cam === 'starting' || cam === 'ready'
 
@@ -105,6 +110,63 @@ export default function CameraCapture({ onCapture }: { onCapture: (blob: Blob) =
     const blob = await captureVisible(video)
     if (blob) onCapture(blob)
   }, [onCapture])
+
+  useEffect(() => {
+    if (!live || !autoCapture) {
+      if (autoTimer.current) window.clearInterval(autoTimer.current)
+      autoTimer.current = null
+      stableHits.current = 0
+      prevScore.current = null
+      return
+    }
+    const canvas = document.createElement('canvas')
+    const ctx = canvas.getContext('2d', { willReadFrequently: true })
+    if (!ctx) return
+    const scan = () => {
+      const video = webcamRef.current?.video
+      if (!video || !video.videoWidth || !video.videoHeight) return
+      // Dò đúng vùng trong khung căn vé ở giữa màn hình.
+      const rw = Math.round(video.videoWidth * 0.82)
+      const rh = Math.round(video.videoHeight * 0.46)
+      const rx = Math.round((video.videoWidth - rw) / 2)
+      const ry = Math.round((video.videoHeight - rh) / 2)
+      canvas.width = 96
+      canvas.height = 54
+      ctx.drawImage(video, rx, ry, rw, rh, 0, 0, canvas.width, canvas.height)
+      const d = ctx.getImageData(0, 0, canvas.width, canvas.height).data
+      let edges = 0
+      let lumSum = 0
+      let prev = 0
+      for (let i = 0; i < d.length; i += 4) {
+        const y = d[i] * 0.299 + d[i + 1] * 0.587 + d[i + 2] * 0.114
+        lumSum += y
+        if (i > 0 && Math.abs(y - prev) > 28) edges++
+        prev = y
+      }
+      const pixels = d.length / 4
+      const mean = lumSum / pixels
+      const edgeDensity = edges / pixels
+      const score = edgeDensity * 100 + Math.max(0, 180 - Math.abs(145 - mean)) / 100
+      const stable = prevScore.current == null || Math.abs(score - prevScore.current) < 4.2
+      prevScore.current = score
+      const detected = edgeDensity > 0.28 && mean > 35 && mean < 225
+      setTicketInFrame(detected)
+      if (detected && stable) {
+        stableHits.current += 1
+        if (stableHits.current >= 3) {
+          stableHits.current = 0
+          void capture()
+        }
+      } else {
+        stableHits.current = 0
+      }
+    }
+    autoTimer.current = window.setInterval(scan, 700)
+    return () => {
+      if (autoTimer.current) window.clearInterval(autoTimer.current)
+      autoTimer.current = null
+    }
+  }, [autoCapture, capture, live])
 
   return (
     <div>
@@ -160,6 +222,18 @@ export default function CameraCapture({ onCapture }: { onCapture: (blob: Blob) =
           ? <><Icon name="retry" className="w-6 h-6" /> Thử lại</>
           : <><Icon name="camera" className="w-6 h-6" /> {cam === 'off' ? 'Bật camera' : 'Chụp vé'}</>}
       </button>
+      {live && (
+        <div className="mt-3 rounded-xl border border-line bg-surface/70 p-3 text-sm">
+          <label className="flex items-center justify-between gap-3">
+            <span className="font-medium">Tự chụp khi phát hiện vé trong khung</span>
+            <input type="checkbox" checked={autoCapture}
+                   onChange={e => setAutoCapture(e.target.checked)} />
+          </label>
+          <div className={`mt-2 text-xs ${ticketInFrame ? 'text-ok' : 'text-ink-faint'}`}>
+            {ticketInFrame ? 'Đã thấy vé trong khung, giữ yên để tự chụp.' : 'Chưa thấy vé rõ trong khung.'}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

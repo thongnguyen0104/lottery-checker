@@ -57,6 +57,7 @@ public class LotteryMatcher
             };
 
         var winnings = new List<WinningPrize>();
+        var specialPrizeWinner = false;
 
         // 1. Giải ĐB (exact 6-digit) — và 2 giải phụ suy ra từ ĐB
         var db = results.FirstOrDefault(r => r.PrizeTier == "DB");
@@ -65,6 +66,7 @@ public class LotteryMatcher
             if (db.Number == ticket)
             {
                 winnings.Add(new WinningPrize("Giải Đặc Biệt", 2_000_000_000m));
+                specialPrizeWinner = true;
                 // Trúng ĐB rồi thì KHÔNG xét Phụ ĐB / Khuyến khích nữa
             }
             else if (ticket[1..] == db.Number[1..] && ticket[0] != db.Number[0])
@@ -100,6 +102,7 @@ public class LotteryMatcher
             Province = province,
             Status = CheckStatus.Checked,
             IsWinner = winnings.Count > 0,
+            IsSpecialPrizeWinner = specialPrizeWinner,
             Winnings = winnings,
             TotalPrize = winnings.Sum(w => w.Amount)
         };

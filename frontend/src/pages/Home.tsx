@@ -13,6 +13,17 @@ import { ALL_PROVINCES, provinceName } from '../data/provinces'
 
 type Stage = 'capture' | 'confirm' | 'result'
 type Progress = { title: string; steps: string[]; step: number; detail?: string }
+type BatchStatus = 'queued' | 'scanning' | 'confirm' | 'checking' | 'done' | 'error' | 'rejected'
+type BatchItem = {
+  id: string
+  name: string
+  imageUrl: string
+  status: BatchStatus
+  scanned?: ScanResponse
+  query?: TicketQuery
+  result?: CheckResult
+  error?: string
+}
 
 const SCAN_STEPS = ['Tải ảnh lên', 'Đọc chữ trên vé', 'Nhận diện số vé, đài và ngày']
 // Máy chủ không báo tiến độ giữa chừng: upload xong thì sang "Đọc chữ", rồi tự chuyển sang
@@ -54,6 +65,8 @@ export default function Home({ active, onShowResults }: Props) {
   const [progress, setProgress] = useState<Progress | null>(null)
   const [imageUrl, setImageUrl] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [batchItems, setBatchItems] = useState<BatchItem[]>([])
+  const [activeBatchId, setActiveBatchId] = useState<string | null>(null)
   const timers = useRef<number[]>([])
 
   // Hỏi sẵn cỡ ảnh cần nén trong lúc user còn đang ngắm camera — lượt quét đầu khỏi chờ thêm 1 request.
@@ -76,6 +89,7 @@ export default function Home({ active, onShowResults }: Props) {
   }
 
   const handleCapture = async (blob: Blob) => {
+    setActiveBatchId(null)
     // Giữ ảnh để màn chờ (cả lúc quét lẫn lúc dò) hiện đúng tấm vé user vừa chụp.
     if (imageUrl) URL.revokeObjectURL(imageUrl)
     setImageUrl(URL.createObjectURL(blob))
@@ -101,6 +115,11 @@ export default function Home({ active, onShowResults }: Props) {
       setError(errorText(e))
       return
     }
+    if (data.rejectedNonTicket) {
+      setProgress(null)
+      setError(data.rejectionReason ?? 'Ảnh không phải vé số. Vui lòng chụp lại đúng tờ vé.')
+      return
+    }
     setScanned(data)
     // Đọc chắc chắn → dò luôn: màn chờ chuyển thẳng sang checklist dò (cùng ảnh vé), không lộ form.
     // Còn nghi ngờ trường nào → hiện form cho user xác nhận/sửa như cũ.
@@ -110,9 +129,16 @@ export default function Home({ active, onShowResults }: Props) {
     setStage('confirm')
   }
 
-  const runCheck = async (info: TicketQuery) => {
+  const setBatchPatch = (id: string, patch: Partial<BatchItem>) =>
+    setBatchItems(items => items.map(item => item.id === id ? { ...item, ...patch } : item))
+
+  const runCheck = async (info: TicketQuery, batchId?: string) => {
     setError(null)
     setChecked(info)
+    if (batchId) {
+      setActiveBatchId(batchId)
+      setBatchPatch(batchId, { status: 'checking', query: info })
+    }
     setProgress({
       title: 'Đang dò kết quả...',
       steps: [
@@ -130,11 +156,67 @@ export default function Home({ active, onShowResults }: Props) {
       await finishProgress()
       setResult(res)
       setStage('result')
+      if (batchId) setBatchPatch(batchId, { status: 'done', result: res, query: info })
     } catch (e) {
       setError(errorText(e))
+      if (batchId) setBatchPatch(batchId, { status: 'error', error: errorText(e) })
     } finally {
       clearTimers()
       setProgress(null)
+    }
+  }
+
+  const processBatch = async (files: File[]) => {
+    if (!files.length) return
+    setError(null)
+    const appended: BatchItem[] = files.map((file, i) => ({
+      id: `${Date.now()}-${i}-${Math.random().toString(36).slice(2, 8)}`,
+      name: file.name || `Vé ${i + 1}`,
+      imageUrl: URL.createObjectURL(file),
+      status: 'queued',
+    }))
+    setBatchItems(items => [...appended, ...items])
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i]
+      const item = appended[i]
+      setBatchPatch(item.id, { status: 'scanning' })
+      setProgress({ title: `Đang đọc vé ${i + 1}/${files.length}`, steps: SCAN_STEPS, step: 0 })
+      let uploaded = false
+      try {
+        const scanned = await scanImage(file, ratio => {
+          if (ratio < 1) return advanceTo(0, `${Math.round(ratio * 100)}%`)
+          if (uploaded) return
+          uploaded = true
+          advanceTo(1)
+          advanceLater(2, OCR_STEP_MS)
+        })
+        await finishProgress()
+        if (scanned.rejectedNonTicket) {
+          setBatchPatch(item.id, {
+            status: 'rejected',
+            scanned,
+            error: scanned.rejectionReason ?? 'Ảnh không phải vé số.',
+          })
+          continue
+        }
+        const query = autoQuery(scanned)
+        if (query) {
+          setBatchPatch(item.id, { status: 'checking', scanned, query })
+          try {
+            const result = await checkTicket(query)
+            setBatchPatch(item.id, { status: 'done', scanned, query, result })
+          } catch (e) {
+            setBatchPatch(item.id, { status: 'error', scanned, query, error: errorText(e) })
+          }
+        } else {
+          setBatchPatch(item.id, { status: 'confirm', scanned })
+        }
+      } catch (e) {
+        setBatchPatch(item.id, { status: 'error', error: errorText(e) })
+      } finally {
+        clearTimers()
+        setProgress(null)
+      }
     }
   }
 
@@ -200,7 +282,7 @@ export default function Home({ active, onShowResults }: Props) {
                   <div className="md:hidden flex items-center gap-3 text-xs font-medium text-ink-faint">
                     <span className="h-px flex-1 bg-line" /> hoặc <span className="h-px flex-1 bg-line" />
                   </div>
-                  <ImageUpload onSelect={f => handleCapture(f)} />
+                  <ImageUpload onSelect={processBatch} />
                   <div className="card p-4">
                     <div className="flex items-center gap-2 font-semibold mb-3">
                       <Icon name="tip" className="w-[18px] h-[18px] text-brand-700 dark:text-brand-400" />
@@ -216,6 +298,66 @@ export default function Home({ active, onShowResults }: Props) {
                   </div>
                 </div>
               </div>
+              {batchItems.length > 0 && (
+                <div className="card p-4 mt-4 space-y-3">
+                  <div className="font-semibold">Danh sách vé đã tải ({batchItems.length})</div>
+                  <ul className="space-y-2">
+                    {batchItems.map(item => (
+                      <li key={item.id} className="rounded-xl border border-line p-3 text-sm">
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="font-medium truncate">{item.name}</div>
+                          <div className={`text-xs ${
+                            item.status === 'done' ? 'text-ok'
+                              : item.status === 'error' || item.status === 'rejected' ? 'text-bad'
+                              : item.status === 'confirm' ? 'text-warn' : 'text-ink-faint'
+                          }`}>
+                            {item.status === 'queued' && 'Đang chờ'}
+                            {item.status === 'scanning' && 'Đang quét'}
+                            {item.status === 'checking' && 'Đang dò'}
+                            {item.status === 'confirm' && 'Cần xác nhận'}
+                            {item.status === 'done' && (item.result?.isWinner ? 'Trúng' : 'Không trúng')}
+                            {item.status === 'rejected' && 'Không phải vé số'}
+                            {item.status === 'error' && 'Lỗi'}
+                          </div>
+                        </div>
+                        {item.error && <div className="text-xs text-bad mt-1">{item.error}</div>}
+                        <div className="flex flex-wrap gap-2 mt-2">
+                          {item.status === 'confirm' && item.scanned && (
+                            <button
+                              className="btn btn-secondary"
+                              onClick={() => {
+                                setActiveBatchId(item.id)
+                                setScanned(item.scanned!)
+                                setChecked(item.query ?? null)
+                                setImageUrl(item.imageUrl)
+                                setStage('confirm')
+                              }}>
+                              Xác nhận vé này
+                            </button>
+                          )}
+                          {item.result && (
+                            <>
+                              <button className="btn btn-secondary" onClick={() => {
+                                setResult(item.result!)
+                                setChecked(item.query ?? null)
+                                setImageUrl(item.imageUrl)
+                                setStage('result')
+                              }}>
+                                Xem kết quả
+                              </button>
+                              {item.query && (
+                                <button className="btn btn-secondary" onClick={() => runCheck(item.query!, item.id)}>
+                                  Dò lại vé này
+                                </button>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
           )}
           {stage === 'confirm' && scanned && (
@@ -225,7 +367,7 @@ export default function Home({ active, onShowResults }: Props) {
                 initial={checked}
                 imageUrl={imageUrl}
                 allProvinces={ALL_PROVINCES}
-                onConfirm={runCheck}
+                onConfirm={info => runCheck(info, activeBatchId ?? undefined)}
                 onRescan={() => setStage('capture')}
               />
             </div>

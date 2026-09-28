@@ -85,6 +85,8 @@ export type ScanResponse = {
    * xác nhận. Backend cũ không có trường này → undefined → vẫn hỏi lại như trước.
    */
   autoCheck?: boolean
+  rejectedNonTicket?: boolean
+  rejectionReason?: string | null
   timings?: ScanTimings
   /**
    * Tổng thời gian đo ở trình duyệt: bấm gửi ảnh → nhận kết quả. Lớn hơn timings.total
@@ -133,6 +135,9 @@ export function loadCompressOptions(): Promise<CompressOptions> {
 function toFriendlyError(e: unknown): Error {
   if (axios.isAxiosError(e)) {
     if (e.response) {
+      if (e.response.status === 429) {
+        return new Error('Bạn thao tác quá nhanh. Vui lòng đợi một chút rồi thử lại.')
+      }
       // Server có trả lời (4xx/5xx) — lấy message từ body nếu có
       const data = e.response.data as { error?: string; title?: string } | undefined
       return new Error(data?.error || data?.title || `Máy chủ trả lỗi ${e.response.status}`)
@@ -193,6 +198,7 @@ export type CheckResult = {
   drawsAt: string | null
   claimDeadline: string | null
   isWinner: boolean
+  isSpecialPrizeWinner?: boolean
   winnings: { tierName: string; amount: number }[]
   totalPrize: number
   ocrConfidence: number
