@@ -117,7 +117,6 @@ export default function CameraCapture({ onCapture }: { onCapture: (blob: Blob) =
       autoTimer.current = null
       stableHits.current = 0
       prevScore.current = null
-      setTicketInFrame(false)
       return
     }
     const canvas = document.createElement('canvas')

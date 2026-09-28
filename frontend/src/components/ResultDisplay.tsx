@@ -18,6 +18,7 @@ type Props = {
     drawsAt?: string | null   // ISO không timezone, giờ VN (vd "2026-08-23T16:15:00")
     claimDeadline?: string | null  // 'YYYY-MM-DD' — hạn cuối lĩnh thưởng, chỉ có khi Expired
     isWinner: boolean
+    isSpecialPrizeWinner?: boolean
     winnings: Winning[]
     totalPrize: number
   }
