@@ -57,10 +57,33 @@ public class ResultsController : ControllerBase
         return new ProvinceResultDto(date.ToString("yyyy-MM-dd"), province, rows[0].Region, prizes);
     }
 
+    /// <summary>
+    /// Các giải có 2 số cuối = <paramref name="tail"/> trong dữ liệu đang có (~30 ngày), mới nhất trước
+    /// — cho nút "Dò số" của Luận số.
+    /// </summary>
+    [HttpGet("/api/results/search")]
+    public async Task<ActionResult<TailHitDto[]>> SearchTail([FromQuery] string? tail, CancellationToken ct)
+    {
+        if (tail is not { Length: 2 } || !tail.All(char.IsAsciiDigit))
+            return BadRequest(new { error = "Cần đúng 2 chữ số, vd ?tail=32." });
+
+        var rows = await _db.LotteryResults
+            .Where(r => r.Number.EndsWith(tail))
+            .Select(r => new { r.DrawDate, r.Province, r.PrizeTier, r.Number, r.Id })
+            .ToListAsync(ct);
+
+        return rows
+            .OrderByDescending(r => r.DrawDate).ThenBy(r => r.Province).ThenBy(r => TierRank(r.PrizeTier)).ThenBy(r => r.Id)
+            .Select(r => new TailHitDto(r.DrawDate.ToString("yyyy-MM-dd"), r.Province, r.PrizeTier, r.Number))
+            .ToArray();
+    }
+
     // "DB" đứng đầu, rồi "1".."8"; mã lạ (không nên có) dồn xuống cuối.
     private static int TierRank(string tier) =>
         tier == "DB" ? 0 : int.TryParse(tier, out var n) ? n : int.MaxValue;
 }
+
+public record TailHitDto(string DrawDate, string Province, string Tier, string Number);
 
 public record PrizeRowDto(string Tier, string[] Numbers);
 

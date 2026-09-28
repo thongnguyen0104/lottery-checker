@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { LUCKY_GAMES, pickNumbers, type LuckyGame } from '../utils/lucky'
 import Icon from './Icon'
+import DreamChat from './DreamChat'
+import type { ResultsFocus } from './AvailableData'
 
 const HISTORY_MAX = 5
 const pad = (n: number) => String(n).padStart(2, '0')
@@ -12,7 +14,30 @@ const BALL = {
   power: 'bg-amber-400 text-amber-950',
 } satisfies Record<LuckyGame, string>
 
-export default function LuckyNumbers() {
+type Mode = 'vietlott' | 'dream'
+
+/** Tab Số may mắn: chọn ngẫu nhiên Vietlott, hoặc luận số từ giấc mơ. Cả hai luôn mount để giữ state khi đổi mục. */
+export default function LuckyNumbers({ onShowResults }: { onShowResults: (focus: ResultsFocus) => void }) {
+  const [mode, setMode] = useState<Mode>('vietlott')
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-1 bg-muted p-1 rounded-xl border border-line/60" role="tablist">
+        {([['vietlott', 'Vietlott'], ['dream', 'Luận số giấc mơ']] as const).map(([m, label]) => (
+          <button key={m} role="tab" aria-selected={m === mode} onClick={() => setMode(m)}
+                  className={`py-2.5 rounded-lg text-sm font-semibold transition ${m === mode
+                    ? 'bg-surface dark:bg-brand-500/10 shadow-sm text-brand-700 dark:text-brand-400'
+                    : 'text-ink-faint hover:text-ink-soft'}`}>
+            {label}
+          </button>
+        ))}
+      </div>
+      <div hidden={mode !== 'vietlott'}><VietlottPicker /></div>
+      <div hidden={mode !== 'dream'}><DreamChat onShowResults={onShowResults} /></div>
+    </div>
+  )
+}
+
+function VietlottPicker() {
   const [game, setGame] = useState<LuckyGame>('mega')
   const [current, setCurrent] = useState<number[] | null>(null)
   const [history, setHistory] = useState<{ game: LuckyGame; numbers: number[] }[]>([])

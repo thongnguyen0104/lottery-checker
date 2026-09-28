@@ -6,7 +6,8 @@ import Icon, { IconBadge } from './Icon'
 import { formatDate, todayIso, weekday } from '../utils/date'
 
 /** Mở thẳng bảng của 1 đài từ màn kết quả dò vé — tô các số trùng với vé đó. */
-export type ResultsFocus = { drawDate: string; province: string; ticketNumber: string }
+/** from = màn đã mở bảng này (mặc định Dò vé), để nút quay lại đưa về đúng chỗ. */
+export type ResultsFocus = { drawDate: string; province: string; ticketNumber: string; from?: 'check' | 'lucky' }
 
 type Props = {
   /** Có = mở từ vé vừa dò: vào thẳng bảng đài đó, nút quay lại đưa về vé (onBack). */
@@ -51,7 +52,7 @@ export default function AvailableData({ focus, onBack }: Props) {
         sameDay={data?.find(d => d.drawDate === selected.drawDate)?.provinces ?? []}
         ticketNumber={ofTicket ? focus.ticketNumber : undefined}
         onSelectProvince={province => setSelected({ ...selected, province })}
-        backLabel={focus ? 'Vé của bạn' : 'Danh sách'}
+        backLabel={focus ? (focus.from === 'lucky' ? 'Luận số' : 'Vé của bạn') : 'Danh sách'}
         onBack={focus ? onBack : closeDetail}
       />
     )

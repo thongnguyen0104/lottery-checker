@@ -23,6 +23,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <EmbeddedResource Include="Data/dream-book.json" LogicalName="LotteryChecker.Api.Data.dream-book.json" />
+  </ItemGroup>
+
+  <ItemGroup>
     <None Update="tessdata\**\*.*">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>

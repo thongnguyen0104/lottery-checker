@@ -244,7 +244,7 @@ public class GeminiTicketReader
     };
 
     /// <summary>Ghép text của ứng viên đầu tiên (bỏ phần "thought" nếu có). Null = không có chữ nào.</summary>
-    private static string? ExtractText(string body)
+    internal static string? ExtractText(string body)
     {
         var parsed = JsonSerializer.Deserialize<GenerateContentResponse>(body, JsonOpts);
         var parts = parsed?.Candidates?.FirstOrDefault()?.Content?.Parts;
@@ -254,7 +254,7 @@ public class GeminiTicketReader
     }
 
     // Đã ép responseMimeType=application/json nên hiếm khi có ```json ... ```, nhưng gỡ cho chắc.
-    private static string StripCodeFence(string s)
+    internal static string StripCodeFence(string s)
     {
         s = s.Trim();
         if (!s.StartsWith("```", StringComparison.Ordinal)) return s;
