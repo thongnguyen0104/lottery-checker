@@ -235,3 +235,37 @@ export async function getProvinceResult(drawDate: string, province: string) {
     throw toFriendlyError(e)
   }
 }
+
+/** Kết quả Luận số — số luôn tra từ sổ mơ ở backend; mainNumber null = không mục nào khớp. */
+export type DreamResult = {
+  summary: string
+  entries: { key: string; label: string; numbers: string[] }[]
+  mainNumber: string | null
+  secondaryNumbers: string[]
+  explanation: string
+  disclaimer: string
+  /** 'ai' = Gemini hiểu câu; 'local' = so khớp chữ (Gemini tắt/lỗi). */
+  source: 'ai' | 'local'
+  aiError: string | null
+}
+
+export async function interpretDream(message: string) {
+  try {
+    const { data } = await api.post('/api/ai/dream', { message }, { timeout: 20_000 })
+    return data as DreamResult
+  } catch (e) {
+    throw toFriendlyError(e)
+  }
+}
+
+/** Một giải có 2 số cuối trùng số đang dò. */
+export type TailHit = { drawDate: string; province: string; tier: string; number: string }
+
+export async function searchTail(tail: string) {
+  try {
+    const { data } = await api.get('/api/results/search', { params: { tail } })
+    return data as TailHit[]
+  } catch (e) {
+    throw toFriendlyError(e)
+  }
+}

@@ -38,12 +38,12 @@ export default function App() {
           <Home active={view === 'check'} onShowResults={focus => go('results', focus)} />
         </div>
         <div hidden={view !== 'lucky'} className="fade-up">
-          <LuckyNumbers />
+          <LuckyNumbers onShowResults={focus => go('results', focus)} />
         </div>
         {/* Kết quả thì mount lại mỗi lần mở để lấy danh sách mới nhất. */}
         {view === 'results' && (
           <div className="fade-up">
-            <AvailableData focus={resultsFocus} onBack={() => go('check')} />
+            <AvailableData focus={resultsFocus} onBack={() => go(resultsFocus?.from ?? 'check')} />
           </div>
         )}
       </main>

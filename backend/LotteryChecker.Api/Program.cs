@@ -2,6 +2,8 @@ using LotteryChecker.Api.Data;
 using LotteryChecker.Api.Middleware;
 using LotteryChecker.Api.Services;
 using LotteryChecker.Api.Workers;
+using Microsoft.AspNetCore.HttpOverrides;
+using System.Threading.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Scalar.AspNetCore;
 
@@ -81,6 +83,32 @@ builder.Services.AddHttpClient<GeminiTicketReader>(c =>
     c.Timeout = TimeSpan.FromSeconds(builder.Configuration.GetValue("Gemini:TimeoutSeconds", 15)));
 // OCR.space — đọc số vé cách điệu mà Tesseract cục bộ đọc sai.
 builder.Services.AddHttpClient<CloudOcrService>(c => c.Timeout = TimeSpan.FromSeconds(30));
+
+// Luận số giấc mơ: sổ mơ tĩnh + Gemini chọn mục (cùng key/model với phần đọc vé, bật riêng DreamChat:Enabled).
+builder.Services.AddMemoryCache();
+builder.Services.AddSingleton<DreamBook>();
+builder.Services.AddHttpClient<DreamInterpreter>(c =>
+    c.Timeout = TimeSpan.FromSeconds(builder.Configuration.GetValue("DreamChat:TimeoutSeconds", 10)));
+
+// Chat gọi AI → chống spam theo IP: chung quota Gemini với phần đọc vé, spam hết quota là đọc vé hỏng theo.
+builder.Services.AddRateLimiter(o =>
+{
+    o.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    o.AddPolicy(LotteryChecker.Api.Controllers.DreamController.RateLimitPolicy, ctx =>
+        RateLimitPartition.GetFixedWindowLimiter(ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown", _ =>
+            new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = builder.Configuration.GetValue("DreamChat:PermitPerHour", 10),
+                Window = TimeSpan.FromHours(1),
+            }));
+    o.OnRejected = (ctx, ct) => new ValueTask(ctx.HttpContext.Response.WriteAsJsonAsync(
+        new { error = "Bạn hỏi hơi nhiều rồi, nghỉ một lát rồi thử lại nhé." }, ct));
+});
+
+// API chạy sau Caddy/cloudflared cùng máy (127.0.0.1 — proxy mặc định được tin): lấy IP thật từ
+// X-Forwarded-For, không thì mọi người dùng chung 1 IP → chung 1 hạn mức rate limit.
+builder.Services.Configure<ForwardedHeadersOptions>(o =>
+    o.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto);
 
 // Scraper kết quả XSKT + worker tự động cào hằng ngày
 builder.Services.AddHttpClient<ResultScraper>(c =>
@@ -179,10 +207,13 @@ if (app.Environment.IsDevelopment())
     app.MapScalarApiReference();
 }
 
+app.UseForwardedHeaders();
+
 // Đo + log thời gian mỗi request /api/* — đặt sớm nhất để bao luôn khâu nhận ảnh upload.
 app.UseRequestTiming();
 
 app.UseCors();
+app.UseRateLimiter();
 app.MapControllers();
 
 // Endpoint test nhanh
