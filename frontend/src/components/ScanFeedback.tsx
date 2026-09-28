@@ -249,6 +249,12 @@ export default function ScanFeedback({ scanned }: { scanned: ScanResponse }) {
           </span>
         </div>
       )}
+      {scanned.rejectedNonTicket && (
+        <div className="alert flex gap-2 bg-bad/10 border-bad/30 text-bad">
+          <Icon name="error" className="w-4 h-4 shrink-0 mt-0.5" />
+          <span>{scanned.rejectionReason ?? 'Ảnh không giống vé số. Vui lòng chụp lại đúng tờ vé.'}</span>
+        </div>
+      )}
     </div>
   )
 }

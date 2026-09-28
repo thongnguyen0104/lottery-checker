@@ -25,6 +25,7 @@ public class ScanResult
     public DateTime? DrawsAt { get; set; }      // giờ VN sẽ xổ — chỉ set khi NotDrawnYet
     public DateOnly? ClaimDeadline { get; set; } // hạn cuối lĩnh thưởng — chỉ set khi Expired
     public bool IsWinner { get; set; }
+    public bool IsSpecialPrizeWinner { get; set; }
     public List<WinningPrize> Winnings { get; set; } = new();
     public decimal TotalPrize { get; set; }
     public double OcrConfidence { get; set; }

@@ -46,6 +46,7 @@ builder.Services.AddSingleton(TimeProvider.System);  // để test bơm được
 builder.Services.AddSingleton<ProvinceMatcher>();   // stateless, chỉ data tĩnh
 builder.Services.AddSingleton<TicketTextParser>();  // stateless, dùng chung cho mọi engine OCR
 builder.Services.AddSingleton<TicketResultValidator>(); // quyết định có cần fallback cloud OCR
+builder.Services.AddSingleton<TicketImageGuard>();      // chặn ảnh không phải vé số
 builder.Services.AddSingleton<LocalRetryReader>();   // đọc lại lấp ngày/đài thiếu (engine truyền vào lúc gọi)
 builder.Services.AddScoped<ImagePreprocessor>();
 builder.Services.AddScoped<LotteryMatcher>();        // phụ thuộc AppDbContext (Scoped)

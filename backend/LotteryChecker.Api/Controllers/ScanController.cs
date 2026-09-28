@@ -16,16 +16,18 @@ public class ScanController : ControllerBase
     private readonly GeminiTicketReader _gemini;
     private readonly CloudOcrService _cloudOcr;
     private readonly TicketResultValidator _validator;
+    private readonly TicketImageGuard _ticketGuard;
     private readonly LocalRetryReader _retry;
     private readonly LotteryMatcher _matcher;
     private readonly ILogger<ScanController> _log;
 
     public ScanController(ImagePreprocessor p, LocalOcrSwitch localOcr, ITicketOcrEngine o, TicketTextParser parser,
                           GeminiTicketReader gemini, CloudOcrService cloud, TicketResultValidator validator,
+                          TicketImageGuard ticketGuard,
                           LocalRetryReader retry, LotteryMatcher m, ILogger<ScanController> log)
     {
         _preprocessor = p; _localOcr = localOcr; _ocr = o; _parser = parser; _gemini = gemini; _cloudOcr = cloud;
-        _validator = validator; _retry = retry; _matcher = m; _log = log;
+        _validator = validator; _ticketGuard = ticketGuard; _retry = retry; _matcher = m; _log = log;
     }
 
     /// <summary>
@@ -200,6 +202,12 @@ public class ScanController : ControllerBase
         // Confidence chỉ có nghĩa với OCR cục bộ; cloud không trả điểm tin cậy → null, FE ẩn dòng đó.
         var localRan = localCheck != null;
         var lowConfidence = localRan && info.OcrConfidence < 0.55;
+        var rejectedNonTicket = !_ticketGuard.IsLikelyTicket(info);
+        if (rejectedNonTicket)
+        {
+            _log.LogInformation("Ảnh bị chặn vì không giống vé số: path={Path} conf={Confidence:0.00} reasons=[{Reasons}]",
+                ocrPath, info.OcrConfidence, string.Join(",", localCheck?.Reasons ?? []));
+        }
         var autoCheck = _validator.CanAutoCheck(info, localCheck);
 
         // Log đủ để thống kê sau này: tỷ lệ vé phải gọi cloud (ocrPath) và VÌ SAO (reasons), tỷ lệ
@@ -238,9 +246,14 @@ public class ScanController : ControllerBase
                 croppedLines = retry.CroppedLines, usedFull = retry.UsedFull, filled = retry.Filled,
             },
             // Trường nào của kết quả CUỐI user nên kiểm tra lại trên form (đánh dấu vàng).
-            needsReview = _validator.FieldsToReview(info),
+            needsReview = rejectedNonTicket ? ["number", "date", "province"] : _validator.FieldsToReview(info),
+            // true = ảnh không giống vé số (ảnh người/phong cảnh/đồ vật...), không cho dò tự động.
+            rejectedNonTicket,
+            rejectionReason = rejectedNonTicket
+                ? "Ảnh tải lên không giống vé số. Vui lòng đặt tờ vé vào khung hình và chụp lại."
+                : null,
             // true = đủ chắc cả số vé, đài, ngày → FE dò luôn, không hiện form xác nhận.
-            autoCheck,
+            autoCheck = !rejectedNonTicket && autoCheck,
             // Thời gian từng chặng (ms), chặng không chạy = null. Là số liệu để biết nên tối ưu
             // chỗ nào khi chạy trên máy thật (VM prod chậm hơn máy dev nhiều).
             timings = timer.ToTimings()

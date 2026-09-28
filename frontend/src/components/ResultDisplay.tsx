@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import Confetti from './Confetti'
 import Icon, { IconBadge, type IconName } from './Icon'
 import { provinceName } from '../data/provinces'
@@ -44,6 +44,28 @@ export default function ResultDisplay({ result, onRescan, onEdit, onShowTable }:
   const { isWinner, winnings, totalPrize, extractedNumber, drawDate, province, drawsAt } = result
   const status: Status = result.status ?? 'Checked'
   const won = status === 'Checked' && isWinner
+  const [copyStatus, setCopyStatus] = useState<'idle' | 'ok' | 'fail'>('idle')
+  const smsText = useMemo(() => {
+    const place = province ? provinceName(province) : '—'
+    const date = formatDate(drawDate) ?? '—'
+    const state = status === 'Checked'
+      ? (isWinner ? 'TRÚNG' : 'KHÔNG TRÚNG')
+      : status === 'NotDrawnYet' ? 'CHƯA XỔ'
+      : status === 'Expired' ? 'HẾT HẠN'
+      : 'CHƯA CÓ DỮ LIỆU'
+    return `VIETLOTT ${state}\nVé: ${extractedNumber}\nĐài: ${place}\nNgày: ${date}\nTổng thưởng: ${formatVND(totalPrize)}`
+  }, [drawDate, extractedNumber, isWinner, province, status, totalPrize])
+
+  const copySms = async () => {
+    try {
+      await navigator.clipboard.writeText(smsText)
+      setCopyStatus('ok')
+    } catch {
+      setCopyStatus('fail')
+    } finally {
+      setTimeout(() => setCopyStatus('idle'), 1800)
+    }
+  }
 
   return (
     <div className="space-y-4">
@@ -105,6 +127,11 @@ export default function ResultDisplay({ result, onRescan, onEdit, onShowTable }:
         </StatusCard>
       ) : isWinner ? (
         <>
+          {result.isSpecialPrizeWinner && (
+            <StatusCard tone="warn" icon="warn" title="⚠️ Trúng giải Đặc Biệt">
+              Chúng tôi đã lưu địa chỉ của bạn, hãy trích vào quỹ thiện nguyện của thành phố.
+            </StatusCard>
+          )}
           {/* Trúng: khung xanh ngọc (trạng thái thành công), số tiền màu vàng brand */}
           <StatusCard tone="ok" icon="trophy" title="Chúc mừng! Vé trúng thưởng">
             <div className="text-4xl sm:text-5xl font-extrabold tracking-tight tabular-nums mt-1
@@ -136,6 +163,16 @@ export default function ResultDisplay({ result, onRescan, onEdit, onShowTable }:
       <p className="text-xs text-ink-faint text-center px-2">
         Kết quả do AI đọc và có thể mắc sai sót, chúng tôi không chịu trách nhiệm nếu bạn hủy vé.
       </p>
+
+      <div className="card p-4 space-y-2">
+        <div className="text-sm font-semibold">SMS Vietlott</div>
+        <pre className="text-xs whitespace-pre-wrap rounded-lg bg-slate-900 text-slate-100 p-3">{smsText}</pre>
+        <button onClick={copySms} className="btn btn-secondary w-full">
+          <Icon name="check" /> Copy SMS
+        </button>
+        {copyStatus === 'ok' && <div className="text-xs text-ok">Đã copy SMS vào clipboard.</div>}
+        {copyStatus === 'fail' && <div className="text-xs text-bad">Không copy được. Hãy copy thủ công.</div>}
+      </div>
 
       <div className="grid sm:grid-flow-col sm:auto-cols-fr gap-3">
         {/* Chỉ 'Checked' mới chắc có bảng trong DB: chưa xổ/chưa cào thì chưa có, còn vé hết hạn

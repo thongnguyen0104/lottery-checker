@@ -13,6 +13,7 @@ Thư mục này là bản rút gọn để chạy.
 | `tunnel.ps1` | máy Windows | chạy app ra internet qua Cloudflare Tunnel, không cần VM |
 | `ORACLE-VM.md` | hướng dẫn | tạo VM Oracle Always Free từng bước (đăng ký → mạng → VM → IP tĩnh → DuckDNS) |
 | `VERCEL.md` | hướng dẫn | đưa frontend lên Vercel (backend vẫn cần VM/container — Vercel không chạy .NET) |
+| `CLOUDFLARE-RATE-LIMIT.md` | hướng dẫn | cấu hình rate limit cho `/api/scan` và `/api/check` |
 
 ## Chưa có VM? Hai script gỡ bí
 

@@ -41,6 +41,7 @@ public class LotteryMatcherTests
         var r = await new LotteryMatcher(db, DayAfterDraw).Match("123456", date, "TPHCM", CancellationToken.None);
 
         r.IsWinner.Should().BeTrue();
+        r.IsSpecialPrizeWinner.Should().BeTrue();
         r.Winnings.Should().Contain(w => w.TierName == "Giải Đặc Biệt" && w.Amount == 2_000_000_000m);
     }
 
@@ -54,6 +55,7 @@ public class LotteryMatcherTests
         var r = await new LotteryMatcher(db, DayAfterDraw).Match("923456", date, "TPHCM", CancellationToken.None);
 
         r.Winnings.Should().ContainSingle(w => w.TierName == "Giải Phụ Đặc Biệt" && w.Amount == 50_000_000m);
+        r.IsSpecialPrizeWinner.Should().BeFalse();
         r.Winnings.Should().NotContain(w => w.TierName == "Giải Đặc Biệt");
     }
 
