@@ -9,7 +9,7 @@ const API_BASE = import.meta.env.VITE_API_URL || ''
 
 const api = axios.create({
   baseURL: API_BASE,
-  timeout: 60_000, // OCR có thể mất vài giây
+  timeout: 15_000, // tra DB/kết quả chỉ vài chục ms — quá 15s là mạng có vấn đề; quét ảnh đặt riêng
 })
 
 /**
@@ -129,26 +129,41 @@ export function loadCompressOptions(): Promise<CompressOptions> {
   return compressOptions
 }
 
+/** User bấm Huỷ (AbortController) — bên gọi lặng lẽ quay lại, không hiện màn lỗi. */
+export const isCanceled = (e: unknown) => e instanceof Error && e.name === 'CanceledError'
+
+// Câu cho người dùng khi máy chủ không gửi kèm lời nhắn (error) — không lộ mã/thuật ngữ kỹ thuật.
+const statusText = (status: number) =>
+  status === 429 ? 'Bạn thao tác hơi nhiều rồi, nghỉ một lát rồi thử lại nhé.'
+  : status === 413 ? 'Ảnh quá lớn. Hãy chọn ảnh nhỏ hơn 10MB hoặc chụp lại.'
+  : status >= 500 ? 'Máy chủ đang gặp sự cố, bạn thử lại sau ít phút nhé.'
+  : 'Yêu cầu không hợp lệ, bạn thử lại nhé.'
+
 // Chuẩn hoá lỗi axios thành thông báo tiếng Việt dễ hiểu
 function toFriendlyError(e: unknown): Error {
   if (axios.isAxiosError(e)) {
+    if (axios.isCancel(e)) return Object.assign(new Error('Đã huỷ'), { name: 'CanceledError' })
     if (e.response) {
-      // Server có trả lời (4xx/5xx) — lấy message từ body nếu có
-      const data = e.response.data as { error?: string; title?: string } | undefined
-      return new Error(data?.error || data?.title || `Máy chủ trả lỗi ${e.response.status}`)
+      // Server có trả lời (4xx/5xx) — lấy lời nhắn từ body nếu có. 5xx thì bỏ qua body: trang lỗi
+      // mặc định (title "Internal Server Error"...) là tiếng Anh kỹ thuật.
+      const { status } = e.response
+      const data = e.response.data as { error?: string } | undefined
+      return new Error((status < 500 || status === 503) && data?.error ? data.error : statusText(status))
     }
-    // Không nhận được phản hồi: backend chưa chạy, sai địa chỉ, hoặc timeout
-    return new Error(
-      `Không kết nối được tới máy chủ${API_BASE ? ` (${API_BASE})` : ''}. ` +
-      `Kiểm tra: backend (cổng 5177) đã chạy chưa? Vite proxy /api có hoạt động không?`
-    )
+    if (e.code === 'ECONNABORTED' || e.code === 'ETIMEDOUT')
+      return new Error('Máy chủ phản hồi quá lâu. Kiểm tra mạng rồi bấm Thử lại nhé.')
+    // Chi tiết cho dev xem ở console, user chỉ cần biết kiểm tra mạng.
+    console.warn('API không phản hồi', API_BASE || '(cùng origin)', e.message)
+    return new Error(navigator.onLine === false
+      ? 'Bạn đang ngoại tuyến. Bật Wi-Fi hoặc 4G rồi bấm Thử lại.'
+      : 'Không kết nối được. Kiểm tra mạng rồi bấm Thử lại.')
   }
   return new Error((e as Error)?.message ?? 'Lỗi không xác định')
 }
 
 // Nén (nếu bật) rồi gửi ảnh lên `url` — dùng chung cho quét 1 vé và quét nhiều vé.
 async function uploadImage<T>(url: string, blob: Blob, onUploadProgress?: (ratio: number) => void,
-                              timeout?: number) {
+                              timeout?: number, signal?: AbortSignal) {
   const options = compressEnabled() ? await loadCompressOptions() : undefined
   const c = options
     ? await compressImage(blob, options)
@@ -160,6 +175,7 @@ async function uploadImage<T>(url: string, blob: Blob, onUploadProgress?: (ratio
   // KHÔNG set Content-Type thủ công: để trình duyệt tự thêm boundary cho multipart
   const { data } = await api.post(url, fd, {
     timeout,
+    signal,
     onUploadProgress: e => { if (e.total) onUploadProgress?.(e.loaded / e.total) },
   })
   return {
@@ -181,9 +197,12 @@ async function uploadImage<T>(url: string, blob: Blob, onUploadProgress?: (ratio
 export async function scanImage(
   blob: Blob,
   onUploadProgress?: (ratio: number) => void,
+  signal?: AbortSignal,
 ): Promise<ScanResponse> {
   try {
-    return await uploadImage<Omit<ScanResponse, 'clientMs' | 'upload'>>('/api/scan', blob, onUploadProgress)
+    // Gemini tự timeout 15s (+1 lượt gọi lại) rồi lùi về OCR.space → 45s đủ cho đường chậm nhất.
+    return await uploadImage<Omit<ScanResponse, 'clientMs' | 'upload'>>(
+      '/api/scan', blob, onUploadProgress, 45_000, signal)
   } catch (e) {
     throw toFriendlyError(e)
   }
@@ -213,10 +232,11 @@ export type MultiScanResponse = {
 export async function scanMultiImage(
   blob: Blob,
   onUploadProgress?: (ratio: number) => void,
+  signal?: AbortSignal,
 ): Promise<MultiScanResponse> {
   try {
     // Nhiều vé = Gemini sinh nhiều chữ hơn + dò từng vé → cho thêm thời gian so với quét 1 vé.
-    return await uploadImage<Omit<MultiScanResponse, 'clientMs'>>('/api/scan-multi', blob, onUploadProgress, 90_000)
+    return await uploadImage<Omit<MultiScanResponse, 'clientMs'>>('/api/scan-multi', blob, onUploadProgress, 60_000, signal)
   } catch (e) {
     throw toFriendlyError(e)
   }
@@ -239,9 +259,9 @@ export type CheckResult = {
 }
 
 // Bước 2: dò với info đã xác nhận
-export async function checkTicket(payload: TicketQuery) {
+export async function checkTicket(payload: TicketQuery, signal?: AbortSignal) {
   try {
-    const { data } = await api.post('/api/check', payload)
+    const { data } = await api.post('/api/check', payload, { signal })
     return data as CheckResult
   } catch (e) {
     throw toFriendlyError(e)

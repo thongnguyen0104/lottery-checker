@@ -1,8 +1,9 @@
-import Icon from './Icon'
+import Icon, { BusyDot } from './Icon'
 import { VIEWS, type View } from '../views'
 
 /** Thanh tab dưới đáy cho điện thoại (ẩn từ md trở lên — màn rộng dùng tab trên AppHeader). */
-export default function BottomNav({ view, onChange }: { view: View; onChange: (v: View) => void }) {
+/** busy = Dò vé đang quét/dò → chấm nhấp nháy trên tab đó khi user đang ở tab khác. */
+export default function BottomNav({ view, busy, onChange }: { view: View; busy?: boolean; onChange: (v: View) => void }) {
   return (
     <nav aria-label="Tính năng"
          className="md:hidden fixed inset-x-0 bottom-0 z-30 pb-[env(safe-area-inset-bottom)]
@@ -15,11 +16,13 @@ export default function BottomNav({ view, onChange }: { view: View; onChange: (v
                     className={`flex flex-col items-center gap-0.5 pt-2 pb-2.5 text-[11px] font-semibold transition
                                 ${active ? 'text-brand-700 dark:text-brand-400' : 'text-ink-faint'}`}>
               {/* Đang chọn: icon + chữ màu brand trên viên nền nhạt; chưa chọn: xám slate */}
-              <span className={`w-14 h-8 rounded-full flex items-center justify-center transition
+              <span className={`relative w-14 h-8 rounded-full flex items-center justify-center transition
                                 ${active ? 'bg-brand-500/15' : ''}`}>
                 <Icon name={v.icon} className="w-[22px] h-[22px]" />
+                {busy && !active && v.id === 'check' && <BusyDot />}
               </span>
               {v.short}
+              {busy && !active && v.id === 'check' && <span className="sr-only">(đang xử lý)</span>}
             </button>
           )
         })}

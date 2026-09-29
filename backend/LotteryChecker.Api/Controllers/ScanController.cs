@@ -11,6 +11,7 @@ namespace LotteryChecker.Api.Controllers;
 public class ScanController : ControllerBase
 {
     public const string RateLimitPolicy = "scan";
+    private const string ImageErrorMessage = "Không đọc được ảnh này. Hãy chọn ảnh JPG/PNG khác hoặc chụp lại.";
 
     private readonly ImagePreprocessor _preprocessor;
     private readonly LocalOcrSwitch _localOcr;
@@ -198,7 +199,8 @@ public class ScanController : ControllerBase
             // Trả lỗi rõ ràng (kèm CORS header) thay vì để exception thành 500 —
             // tránh trình duyệt báo "Network Error" do mất CORS header ở trang lỗi dev.
             _log.LogWarning(ex, "Quét ảnh lỗi sau {ElapsedMs}ms ({Stages})", timer.TotalMs, timer);
-            return UnprocessableEntity(new { error = $"Không xử lý được ảnh: {ex.Message}" });
+            // Chi tiết exception chỉ ghi log — user chỉ cần biết phải đổi ảnh.
+            return UnprocessableEntity(new { error = ImageErrorMessage });
         }
 
         // Confidence chỉ có nghĩa với OCR cục bộ; cloud không trả điểm tin cậy → null, FE ẩn dòng đó.
@@ -315,7 +317,8 @@ public class ScanController : ControllerBase
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             _log.LogWarning(ex, "Quét nhiều vé lỗi sau {ElapsedMs}ms ({Stages})", timer.TotalMs, timer);
-            return UnprocessableEntity(new { error = $"Không xử lý được ảnh: {ex.Message}" });
+            // Chi tiết exception chỉ ghi log — user chỉ cần biết phải đổi ảnh.
+            return UnprocessableEntity(new { error = ImageErrorMessage });
         }
 
         // Dò tuần tự: LotteryMatcher dùng chung một DbContext (không chạy song song được), mỗi vé chỉ

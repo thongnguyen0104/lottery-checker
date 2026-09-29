@@ -3,13 +3,15 @@ import { VIEWS, type View } from '../views'
 
 type Props = {
   view: View
+  /** Dò vé đang quét/dò — đánh dấu tab đó khi user ở tab khác. */
+  busy?: boolean
   onChange: (v: View) => void
   onOpenTheme: () => void
 }
 
 /** Thanh trên cùng: logo + tên tính năng đang mở; màn rộng có thêm tab chuyển tính năng
  *  (điện thoại dùng BottomNav cho vừa tầm ngón cái). Nút bảng màu mở ThemePicker. */
-export default function AppHeader({ view, onChange, onOpenTheme }: Props) {
+export default function AppHeader({ view, busy, onChange, onOpenTheme }: Props) {
   const current = VIEWS.find(v => v.id === view)!
 
   return (
@@ -44,8 +46,14 @@ export default function AppHeader({ view, onChange, onOpenTheme }: Props) {
                                   ${active
                                     ? 'bg-surface dark:bg-brand-500/10 text-brand-700 shadow-sm dark:text-brand-400'
                                     : 'text-ink-faint hover:text-ink'}`}>
-                <Icon name={v.icon} className="w-[18px] h-[18px]" />
+                <span className="relative">
+                  <Icon name={v.icon} className="w-[18px] h-[18px]" />
+                  {busy && !active && v.id === 'check' && (
+                    <span aria-hidden className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-brand-500 motion-safe:animate-pulse" />
+                  )}
+                </span>
                 {v.title}
+                {busy && !active && v.id === 'check' && <span className="sr-only">(đang xử lý)</span>}
               </button>
             )
           })}

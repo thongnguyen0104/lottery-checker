@@ -8,7 +8,7 @@ import MultiResultDisplay from '../components/MultiResultDisplay'
 import Icon, { IconBadge, type IconName } from '../components/Icon'
 import type { ResultsFocus } from '../components/AvailableData'
 import {
-  scanImage, scanMultiImage, checkTicket, loadCompressOptions,
+  scanImage, scanMultiImage, checkTicket, loadCompressOptions, isCanceled,
   type CheckResult, type MultiTicket, type ScanResponse, type TicketQuery,
 } from '../api/client'
 import { ALL_PROVINCES, provinceName } from '../data/provinces'
@@ -59,9 +59,14 @@ type Props = {
   active: boolean
   /** Mở thẳng bảng kết quả của đài/ngày trên vé vừa dò (danh sách đài thì mở từ menu Kết quả). */
   onShowResults: (focus: ResultsFocus) => void
+  /** Báo đang quét/dò — để thanh tab đánh dấu Dò vé khi user ghé tính năng khác giữa chừng. */
+  onBusyChange?: (busy: boolean) => void
 }
 
-export default function Home({ active, onShowResults }: Props) {
+/** Mục lịch sử trình duyệt của Dò vé — Back/Forward đi qua từng bước thay vì thoát khỏi app. */
+type HistoryState = { view?: string; stage?: Stage }
+
+export default function Home({ active, onShowResults, onBusyChange }: Props) {
   const [stage, setStage] = useState<Stage>('capture')
   const [scanned, setScanned] = useState<ScanResponse | null>(null)
   // Thông tin vé của lượt dò gần nhất — mở lại form để sửa (từ màn kết quả, hoặc khi dò lỗi) thì
@@ -77,13 +82,44 @@ export default function Home({ active, onShowResults }: Props) {
   const [multiTickets, setMultiTickets] = useState<MultiTicket[] | null>(null)
   const [multiIndex, setMultiIndex] = useState<number | null>(null)
   const timers = useRef<number[]>([])
+  // Request quét/dò đang chạy — nút Huỷ và Back giữa chừng thì huỷ nó.
+  const abort = useRef<AbortController | null>(null)
+  const newSignal = () => {
+    abort.current?.abort()
+    abort.current = new AbortController()
+    return abort.current.signal
+  }
+  const cancel = () => abort.current?.abort()
 
   // Hỏi sẵn cỡ ảnh cần nén trong lúc user còn đang ngắm camera — lượt quét đầu khỏi chờ thêm 1 request.
   useEffect(() => { void loadCompressOptions() }, [])
 
+  const busy = progress != null
+  useEffect(() => { onBusyChange?.(busy) }, [busy, onBusyChange])
+
   // Nút Dò ngay / Dò vé khác nằm cuối trang dài: sang bước mới thì về đầu trang, không thì
   // màn mới mở ra ở lưng chừng (tấm vé + kết quả bị cuộn khuất dưới header).
-  useEffect(() => { window.scrollTo(0, 0) }, [stage])
+  // Mỗi bước mới = 1 mục lịch sử; bước đổi do Back (popstate) thì mục đó đã có sẵn → bỏ qua.
+  useEffect(() => {
+    window.scrollTo(0, 0)
+    const st = history.state as HistoryState | null
+    if (!st?.stage) history.replaceState({ ...st, view: 'check', stage } satisfies HistoryState, '')
+    else if (st.stage !== stage) history.pushState({ view: 'check', stage } satisfies HistoryState, '')
+  }, [stage])
+
+  useEffect(() => {
+    const onPop = (e: PopStateEvent) => {
+      const st = e.state as HistoryState | null
+      // Mục không có stage (vd bấm tab Dò vé) = giữ nguyên bước đang có.
+      if ((st?.view ?? 'check') !== 'check' || !st?.stage) return
+      abort.current?.abort()
+      setError(null)
+      if (st.stage === 'multi' || st.stage === 'capture') setMultiIndex(null)
+      setStage(st.stage)
+    }
+    window.addEventListener('popstate', onPop)
+    return () => window.removeEventListener('popstate', onPop)
+  }, [])
 
   const clearTimers = () => { timers.current.forEach(clearTimeout); timers.current = [] }
   // Chỉ tiến, không lùi: timer tự chuyển bước có thể bắn sau khi bước thật đã qua.
@@ -118,12 +154,13 @@ export default function Home({ active, onShowResults }: Props) {
         uploaded = true
         advanceTo(1)
         advanceLater(2, OCR_STEP_MS)
-      })
+      }, newSignal())
       await finishProgress()
     } catch (e) {
       clearTimers()
       setProgress(null)
-      setError(errorText(e))
+      // Huỷ = tự user muốn dừng → về lại màn chụp, không hiện lỗi.
+      if (!isCanceled(e)) setError(errorText(e))
       return
     }
     setScanned(data)
@@ -146,12 +183,12 @@ export default function Home({ active, onShowResults }: Props) {
         uploaded = true
         advanceTo(1)
         advanceLater(2, MULTI_READ_MS)
-      })
+      }, newSignal())
       await finishProgress()
       setMultiTickets(data.tickets)
       setStage('multi')
     } catch (e) {
-      setError(errorText(e))
+      if (!isCanceled(e)) setError(errorText(e))
     } finally {
       clearTimers()
       setProgress(null)
@@ -193,7 +230,7 @@ export default function Home({ active, onShowResults }: Props) {
     advanceLater(1, 400)
     advanceLater(2, 900)
     try {
-      const res = await checkTicket(info)
+      const res = await checkTicket(info, newSignal())
       await finishProgress()
       setResult(res)
       // Vé trong ảnh nhiều vé: ghi kết quả (và thông tin đã sửa) vào đúng dòng của danh sách.
@@ -202,19 +239,24 @@ export default function Home({ active, onShowResults }: Props) {
           ? { ...t, ...info, needsReview: [], result: res } : t))
       setStage('result')
     } catch (e) {
-      setError(errorText(e))
+      // Huỷ lúc dò: ở lại bước đang đứng (màn chụp nếu vé được dò luôn, form nếu dò từ form).
+      if (!isCanceled(e)) setError(errorText(e))
     } finally {
       clearTimers()
       setProgress(null)
     }
   }
 
+  // Forward/Back tới bước mà dữ liệu đã bị thay (vd quét vé mới rồi bấm Forward) → về màn chụp thay vì trang trống.
+  const shown: Stage = (stage === 'confirm' && !scanned) || (stage === 'result' && !result)
+    || (stage === 'multi' && !multiTickets) ? 'capture' : stage
+
   return (
     <>
       {progress && (
         <div className="max-w-lg mx-auto">
-          <ProcessingScreen title={progress.title} imageUrl={imageUrl} steps={progress.steps}
-                            current={progress.step} detail={progress.detail} />
+          <ProcessingScreen key={progress.title} title={progress.title} imageUrl={imageUrl} steps={progress.steps}
+                            current={progress.step} detail={progress.detail} onCancel={cancel} />
         </div>
       )}
 
@@ -250,7 +292,7 @@ export default function Home({ active, onShowResults }: Props) {
 
       {!progress && !error && (
         <>
-          {stage === 'capture' && (
+          {shown === 'capture' && (
             <div className="fade-up">
               <div className="mb-4 md:mb-6">
                 {/* Nhãn nhỏ chỉ ở màn rộng: điện thoại đã có dòng mô tả dưới tên app, và cần giữ nút
@@ -313,7 +355,7 @@ export default function Home({ active, onShowResults }: Props) {
               </div>
             </div>
           )}
-          {stage === 'confirm' && scanned && (
+          {shown === 'confirm' && scanned && (
             <div className="fade-up">
               <TicketInfoConfirm
                 scanned={scanned}
@@ -327,14 +369,14 @@ export default function Home({ active, onShowResults }: Props) {
               />
             </div>
           )}
-          {stage === 'result' && result && (
+          {shown === 'result' && result && (
             <div className="fade-up max-w-xl mx-auto">
               <ResultDisplay result={result} onRescan={inMulti ? backToMulti : () => setStage('capture')}
                              rescanLabel={inMulti ? 'Về danh sách vé' : undefined}
                              onEdit={() => setStage('confirm')} onShowTable={onShowResults} />
             </div>
           )}
-          {stage === 'multi' && multiTickets && (
+          {shown === 'multi' && multiTickets && (
             <div className="fade-up max-w-xl mx-auto">
               <MultiResultDisplay tickets={multiTickets} imageUrl={imageUrl} onOpen={openMulti}
                                   onRescan={() => setStage('capture')} />

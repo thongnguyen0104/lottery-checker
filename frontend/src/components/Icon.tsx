@@ -73,3 +73,13 @@ export function IconBadge({ name, tone }: { name: IconName; tone: keyof typeof T
     </span>
   )
 }
+
+/** Chấm nhỏ góc trên phải icon tab: tính năng đó đang xử lý (quét/dò) trong lúc user ở tab khác. */
+export function BusyDot() {
+  return (
+    <span aria-hidden className="absolute top-0.5 right-2.5 flex w-2.5 h-2.5">
+      <span className="absolute inset-0 rounded-full bg-brand-500 opacity-75 motion-safe:animate-ping" />
+      <span className="relative w-2.5 h-2.5 rounded-full bg-brand-500 ring-2 ring-surface" />
+    </span>
+  )
+}
