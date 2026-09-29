@@ -18,6 +18,8 @@ Environment=TZ=Asia/Ho_Chi_Minh
 # PHẢI có ngoặc kép: systemd tách Environment= theo dấu cách, thiếu ngoặc thì app chỉ nhận
 # chuỗi kết nối "Data" và crash ngay lúc migrate.
 Environment="ConnectionStrings__Default=Data Source=/var/lib/lottery/lottery.db"
+# Key mã hoá cookie đăng nhập — để cạnh DB, deploy lại không bị đăng xuất hết
+Environment=DataProtection__KeysPath=/var/lib/lottery/keys
 # Secret (CloudOcr__ApiKey, Gemini__ApiKey) + cờ OCR — file chmod 600, KHÔNG commit vào repo
 EnvironmentFile=/etc/lottery-api.env
 

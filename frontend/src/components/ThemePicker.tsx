@@ -37,7 +37,7 @@ export default function ThemePicker({ theme, onChange, onClose }: Props) {
             <Icon name="palette" className="w-5 h-5 text-brand-700 dark:text-brand-400" /> Giao diện của bạn
           </h2>
           <button onClick={onClose} aria-label="Đóng"
-                  className="w-9 h-9 rounded-full flex items-center justify-center bg-muted text-ink-soft hover:text-ink">
+                  className="btn-close w-9 h-9 rounded-full flex items-center justify-center bg-muted text-ink-soft">
             <Icon name="close" className="w-4 h-4" />
           </button>
         </div>

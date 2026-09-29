@@ -1,10 +1,12 @@
 using LotteryChecker.Api.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 
 namespace LotteryChecker.Api.Controllers;
 
 [ApiController]
+[Authorize] // Luận số giấc mơ thuộc 6 Số May Mắn — chỉ cho tài khoản đã đăng nhập
 public class DreamController : ControllerBase
 {
     public const string RateLimitPolicy = "dream";

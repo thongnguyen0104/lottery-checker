@@ -3,6 +3,7 @@ using System;
 using LotteryChecker.Api.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,32 +11,14 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace LotteryChecker.Api.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260929170717_AddUsers")]
+    partial class AddUsers
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.8");
-
-            modelBuilder.Entity("LotteryChecker.Api.Models.GuestUsage", b =>
-                {
-                    b.Property<string>("Ip")
-                        .HasMaxLength(45)
-                        .HasColumnType("TEXT");
-
-                    b.Property<int>("Checks")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<DateTime>("FirstAt")
-                        .HasColumnType("TEXT");
-
-                    b.Property<int>("Scans")
-                        .HasColumnType("INTEGER");
-
-                    b.HasKey("Ip");
-
-                    b.ToTable("GuestUsages");
-                });
 
             modelBuilder.Entity("LotteryChecker.Api.Models.LotteryResult", b =>
                 {

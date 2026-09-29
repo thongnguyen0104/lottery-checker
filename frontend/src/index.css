@@ -138,7 +138,10 @@ html {
   .card { @apply bg-surface border border-line rounded-2xl shadow-soft; }
 
   .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-3 font-semibold
+    /* Máy nhỏ (≤375px): chữ/padding gọn lại, không xuống dòng để nút giữ 1 hàng ~44px (vừa ngón tay).
+       Từ sm (≥640px) trở lên mới dùng cỡ đầy đủ. */
+    @apply inline-flex items-center justify-center gap-1.5 sm:gap-2 rounded-xl min-h-11 whitespace-nowrap
+           px-3 py-2.5 text-sm min-[390px]:text-[15px] sm:px-4 sm:py-3 sm:text-base font-semibold
            transition duration-150 active:scale-[.98] disabled:cursor-not-allowed;
   }
   /* Nút chính: nền primary đặc (Hoàng kim: vàng, chữ navy) — thứ đậm nhất trên màn. */
@@ -271,4 +274,34 @@ input[type="date"]::-webkit-date-and-time-value {
 @media (prefers-reduced-motion: reduce) {
   .scan-sweep, .confetti-piece, .alarm-frame { display: none; }
   .step-pop, .fade-up, .sheet-up, .typing-dot, .alarm-blink { animation: none; }
+}
+
+/* Nút đóng (x): hover thì nền đậm lên + dấu x xoay 90°, bấm thì lún nhẹ */
+.btn-close { transition: background-color .2s, color .2s, transform .15s; }
+.btn-close svg { transition: transform .25s cubic-bezier(.2, .8, .2, 1); }
+.btn-close:hover { background-color: rgb(var(--brand-500) / .15); color: rgb(var(--brand-700)); }
+.btn-close:hover svg { transform: rotate(90deg); }
+.btn-close:active { transform: scale(.9); }
+[data-mode="dark"] .btn-close:hover { color: rgb(var(--brand-400)); }
+
+/* Chọn tính năng/tab: icon lắc nhẹ, tab nảy nhẹ — chạy mỗi lần class được gắn (lúc vừa chọn) */
+@keyframes wiggle {
+  0%   { transform: rotate(0) scale(1); }
+  20%  { transform: rotate(-14deg) scale(1.15); }
+  40%  { transform: rotate(10deg) scale(1.15); }
+  60%  { transform: rotate(-6deg) scale(1.08); }
+  80%  { transform: rotate(3deg) scale(1.03); }
+  100% { transform: rotate(0) scale(1); }
+}
+.wiggle { animation: wiggle .5s ease-out; }
+@keyframes tab-pop {
+  0%   { transform: scale(.94); }
+  60%  { transform: scale(1.04); }
+  100% { transform: scale(1); }
+}
+.tab-pop { animation: tab-pop .3s cubic-bezier(.2, .8, .2, 1); }
+
+@media (prefers-reduced-motion: reduce) {
+  .wiggle, .tab-pop { animation: none; }
+  .btn-close:hover svg { transform: none; }
 }

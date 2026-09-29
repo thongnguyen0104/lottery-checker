@@ -103,14 +103,14 @@ export default function TicketInfoConfirm({
             {reviewHint(!!scanned.province && review.has('province'))}
           </label>
 
-          <div className="flex gap-3 pt-1">
-            <button onClick={onRescan} className="btn btn-secondary flex-1">
+          <div className="flex gap-2 sm:gap-3 pt-1">
+            <button onClick={onRescan} className="btn btn-secondary flex-1 min-w-0">
               <Icon name={rescanLabel ? 'back' : 'camera'} /> {rescanLabel ?? 'Chụp lại'}
             </button>
             <button
               onClick={() => onConfirm({ ticketNumber: ticket, drawDate: date, province })}
               disabled={!ticket || ticket.length !== 6 || !province}
-              className="btn btn-primary flex-[1.4]">
+              className="btn btn-primary flex-[1.4] min-w-0">
               <Icon name="search" /> Dò ngay
             </button>
           </div>

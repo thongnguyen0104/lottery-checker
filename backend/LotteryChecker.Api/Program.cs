@@ -2,6 +2,8 @@ using LotteryChecker.Api.Data;
 using LotteryChecker.Api.Middleware;
 using LotteryChecker.Api.Services;
 using LotteryChecker.Api.Workers;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
 using System.Threading.RateLimiting;
 using Microsoft.EntityFrameworkCore;
@@ -38,6 +40,29 @@ builder.Services.AddCors(o => o.AddDefaultPolicy(p =>
     else
         p.WithOrigins(allowedOrigins);
 }));
+
+// Đăng nhập: phiên lưu trong cookie HttpOnly (JS không đọc được), sống 30 ngày, tự gia hạn khi
+// còn dùng. API → trả 401/403 thay vì redirect sang trang login kiểu MVC.
+builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+    .AddCookie(o =>
+    {
+        o.Cookie.Name = "dvs.auth";
+        o.Cookie.HttpOnly = true;
+        o.Cookie.SameSite = SameSiteMode.Lax;
+        o.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+        o.ExpireTimeSpan = TimeSpan.FromDays(30);
+        o.SlidingExpiration = true;
+        o.Events.OnRedirectToLogin = ctx => { ctx.Response.StatusCode = 401; return Task.CompletedTask; };
+        o.Events.OnRedirectToAccessDenied = ctx => { ctx.Response.StatusCode = 403; return Task.CompletedTask; };
+    });
+builder.Services.AddAuthorization();
+// Key mã hoá cookie đăng nhập: mất key (deploy lại / đổi user chạy service) = mọi người bị đăng xuất.
+// Prod đặt DataProtection__KeysPath=/var/lib/lottery/keys (cạnh DB) cho chắc; dev để mặc định.
+var keysPath = builder.Configuration["DataProtection:KeysPath"];
+if (!string.IsNullOrWhiteSpace(keysPath))
+    builder.Services.AddDataProtection()
+        .SetApplicationName("lottery-checker")
+        .PersistKeysToFileSystem(new DirectoryInfo(keysPath));
 
 // Controllers + OpenAPI (built-in của .NET 10, KHÔNG cần Swashbuckle)
 builder.Services.AddControllers();
@@ -110,6 +135,14 @@ builder.Services.AddRateLimiter(o =>
             new FixedWindowRateLimiterOptions
             {
                 PermitLimit = builder.Configuration.GetValue("Ocr:ScanPermitPerIpPerMinute", 10),
+                Window = TimeSpan.FromMinutes(1),
+            }));
+    // Đăng ký/đăng nhập: chặn dò mật khẩu hàng loạt theo IP.
+    o.AddPolicy(LotteryChecker.Api.Controllers.AuthController.RateLimitPolicy, ctx =>
+        RateLimitPartition.GetFixedWindowLimiter(ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown", _ =>
+            new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = builder.Configuration.GetValue("Auth:PermitPerIpPerMinute", 20),
                 Window = TimeSpan.FromMinutes(1),
             }));
     o.OnRejected = (ctx, ct) => new ValueTask(ctx.HttpContext.Response.WriteAsJsonAsync(
@@ -227,6 +260,8 @@ if (app.Configuration.GetValue("Cloudflare:TrustConnectingIp", false))
 app.UseRequestTiming();
 
 app.UseCors();
+app.UseAuthentication();
+app.UseAuthorization();
 app.UseRateLimiter();
 app.MapControllers();
 

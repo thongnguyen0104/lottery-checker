@@ -13,12 +13,12 @@ export default function BottomNav({ view, busy, onChange }: { view: View; busy?:
           const active = v.id === view
           return (
             <button key={v.id} onClick={() => onChange(v.id)} aria-current={active ? 'page' : undefined}
-                    className={`flex flex-col items-center gap-0.5 pt-2 pb-2.5 text-[11px] font-semibold transition
+                    className={`flex flex-col items-center gap-0.5 pt-2 pb-2.5 text-[11px] font-semibold transition active:scale-95
                                 ${active ? 'text-brand-700 dark:text-brand-400' : 'text-ink-faint'}`}>
               {/* Đang chọn: icon + chữ màu brand trên viên nền nhạt; chưa chọn: xám slate */}
               <span className={`relative w-14 h-8 rounded-full flex items-center justify-center transition
                                 ${active ? 'bg-brand-500/15' : ''}`}>
-                <Icon name={v.icon} className="w-[22px] h-[22px]" />
+                <Icon name={v.icon} className={`w-[22px] h-[22px] ${active ? 'wiggle' : ''}`} />
                 {busy && !active && v.id === 'check' && <BusyDot />}
               </span>
               {v.short}
