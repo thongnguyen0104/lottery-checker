@@ -4,14 +4,31 @@ import ImageUpload from '../components/ImageUpload'
 import TicketInfoConfirm from '../components/TicketInfoConfirm'
 import ResultDisplay from '../components/ResultDisplay'
 import ProcessingScreen from '../components/ProcessingScreen'
+import MultiResultDisplay from '../components/MultiResultDisplay'
 import Icon, { IconBadge, type IconName } from '../components/Icon'
 import type { ResultsFocus } from '../components/AvailableData'
 import {
-  scanImage, checkTicket, loadCompressOptions, type CheckResult, type ScanResponse, type TicketQuery,
+  scanImage, scanMultiImage, checkTicket, loadCompressOptions,
+  type CheckResult, type MultiTicket, type ScanResponse, type TicketQuery,
 } from '../api/client'
 import { ALL_PROVINCES, provinceName } from '../data/provinces'
 
-type Stage = 'capture' | 'confirm' | 'result'
+type Stage = 'capture' | 'confirm' | 'result' | 'multi'
+
+const MULTI_STEPS = ['Tải ảnh lên', 'AI tìm và đọc từng vé', 'Dò kết quả các vé']
+// Nhiều vé: Gemini đọc cả ảnh thường mất vài giây — tự sang bước "Dò" sau chừng này ms.
+const MULTI_READ_MS = 3500
+
+/**
+ * Vé trong ảnh nhiều vé → dạng ScanResponse để dùng lại form xác nhận (đánh dấu trường thiếu/nghi
+ * ngờ). Chỉ các trường form đọc là có nghĩa; phần số liệu quét được ẩn (hideFeedback).
+ */
+const toScanResponse = (t: MultiTicket): ScanResponse => ({
+  ticketNumber: t.ticketNumber, drawDate: t.drawDate, province: t.province,
+  confidence: null, lowConfidence: false, ticketNumberFromCloud: t.ticketNumber != null,
+  allProvinces: null, warning: null, needsReview: t.needsReview,
+  clientMs: 0, upload: { originalBytes: 0, sentBytes: 0, compressMs: 0, compressed: false },
+})
 type Progress = { title: string; steps: string[]; step: number; detail?: string }
 
 const SCAN_STEPS = ['Tải ảnh lên', 'Đọc chữ trên vé', 'Nhận diện số vé, đài và ngày']
@@ -54,6 +71,11 @@ export default function Home({ active, onShowResults }: Props) {
   const [progress, setProgress] = useState<Progress | null>(null)
   const [imageUrl, setImageUrl] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  // Chế độ chụp nhiều vé trong 1 ảnh; multiTickets = kết quả lượt quét nhiều vé gần nhất, multiIndex =
+  // vé đang mở chi tiết/sửa (null = đang ở luồng 1 vé) — dò lại xong thì cập nhật đúng dòng đó.
+  const [multiMode, setMultiMode] = useState(false)
+  const [multiTickets, setMultiTickets] = useState<MultiTicket[] | null>(null)
+  const [multiIndex, setMultiIndex] = useState<number | null>(null)
   const timers = useRef<number[]>([])
 
   // Hỏi sẵn cỡ ảnh cần nén trong lúc user còn đang ngắm camera — lượt quét đầu khỏi chờ thêm 1 request.
@@ -83,6 +105,9 @@ export default function Home({ active, onShowResults }: Props) {
     // Xoá vé cũ: quét lỗi thì nút Thử lại quay về camera, không mở form của vé trước.
     setScanned(null)
     setChecked(null)
+    setMultiTickets(null)
+    setMultiIndex(null)
+    if (multiMode) return scanMulti(blob)
     setProgress({ title: 'Đang đọc vé số...', steps: SCAN_STEPS, step: 0 })
     let uploaded = false
     let data: ScanResponse
@@ -110,6 +135,48 @@ export default function Home({ active, onShowResults }: Props) {
     setStage('confirm')
   }
 
+  // Ảnh nhiều vé: 1 request vừa đọc vừa dò luôn các vé đọc chắc → thẳng màn danh sách.
+  const scanMulti = async (blob: Blob) => {
+    setProgress({ title: 'Đang đọc các vé...', steps: MULTI_STEPS, step: 0 })
+    let uploaded = false
+    try {
+      const data = await scanMultiImage(blob, ratio => {
+        if (ratio < 1) return advanceTo(0, `${Math.round(ratio * 100)}%`)
+        if (uploaded) return
+        uploaded = true
+        advanceTo(1)
+        advanceLater(2, MULTI_READ_MS)
+      })
+      await finishProgress()
+      setMultiTickets(data.tickets)
+      setStage('multi')
+    } catch (e) {
+      setError(errorText(e))
+    } finally {
+      clearTimers()
+      setProgress(null)
+    }
+  }
+
+  // Mở 1 vé trong danh sách: đã dò → màn kết quả như 1 vé; chưa dò (còn nghi ngờ) → form sửa.
+  const openMulti = (i: number) => {
+    const t = multiTickets![i]
+    setMultiIndex(i)
+    setScanned(toScanResponse(t))
+    setError(null)
+    if (t.result && t.ticketNumber && t.drawDate && t.province) {
+      setChecked({ ticketNumber: t.ticketNumber, drawDate: t.drawDate, province: t.province })
+      setResult(t.result)
+      setStage('result')
+    } else {
+      setChecked(null)
+      setStage('confirm')
+    }
+  }
+
+  const backToMulti = () => { setError(null); setMultiIndex(null); setStage('multi') }
+  const inMulti = multiIndex != null && multiTickets != null
+
   const runCheck = async (info: TicketQuery) => {
     setError(null)
     setChecked(info)
@@ -129,6 +196,10 @@ export default function Home({ active, onShowResults }: Props) {
       const res = await checkTicket(info)
       await finishProgress()
       setResult(res)
+      // Vé trong ảnh nhiều vé: ghi kết quả (và thông tin đã sửa) vào đúng dòng của danh sách.
+      if (multiIndex != null)
+        setMultiTickets(ts => ts && ts.map((t, i) => i === multiIndex
+          ? { ...t, ...info, needsReview: [], result: res } : t))
       setStage('result')
     } catch (e) {
       setError(errorText(e))
@@ -168,6 +239,11 @@ export default function Home({ active, onShowResults }: Props) {
                 <Icon name="edit" /> Sửa thông tin vé
               </button>
             )}
+            {inMulti && (
+              <button onClick={backToMulti} className="btn btn-secondary w-full">
+                <Icon name="back" /> Về danh sách vé
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -188,6 +264,25 @@ export default function Home({ active, onShowResults }: Props) {
                   Đưa vé vào khung rồi bấm chụp — máy tự đọc số vé, đài và ngày để dò giải giúp bạn.
                 </p>
               </div>
+
+              {/* 1 vé: đọc kỹ từng vé (OCR máy chủ + AI). Nhiều vé: AI đọc cả ảnh, dò hết một lượt. */}
+              <div role="radiogroup" aria-label="Số vé trong ảnh"
+                   className="grid grid-cols-2 gap-1 p-1 mb-4 rounded-xl bg-surface border border-line max-w-sm">
+                {([[false, 'ticket', 'Một vé'], [true, 'tickets', 'Nhiều vé']] as const).map(([m, icon, label]) => (
+                  <button key={label} role="radio" aria-checked={multiMode === m} onClick={() => setMultiMode(m)}
+                          className={`flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-semibold transition
+                                      ${multiMode === m
+                                        ? 'bg-primary text-on-primary shadow-soft'
+                                        : 'text-ink-soft hover:text-ink'}`}>
+                    <Icon name={icon} className="w-4 h-4" /> {label}
+                  </button>
+                ))}
+              </div>
+              {multiMode && (
+                <p className="-mt-2 mb-4 text-xs text-ink-soft">
+                  Xếp tối đa 10 vé không chồng lên nhau, thấy rõ số vé, tên đài và ngày của từng vé.
+                </p>
+              )}
 
               {/* Màn rộng: camera bên trái, chọn ảnh + mẹo bên phải. Điện thoại: xếp dọc, nút Chụp
                   và ô Chọn ảnh vẫn nằm trong màn đầu tiên không cần cuộn. */}
@@ -226,14 +321,23 @@ export default function Home({ active, onShowResults }: Props) {
                 imageUrl={imageUrl}
                 allProvinces={ALL_PROVINCES}
                 onConfirm={runCheck}
-                onRescan={() => setStage('capture')}
+                onRescan={inMulti ? backToMulti : () => setStage('capture')}
+                hideFeedback={inMulti}
+                rescanLabel={inMulti ? 'Danh sách' : undefined}
               />
             </div>
           )}
           {stage === 'result' && result && (
             <div className="fade-up max-w-xl mx-auto">
-              <ResultDisplay result={result} onRescan={() => setStage('capture')}
+              <ResultDisplay result={result} onRescan={inMulti ? backToMulti : () => setStage('capture')}
+                             rescanLabel={inMulti ? 'Về danh sách vé' : undefined}
                              onEdit={() => setStage('confirm')} onShowTable={onShowResults} />
+            </div>
+          )}
+          {stage === 'multi' && multiTickets && (
+            <div className="fade-up max-w-xl mx-auto">
+              <MultiResultDisplay tickets={multiTickets} imageUrl={imageUrl} onOpen={openMulti}
+                                  onRescan={() => setStage('capture')} />
             </div>
           )}
         </>

@@ -66,29 +66,90 @@ public class GeminiTicketReader
     /// Như <see cref="ReadAsync"/>, kèm mã lỗi ngắn khi thất bại để /api/scan báo được VÌ SAO phải lùi
     /// về OCR.space: "disabled" | "timeout" | "http_{status}" (429 = hết quota, 503 = model quá tải)
     /// | "empty" (bị chặn / không trả chữ) | "bad_json" | "network" | "error".
-    ///
-    /// Lỗi tạm thời phía Google (<see cref="IsTransient"/>, hay gặp nhất là 503 "model is overloaded")
-    /// thì chờ <c>Gemini:RetryDelayMs</c> rồi gọi lại, tối đa <c>Gemini:MaxRetries</c> lần — lượt sau
-    /// thường trả lời được trong 1–3s, nhanh hơn hẳn lùi về OCR.space (có lúc gần 20s).
+    /// Lỗi tạm thời thì tự gọi lại — xem <see cref="SendWithRetryAsync"/>.
     /// </summary>
     public async Task<Result> TryReadAsync(byte[] jpeg, CancellationToken ct = default)
+    {
+        var (json, error, retried) = await SendWithRetryAsync(jpeg, Prompt, ResponseSchema, ct);
+        if (json == null) return new Result(null, error, retried);
+        try
+        {
+            var ticket = JsonSerializer.Deserialize<GeminiTicket>(StripCodeFence(json), JsonOpts);
+            return ticket == null ? new Result(null, "bad_json", retried) : new Result(ToTicketInfo(ticket, json), null, retried);
+        }
+        catch (JsonException ex)
+        {
+            _log.LogWarning(ex, "Gemini trả JSON hỏng.");
+            return new Result(null, "bad_json", retried);
+        }
+    }
+
+    /// <summary>Kết quả đọc ảnh nhiều vé: <see cref="Tickets"/> theo thứ tự trên ảnh (trên xuống, trái sang).</summary>
+    public sealed record MultiResult(IReadOnlyList<TicketInfo>? Tickets, string? Error, IReadOnlyList<string> Retried);
+
+    /// <summary>Trần số vé mỗi ảnh — chụp nhiều hơn thì chữ quá nhỏ, đọc không còn tin được.</summary>
+    public const int MaxTickets = 10;
+
+    /// <summary>
+    /// Đọc MỘT ảnh chụp nhiều vé (xếp chồng, nằm cạnh nhau...) trong 1 lượt gọi Gemini — cùng mã lỗi và
+    /// luật gọi lại như <see cref="TryReadAsync"/>. Mỗi vé chuẩn hoá như vé đơn (<see cref="ToTicketInfo"/>).
+    /// Mảng rỗng = không thấy vé nào.
+    /// </summary>
+    public async Task<MultiResult> TryReadManyAsync(byte[] jpeg, CancellationToken ct = default)
+    {
+        var (json, error, retried) = await SendWithRetryAsync(jpeg, MultiPrompt, MultiResponseSchema, ct);
+        if (json == null) return new MultiResult(null, error, retried);
+        try
+        {
+            var parsed = JsonSerializer.Deserialize<GeminiTicketList>(StripCodeFence(json), JsonOpts);
+            return parsed?.Tickets == null
+                ? new MultiResult(null, "bad_json", retried)
+                : new MultiResult(ToTicketInfos(parsed.Tickets, json), null, retried);
+        }
+        catch (JsonException ex)
+        {
+            _log.LogWarning(ex, "Gemini trả JSON hỏng (nhiều vé).");
+            return new MultiResult(null, "bad_json", retried);
+        }
+    }
+
+    /// <summary>
+    /// Chuẩn hoá từng vé, bỏ vé không đọc được trường nào và vé trùng hẳn cả 3 trường (Gemini đếm một
+    /// tờ 2 lần) — 2 tờ thật cùng số cùng đài cùng ngày thì dò 1 lần cũng ra cùng kết quả.
+    /// </summary>
+    internal static List<TicketInfo> ToTicketInfos(IEnumerable<GeminiTicket?> tickets, string rawJson) =>
+        tickets.OfType<GeminiTicket>()
+            .Select(t => ToTicketInfo(t, rawJson))
+            .Where(i => i.TicketNumber != null || i.DrawDate != null || i.Province != null)
+            .DistinctBy(i => (i.TicketNumber, i.DrawDate, i.Province))
+            .Take(MaxTickets)
+            .ToList();
+
+    /// <summary>
+    /// Gọi Gemini; lỗi tạm thời phía Google (<see cref="IsTransient"/>, hay gặp nhất là 503 "model is
+    /// overloaded") thì chờ <c>Gemini:RetryDelayMs</c> rồi gọi lại, tối đa <c>Gemini:MaxRetries</c> lần —
+    /// lượt sau thường trả lời được trong 1–3s, nhanh hơn hẳn lùi về OCR.space (có lúc gần 20s).
+    /// Trả JSON thô (chưa parse) hoặc mã lỗi của lượt cuối.
+    /// </summary>
+    private async Task<(string? Json, string? Error, IReadOnlyList<string> Retried)> SendWithRetryAsync(
+        byte[] jpeg, string prompt, object schema, CancellationToken ct)
     {
         if (!IsEnabled)
         {
             _log.LogDebug("Gemini tắt hoặc thiếu ApiKey — bỏ qua.");
-            return new Result(null, "disabled");
+            return (null, "disabled", []);
         }
 
         var retried = new List<string>();
         while (true)
         {
-            var result = await SendOnceAsync(jpeg, ct);
-            if (result.Info != null || retried.Count >= _opt.MaxRetries || !IsTransient(result.Error))
-                return result with { Retried = retried };
+            var (json, error) = await SendOnceAsync(jpeg, prompt, schema, ct);
+            if (json != null || retried.Count >= _opt.MaxRetries || !IsTransient(error))
+                return (json, error, retried);
 
-            retried.Add(result.Error!);
+            retried.Add(error!);
             _log.LogInformation("Gemini {Error} — gọi lại lần {Try} sau {DelayMs}ms.",
-                                result.Error, retried.Count, _opt.RetryDelayMs);
+                                error, retried.Count, _opt.RetryDelayMs);
             await Task.Delay(_opt.RetryDelayMs, ct);
         }
     }
@@ -100,12 +161,13 @@ public class GeminiTicketReader
     /// </summary>
     internal static bool IsTransient(string? error) => error is "http_500" or "http_502" or "http_503" or "http_504";
 
-    private async Task<Result> SendOnceAsync(byte[] jpeg, CancellationToken ct)
+    private async Task<(string? Json, string? Error)> SendOnceAsync(byte[] jpeg, string prompt, object schema,
+                                                                   CancellationToken ct)
     {
         if (_quota != null && !_quota.TryAcquireScan(_opt.Model))
         {
             _log.LogInformation("Gemini: hết hạn mức soi vé/phút — bỏ qua, lùi về nguồn khác.");
-            return new Result(null, GeminiQuota.Error);
+            return (null, GeminiQuota.Error);
         }
         try
         {
@@ -113,7 +175,7 @@ public class GeminiTicketReader
             using var req = new HttpRequestMessage(HttpMethod.Post,
                 $"{_opt.Endpoint.TrimEnd('/')}/models/{_opt.Model}:generateContent")
             {
-                Content = new StringContent(JsonSerializer.Serialize(BuildRequest(jpeg)), Encoding.UTF8, "application/json"),
+                Content = new StringContent(JsonSerializer.Serialize(BuildRequest(jpeg, prompt, schema)), Encoding.UTF8, "application/json"),
             };
             req.Headers.Add("x-goog-api-key", _opt.ApiKey);
 
@@ -122,7 +184,7 @@ public class GeminiTicketReader
             if (!resp.IsSuccessStatusCode)
             {
                 _log.LogWarning("Gemini HTTP {Status}: {Body}", (int)resp.StatusCode, Trunc(body));
-                return new Result(null, $"http_{(int)resp.StatusCode}");
+                return (null, $"http_{(int)resp.StatusCode}");
             }
 
             var json = ExtractText(body);
@@ -130,11 +192,9 @@ public class GeminiTicketReader
             {
                 // Bị chặn (promptFeedback.blockReason) hoặc hết lượt sinh mà không ra chữ nào.
                 _log.LogWarning("Gemini không trả nội dung: {Body}", Trunc(body));
-                return new Result(null, "empty");
+                return (null, "empty");
             }
-
-            var ticket = JsonSerializer.Deserialize<GeminiTicket>(StripCodeFence(json), JsonOpts);
-            return ticket == null ? new Result(null, "bad_json") : new Result(ToTicketInfo(ticket, json), null);
+            return (json, null);
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
@@ -151,7 +211,7 @@ public class GeminiTicketReader
                 _ => "error",
             };
             _log.LogWarning(ex, "Gemini thất bại ({Error}).", error);
-            return new Result(null, error);
+            return (null, error);
         }
     }
 
@@ -186,12 +246,12 @@ public class GeminiTicketReader
         };
     }
 
-    private object BuildRequest(byte[] jpeg)
+    private object BuildRequest(byte[] jpeg, string prompt, object schema)
     {
         var generationConfig = new Dictionary<string, object>
         {
             ["responseMimeType"] = "application/json",
-            ["responseSchema"] = ResponseSchema,
+            ["responseSchema"] = schema,
             // Giữ temperature mặc định (1.0): Google khuyến cáo không hạ ở dòng Gemini 3.
         };
         // "minimal" = gần như không suy nghĩ → trả lời nhanh nhất. Để rỗng = mặc định của model
@@ -213,7 +273,7 @@ public class GeminiTicketReader
                     parts = new object[]
                     {
                         new { inlineData = new { mimeType = "image/jpeg", data = Convert.ToBase64String(jpeg) } },
-                        new { text = Prompt },
+                        new { text = prompt },
                     },
                 },
             },
@@ -249,6 +309,34 @@ public class GeminiTicketReader
         },
         required = new[] { "ticketNumber", "drawDate", "province" },
         propertyOrdering = new[] { "ticketNumber", "drawDate", "province" },
+    };
+
+    // Ảnh nhiều vé: cùng luật đọc từng vé như Prompt, thêm cách đếm vé và thứ tự trả về.
+    private const string MultiPrompt =
+        """
+        This photo may contain SEVERAL Vietnamese lottery tickets ("vé xổ số kiến thiết"), e.g. stacked
+        or laid side by side. Return one entry per physical ticket, ordered top to bottom, then left to
+        right. Never return the same ticket twice. For each ticket extract:
+        - ticketNumber: the 6-digit ticket number. It is printed large and usually repeated several
+          times on the same ticket. Ignore prices (e.g. "10.000đ"), series/serial codes, barcodes and dates.
+        - drawDate: the draw date ("Mở thưởng ngày ..."). Vietnamese tickets print DAY first
+          (dd-MM-yyyy, e.g. 05-06-2026 is 5 June 2026). Return it as yyyy-MM-dd.
+        - province: the issuing lottery company, i.e. the province name right after
+          "XỔ SỐ KIẾN THIẾT". Pick its code from the enum (TPHCM = TP. Hồ Chí Minh,
+          MB = Xổ số Miền Bắc / Thủ Đô). The printing-house line ("In tại ...", "Công ty in ...")
+          is NOT the province.
+        Read each field only from that ticket itself, never from a neighbouring ticket.
+        Use null for any field you cannot read with certainty. Never guess.
+        """;
+
+    private static readonly object MultiResponseSchema = new
+    {
+        type = "OBJECT",
+        properties = new Dictionary<string, object>
+        {
+            ["tickets"] = new { type = "ARRAY", items = ResponseSchema },
+        },
+        required = new[] { "tickets" },
     };
 
     /// <summary>Ghép text của ứng viên đầu tiên (bỏ phần "thought" nếu có). Null = không có chữ nào.</summary>
@@ -288,6 +376,8 @@ public class GeminiTicketReader
     }
 
     internal sealed record GeminiTicket(string? TicketNumber, string? DrawDate, string? Province);
+
+    internal sealed record GeminiTicketList(List<GeminiTicket?>? Tickets);
 
     private sealed class GenerateContentResponse
     {

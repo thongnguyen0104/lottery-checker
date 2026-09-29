@@ -1,6 +1,6 @@
 import {
   Award, Bot, CalendarDays, Camera, Check, ChevronLeft, ChevronRight, CircleAlert, CircleCheck,
-  CircleX, Clock, Copy, Dices, Focus, History, Hourglass, ImageUp, Inbox, Lightbulb, ListOrdered, MapPin,
+  CircleX, Clock, Copy, Dices, Focus, History, Hourglass, ImageUp, Inbox, Layers, Lightbulb, ListOrdered, MapPin,
   Monitor, Moon, Palette, PencilLine, RotateCcw, Scan, ScanSearch, Sparkles, Sun, Ticket, TicketX, Timer,
   TriangleAlert, Trophy, X, type LucideIcon,
 } from 'lucide-react'
@@ -10,6 +10,7 @@ import {
 const ICONS = {
   ticket: Ticket,
   ticketX: TicketX,
+  tickets: Layers,
   dice: Dices,
   calendar: CalendarDays,
   palette: Palette,

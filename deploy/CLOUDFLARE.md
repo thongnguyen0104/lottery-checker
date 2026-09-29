@@ -96,7 +96,7 @@ Dashboard → chọn domain:
    - Name: `api-ai`
    - If incoming requests match → **Edit expression**, dán:
      ```
-     (http.request.uri.path eq "/api/scan" or http.request.uri.path eq "/api/ai/dream")
+     (http.request.uri.path in {"/api/scan" "/api/scan-multi" "/api/ai/dream"})
      ```
    - Characteristics: **IP**
    - When rate exceeds: **10** requests / **10 seconds**

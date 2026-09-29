@@ -251,6 +251,104 @@ public class ScanController : ControllerBase
         });
     }
 
+    /// <summary>
+    /// Ảnh chụp NHIỀU vé: Gemini đọc tất cả trong 1 lượt, vé nào đủ chắc (như autoCheck của /api/scan)
+    /// thì dò luôn; vé còn nghi ngờ trả <c>result = null</c> kèm needsReview để user sửa rồi gọi /api/check.
+    /// Chỉ Gemini: OCR cục bộ/OCR.space đọc cả ảnh thành một mớ chữ, không tách được chữ nào thuộc vé nào.
+    /// </summary>
+    [HttpPost("/api/scan-multi")]
+    [EnableRateLimiting(RateLimitPolicy)]
+    [RequestSizeLimit(10_000_000)]
+    public async Task<IActionResult> ScanMulti(IFormFile image, CancellationToken ct)
+    {
+        var timer = new StageTimer(HttpContext.RequestStartTicks());
+
+        if (image == null || image.Length == 0)
+            return BadRequest(new { error = "Chưa có ảnh" });
+        if (!_gemini.IsEnabled)
+            return StatusCode(StatusCodes.Status503ServiceUnavailable,
+                              new { error = "Quét nhiều vé cần AI đọc vé (Gemini) nhưng máy chủ đang tắt. Hãy quét từng vé." });
+
+        var attempts = new List<CloudAttempt>();
+        IReadOnlyList<TicketInfo> infos;
+        try
+        {
+            byte[] original;
+            using (var ms = new MemoryStream())
+            {
+                await image.CopyToAsync(ms, ct);
+                original = ms.ToArray();
+            }
+            timer.Mark("upload");
+
+            byte[] cloudImage;
+            if (ImagePreprocessor.CanSendAsIs(original))
+            {
+                cloudImage = original;
+                timer.Skip("preprocess");
+            }
+            else
+            {
+                using var prepared = _preprocessor.Load(new MemoryStream(original));
+                cloudImage = prepared.EncodeForCloud();
+                timer.Mark("preprocess");
+            }
+
+            var started = Stopwatch.GetTimestamp();
+            var read = await _gemini.TryReadManyAsync(cloudImage, ct);
+            attempts.Add(new CloudAttempt("gemini", ElapsedMs(started), read.Error,
+                                          read.Retried.Count > 0 ? read.Retried : null));
+            timer.Mark("cloudOcr");
+            if (read.Tickets == null)
+            {
+                _log.LogWarning("Quét nhiều vé: Gemini lỗi {Error} | {Stages}", read.Error, timer);
+                return UnprocessableEntity(new
+                {
+                    error = read.Error is GeminiQuota.Error or "http_429"
+                        ? "AI đọc vé đang quá tải, bạn thử lại sau ít phút nhé."
+                        : "AI chưa đọc được ảnh này. Thử chụp lại rõ hơn, hoặc quét từng vé.",
+                    cloudAttempts = attempts,
+                });
+            }
+            infos = read.Tickets;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _log.LogWarning(ex, "Quét nhiều vé lỗi sau {ElapsedMs}ms ({Stages})", timer.TotalMs, timer);
+            return UnprocessableEntity(new { error = $"Không xử lý được ảnh: {ex.Message}" });
+        }
+
+        // Dò tuần tự: LotteryMatcher dùng chung một DbContext (không chạy song song được), mỗi vé chỉ
+        // 1 truy vấn nhỏ nên vài vé vẫn xong trong vài chục ms.
+        var tickets = new List<object>();
+        var autoChecked = 0;
+        foreach (var info in infos)
+        {
+            ScanResult? result = null;
+            if (_validator.CanAutoCheck(info, null))
+            {
+                result = await _matcher.Match(info.TicketNumber!, info.DrawDate!.Value, info.Province!, ct);
+                autoChecked++;
+            }
+            tickets.Add(new
+            {
+                ticketNumber = info.TicketNumber,
+                drawDate = info.DrawDate?.ToString("yyyy-MM-dd"),
+                province = info.Province,
+                needsReview = _validator.FieldsToReview(info),
+                // null = chưa đủ chắc để dò luôn, FE cho user sửa rồi dò bằng /api/check.
+                result,
+            });
+        }
+        timer.Mark("check");
+
+        _log.LogInformation("Quét nhiều vé {SizeKb}KB: {Count} vé, dò luôn {Checked} | attempts=[{Attempts}] {Stages}",
+                            image.Length / 1024, tickets.Count, autoChecked,
+                            string.Join(", ", attempts), timer);
+
+        return Ok(new { tickets, cloudAttempts = attempts, timings = timer.ToTimings() });
+    }
+
     /// <summary>Kết quả của một nguồn cloud: Gemini trả sẵn <see cref="Info"/>, OCR.space trả <see cref="Text"/>.</summary>
     private sealed record CloudRead(string Provider, TicketInfo? Info, string? Text);
 

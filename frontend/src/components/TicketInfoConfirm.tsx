@@ -17,9 +17,15 @@ type Props = {
   allProvinces: { code: string; name: string }[]
   onConfirm: (data: { ticketNumber: string; drawDate: string; province: string }) => void
   onRescan: () => void
+  /** Ẩn khung "máy đọc được gì" — vé lấy từ ảnh nhiều vé không có số liệu quét riêng từng vé. */
+  hideFeedback?: boolean
+  /** Nhãn nút quay lại (mặc định: chụp lại) — vé trong ảnh nhiều vé thì quay về danh sách. */
+  rescanLabel?: string
 }
 
-export default function TicketInfoConfirm({ scanned, initial, imageUrl, allProvinces, onConfirm, onRescan }: Props) {
+export default function TicketInfoConfirm({
+  scanned, initial, imageUrl, allProvinces, onConfirm, onRescan, hideFeedback, rescanLabel,
+}: Props) {
   const [ticket, setTicket] = useState(initial?.ticketNumber ?? scanned.ticketNumber ?? '')
   const [date, setDate] = useState(initial?.drawDate ?? scanned.drawDate ?? new Date().toISOString().slice(0, 10))
   const [province, setProvince] = useState(initial?.province ?? scanned.province ?? '')
@@ -53,7 +59,7 @@ export default function TicketInfoConfirm({ scanned, initial, imageUrl, allProvi
                    className="block w-full max-h-48 md:max-h-80 object-contain rounded-xl bg-slate-900" />
             </div>
           )}
-          <ScanFeedback scanned={scanned} />
+          {!hideFeedback && <ScanFeedback scanned={scanned} />}
         </div>
 
         <div className="card p-4 md:p-5 space-y-4">
@@ -99,7 +105,7 @@ export default function TicketInfoConfirm({ scanned, initial, imageUrl, allProvi
 
           <div className="flex gap-3 pt-1">
             <button onClick={onRescan} className="btn btn-secondary flex-1">
-              <Icon name="camera" /> Chụp lại
+              <Icon name={rescanLabel ? 'back' : 'camera'} /> {rescanLabel ?? 'Chụp lại'}
             </button>
             <button
               onClick={() => onConfirm({ ticketNumber: ticket, drawDate: date, province })}
