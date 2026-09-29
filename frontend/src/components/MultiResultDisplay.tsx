@@ -1,4 +1,6 @@
+import { useState } from 'react'
 import Confetti from './Confetti'
+import ScratchCard from './ScratchCard'
 import Icon, { IconBadge, type IconName } from './Icon'
 import type { MultiTicket } from '../api/client'
 import { provinceName } from '../data/provinces'
@@ -10,6 +12,9 @@ type Props = {
   onOpen: (index: number) => void
   onRescan: () => void
 }
+
+// Ảnh nhiều vé đã cào rồi thì quay lại từ màn chi tiết không bắt cào lần nữa (khóa theo mảng tickets).
+const scratched = new WeakSet<MultiTicket[]>()
 
 const formatVND = (n: number) =>
   n.toLocaleString('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 })
@@ -42,6 +47,10 @@ export default function MultiResultDisplay({ tickets, imageUrl, onOpen, onRescan
   const won = tickets.filter(t => t.result?.status === 'Checked' && t.result.isWinner)
   const total = won.reduce((s, t) => s + t.result!.totalPrize, 0)
   const pending = tickets.filter(t => !t.result).length
+  // Chỉ phải cào khi có vé đã dò được kết quả thật; vé chưa xổ/hết hạn... không có gì để giấu.
+  const [needScratch] = useState(() => !scratched.has(tickets) && tickets.some(t => t.result?.status === 'Checked'))
+  const [revealed, setRevealed] = useState(!needScratch)
+  const onReveal = () => { scratched.add(tickets); setRevealed(true) }
 
   if (tickets.length === 0)
     return (
@@ -53,16 +62,7 @@ export default function MultiResultDisplay({ tickets, imageUrl, onOpen, onRescan
       </div>
     )
 
-  return (
-    <div className="space-y-4">
-      {won.length > 0 && <Confetti />}
-
-      <div>
-        <h1 className="text-xl md:text-3xl font-extrabold tracking-tight">Kết quả {tickets.length} vé</h1>
-        <p className="text-sm md:text-base text-ink-soft mt-0.5">Bấm vào từng vé để xem chi tiết hoặc sửa nếu máy đọc sai.</p>
-      </div>
-
-      {/* Tổng kết: trúng thì khung xanh + tổng tiền màu vàng brand như màn 1 vé */}
+  const summary = (
       <div className={`rounded-2xl border p-5 text-center shadow-soft bg-surface bg-gradient-to-b
                        ${won.length ? 'border-ok/35 from-ok/15' : 'border-line from-transparent'}`}>
         {won.length ? (
@@ -82,6 +82,19 @@ export default function MultiResultDisplay({ tickets, imageUrl, onOpen, onRescan
           </div>
         )}
       </div>
+  )
+
+  return (
+    <div className="space-y-4">
+      {won.length > 0 && revealed && <Confetti />}
+
+      <div>
+        <h1 className="text-xl md:text-3xl font-extrabold tracking-tight">Kết quả {tickets.length} vé</h1>
+        <p className="text-sm md:text-base text-ink-soft mt-0.5">Bấm vào từng vé để xem chi tiết hoặc sửa nếu máy đọc sai.</p>
+      </div>
+
+      {/* Tổng kết: trúng thì khung xanh + tổng tiền màu vàng brand như màn 1 vé */}
+      {needScratch ? <ScratchCard onReveal={onReveal}>{summary}</ScratchCard> : summary}
 
       {imageUrl && (
         <div className="card p-2">
@@ -92,7 +105,10 @@ export default function MultiResultDisplay({ tickets, imageUrl, onOpen, onRescan
 
       <ul className="space-y-3">
         {tickets.map((t, i) => {
-          const s = statusOf(t)
+          // Chưa cào thì giấu nhãn trúng/trượt của vé đã dò — chỉ hiện sau khi cào tổng kết
+          const s = !revealed && t.result?.status === 'Checked'
+            ? { tone: 'info' as Tone, icon: 'ticket' as IconName, label: 'Cào để xem' }
+            : statusOf(t)
           return (
             <li key={i}>
               <button onClick={() => onOpen(i)}

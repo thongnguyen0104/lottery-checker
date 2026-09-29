@@ -31,16 +31,28 @@ export default function AvailableData({ focus, onBack }: Props) {
       .finally(() => setLoading(false))
   }, [])
 
+  // Mở bảng 1 đài = 1 mục lịch sử: nút Quay lại và Back của trình duyệt cùng đưa về danh sách.
   const openDetail = (drawDate: string, province: string) => {
     listScrollY.current = window.scrollY
     setSelected({ drawDate, province })
     window.scrollTo(0, 0)
+    history.pushState({ view: 'results', focus: null, detail: { drawDate, province } }, '')
   }
 
-  const closeDetail = () => {
-    setSelected(null)
-    requestAnimationFrame(() => window.scrollTo(0, listScrollY.current))
-  }
+  const closeDetail = () => history.back()
+
+  useEffect(() => {
+    if (focus) return   // mở theo vé: Back là rời màn Kết quả, App lo
+    const onPop = (e: PopStateEvent) => {
+      const st = e.state as { view?: string; detail?: { drawDate: string; province: string } } | null
+      if (st?.view !== 'results') return
+      setSelected(st.detail ?? null)
+      if (st.detail) window.scrollTo(0, 0)
+      else requestAnimationFrame(() => window.scrollTo(0, listScrollY.current))
+    }
+    window.addEventListener('popstate', onPop)
+    return () => window.removeEventListener('popstate', onPop)
+  }, [focus])
 
   if (selected) {
     // Chỉ tô số trên đúng bảng của vé — chuyển sang đài khác cùng ngày thì vé không liên quan.
@@ -85,7 +97,7 @@ export default function AvailableData({ focus, onBack }: Props) {
         <div className="card p-6 text-center text-sm text-ink-soft">
           <IconBadge name="empty" tone="info" />
           <p className="mt-3">
-            Chưa có dữ liệu. Hãy chạy cào kết quả (POST <code>/api/admin/fetch</code>) hoặc đợi worker tự cào lúc 19h.
+            Chưa có kết quả nào. Kết quả được cập nhật tự động vào buổi tối sau giờ xổ, bạn quay lại sau nhé.
           </p>
         </div>
       )}

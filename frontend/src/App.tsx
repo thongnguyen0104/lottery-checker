@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import AppHeader from './components/AppHeader'
 import BottomNav from './components/BottomNav'
 import ThemePicker from './components/ThemePicker'
@@ -9,23 +9,47 @@ import { useTheme } from './theme'
 import type { View } from './views'
 
 export default function App() {
-  const [view, setView] = useState<View>('check')
+  // App luôn mở ở Dò vé: xoá state lịch sử còn sót từ trước khi tải lại trang (vd đang ở bảng 1 đài),
+  // chạy trước effect của các con để Home ghi stage đầu tiên lên đúng mục này.
+  const [view, setView] = useState<View>(() => {
+    history.replaceState({ view: 'check' }, '')
+    return 'check'
+  })
   const [resultsFocus, setResultsFocus] = useState<ResultsFocus | null>(null)
   const [theme, setTheme] = useTheme()
   const [themeOpen, setThemeOpen] = useState(false)
   const closeTheme = useCallback(() => setThemeOpen(false), [])
+  // Dò vé đang quét/dò — đánh dấu tab Dò vé để user ghé tab khác biết là máy vẫn đang chạy.
+  const [checking, setChecking] = useState(false)
 
   // Mọi lối chuyển màn đều qua đây: mở Kết quả từ menu thì xoá focus của vé lần trước.
+  // Mỗi lần chuyển = 1 mục lịch sử (kèm focus) để nút Back của trình duyệt/điện thoại quay về
+  // màn trước thay vì thoát khỏi app. Bước bên trong Dò vé do Home tự ghi (stage).
   const go = (v: View, focus: ResultsFocus | null = null) => {
     setResultsFocus(focus)
     setView(v)
     window.scrollTo(0, 0)
+    history.pushState({ view: v, focus }, '')
   }
+
+  useEffect(() => {
+    const onPop = (e: PopStateEvent) => {
+      const st = e.state as { view?: View; focus?: ResultsFocus | null } | null
+      const v = st?.view ?? 'check'
+      setView(prev => {
+        if (prev !== v) window.scrollTo(0, 0)
+        return v
+      })
+      setResultsFocus(st?.focus ?? null)
+    }
+    window.addEventListener('popstate', onPop)
+    return () => window.removeEventListener('popstate', onPop)
+  }, [])
 
   return (
     <div className="min-h-screen">
       <div aria-hidden className={`backdrop bgfx-${theme.bg}`} />
-      <AppHeader view={view} onChange={v => go(v)} onOpenTheme={() => setThemeOpen(true)} />
+      <AppHeader view={view} busy={checking} onChange={v => go(v)} onOpenTheme={() => setThemeOpen(true)} />
 
       {/* Điện thoại: 1 cột + chừa chỗ cho BottomNav (và vạch home của iPhone). Màn rộng: khung
           rộng hơn, từng màn tự chia cột. */}
@@ -35,7 +59,7 @@ export default function App() {
             đài rồi quay lại thì vẫn còn vé vừa quét (camera thì tắt khi ẩn — xem Home.active).
             fade-up chạy lại mỗi lần hiện ra vì trình duyệt khởi động lại animation khi hết display:none. */}
         <div hidden={view !== 'check'} className="fade-up">
-          <Home active={view === 'check'} onShowResults={focus => go('results', focus)} />
+          <Home active={view === 'check'} onShowResults={focus => go('results', focus)} onBusyChange={setChecking} />
         </div>
         <div hidden={view !== 'lucky'} className="fade-up">
           <LuckyNumbers onShowResults={focus => go('results', focus)} />
@@ -43,12 +67,14 @@ export default function App() {
         {/* Kết quả thì mount lại mỗi lần mở để lấy danh sách mới nhất. */}
         {view === 'results' && (
           <div className="fade-up">
-            <AvailableData focus={resultsFocus} onBack={() => go(resultsFocus?.from ?? 'check')} />
+            {/* key: Back từ bảng mở theo vé A về bảng theo vé B (focus khác) thì mount lại cho đúng focus */}
+            <AvailableData key={resultsFocus ? `${resultsFocus.drawDate}/${resultsFocus.province}/${resultsFocus.ticketNumber}` : 'list'}
+                           focus={resultsFocus} onBack={() => history.back()} />
           </div>
         )}
       </main>
 
-      <BottomNav view={view} onChange={v => go(v)} />
+      <BottomNav view={view} busy={checking} onChange={v => go(v)} />
       {themeOpen && <ThemePicker theme={theme} onChange={setTheme} onClose={closeTheme} />}
     </div>
   )
