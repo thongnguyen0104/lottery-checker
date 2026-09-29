@@ -1,5 +1,5 @@
 import {
-  Award, Bot, Download, HandHeart, CalendarDays, Camera, Check, ChevronLeft, ChevronRight, CircleAlert, CircleCheck,
+  Award, Bot, CircleUserRound, LogOut, Download, HandHeart, CalendarDays, Camera, Check, ChevronLeft, ChevronRight, CircleAlert, CircleCheck,
   CircleX, Clock, Copy, Dices, Focus, History, Hourglass, ImageUp, Inbox, Layers, Lightbulb, ListOrdered, MapPin, MessageSquareText,
   Monitor, Moon, Palette, PencilLine, RotateCcw, Scan, ScanSearch, Sparkles, Sun, Ticket, TicketX, Timer,
   TriangleAlert, Trophy, X, type LucideIcon,
@@ -48,6 +48,8 @@ const ICONS = {
   donate: HandHeart,
   download: Download,
   sms: MessageSquareText,
+  user: CircleUserRound,
+  logout: LogOut,
 } satisfies Record<string, LucideIcon>
 
 export type IconName = keyof typeof ICONS

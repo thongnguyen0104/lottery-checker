@@ -275,3 +275,33 @@ input[type="date"]::-webkit-date-and-time-value {
   .scan-sweep, .confetti-piece, .alarm-frame { display: none; }
   .step-pop, .fade-up, .sheet-up, .typing-dot, .alarm-blink { animation: none; }
 }
+
+/* Nút đóng (x): hover thì nền đậm lên + dấu x xoay 90°, bấm thì lún nhẹ */
+.btn-close { transition: background-color .2s, color .2s, transform .15s; }
+.btn-close svg { transition: transform .25s cubic-bezier(.2, .8, .2, 1); }
+.btn-close:hover { background-color: rgb(var(--brand-500) / .15); color: rgb(var(--brand-700)); }
+.btn-close:hover svg { transform: rotate(90deg); }
+.btn-close:active { transform: scale(.9); }
+[data-mode="dark"] .btn-close:hover { color: rgb(var(--brand-400)); }
+
+/* Chọn tính năng/tab: icon lắc nhẹ, tab nảy nhẹ — chạy mỗi lần class được gắn (lúc vừa chọn) */
+@keyframes wiggle {
+  0%   { transform: rotate(0) scale(1); }
+  20%  { transform: rotate(-14deg) scale(1.15); }
+  40%  { transform: rotate(10deg) scale(1.15); }
+  60%  { transform: rotate(-6deg) scale(1.08); }
+  80%  { transform: rotate(3deg) scale(1.03); }
+  100% { transform: rotate(0) scale(1); }
+}
+.wiggle { animation: wiggle .5s ease-out; }
+@keyframes tab-pop {
+  0%   { transform: scale(.94); }
+  60%  { transform: scale(1.04); }
+  100% { transform: scale(1); }
+}
+.tab-pop { animation: tab-pop .3s cubic-bezier(.2, .8, .2, 1); }
+
+@media (prefers-reduced-motion: reduce) {
+  .wiggle, .tab-pop { animation: none; }
+  .btn-close:hover svg { transform: none; }
+}

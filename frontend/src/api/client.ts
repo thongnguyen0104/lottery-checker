@@ -130,6 +130,9 @@ export function loadCompressOptions(): Promise<CompressOptions> {
 }
 
 /** User bấm Huỷ (AbortController) — bên gọi lặng lẽ quay lại, không hiện màn lỗi. */
+/** Khách hết lượt dò thử (máy chủ trả 401 login_required) → mở form đăng nhập. */
+export const isLoginRequired = (e: unknown) => e instanceof Error && e.name === 'LoginRequiredError'
+
 export const isCanceled = (e: unknown) => e instanceof Error && e.name === 'CanceledError'
 
 // Câu cho người dùng khi máy chủ không gửi kèm lời nhắn (error) — không lộ mã/thuật ngữ kỹ thuật.
@@ -147,7 +150,9 @@ function toFriendlyError(e: unknown): Error {
       // Server có trả lời (4xx/5xx) — lấy lời nhắn từ body nếu có. 5xx thì bỏ qua body: trang lỗi
       // mặc định (title "Internal Server Error"...) là tiếng Anh kỹ thuật.
       const { status } = e.response
-      const data = e.response.data as { error?: string } | undefined
+      const data = e.response.data as { error?: string; code?: string } | undefined
+      if (data?.code === 'login_required')
+        return Object.assign(new Error(data.error ?? 'Cần đăng nhập'), { name: 'LoginRequiredError' })
       return new Error((status < 500 || status === 503) && data?.error ? data.error : statusText(status))
     }
     if (e.code === 'ECONNABORTED' || e.code === 'ETIMEDOUT')
@@ -325,6 +330,54 @@ export async function searchTail(tail: string) {
   try {
     const { data } = await api.get('/api/results/search', { params: { tail } })
     return data as TailHit[]
+  } catch (e) {
+    throw toFriendlyError(e)
+  }
+}
+
+// ── Tài khoản: phiên nằm trong cookie HttpOnly do máy chủ đặt (cùng origin qua proxy /api) ──
+export type Account = { username: string }
+
+/** Phiên hiện tại; null = chưa đăng nhập (hoặc không gọi được máy chủ). */
+export async function getMe() {
+  try {
+    const { data } = await api.get('/api/auth/me', { timeout: 5_000 })
+    return data as Account
+  } catch {
+    return null
+  }
+}
+
+export async function checkUsername(username: string, signal?: AbortSignal) {
+  try {
+    const { data } = await api.get('/api/auth/check-username', { params: { username }, signal })
+    return data as { available: boolean; error: string | null }
+  } catch (e) {
+    throw toFriendlyError(e)
+  }
+}
+
+export async function login(username: string, password: string) {
+  try {
+    const { data } = await api.post('/api/auth/login', { username, password })
+    return data as Account
+  } catch (e) {
+    throw toFriendlyError(e)
+  }
+}
+
+export async function register(username: string, password: string) {
+  try {
+    const { data } = await api.post('/api/auth/register', { username, password })
+    return data as Account
+  } catch (e) {
+    throw toFriendlyError(e)
+  }
+}
+
+export async function logout() {
+  try {
+    await api.post('/api/auth/logout')
   } catch (e) {
     throw toFriendlyError(e)
   }

@@ -8,7 +8,7 @@ import MultiResultDisplay from '../components/MultiResultDisplay'
 import Icon, { IconBadge, type IconName } from '../components/Icon'
 import type { ResultsFocus } from '../components/AvailableData'
 import {
-  scanImage, scanMultiImage, checkTicket, loadCompressOptions, isCanceled,
+  scanImage, scanMultiImage, checkTicket, loadCompressOptions, isCanceled, isLoginRequired,
   type CheckResult, type MultiTicket, type ScanResponse, type TicketQuery,
 } from '../api/client'
 import { ALL_PROVINCES, provinceName } from '../data/provinces'
@@ -61,12 +61,14 @@ type Props = {
   onShowResults: (focus: ResultsFocus) => void
   /** Báo đang quét/dò — để thanh tab đánh dấu Dò vé khi user ghé tính năng khác giữa chừng. */
   onBusyChange?: (busy: boolean) => void
+  /** Khách hết lượt dò thử → mở form đăng nhập. */
+  onRequireLogin: () => void
 }
 
 /** Mục lịch sử trình duyệt của Dò vé — Back/Forward đi qua từng bước thay vì thoát khỏi app. */
 type HistoryState = { view?: string; stage?: Stage }
 
-export default function Home({ active, onShowResults, onBusyChange }: Props) {
+export default function Home({ active, onShowResults, onBusyChange, onRequireLogin }: Props) {
   const [stage, setStage] = useState<Stage>('capture')
   const [scanned, setScanned] = useState<ScanResponse | null>(null)
   // Thông tin vé của lượt dò gần nhất — mở lại form để sửa (từ màn kết quả, hoặc khi dò lỗi) thì
@@ -163,7 +165,8 @@ export default function Home({ active, onShowResults, onBusyChange }: Props) {
       clearTimers()
       setProgress(null)
       // Huỷ = tự user muốn dừng → về lại màn chụp, không hiện lỗi.
-      if (!isCanceled(e)) setError(errorText(e))
+      if (isLoginRequired(e)) onRequireLogin()
+      else if (!isCanceled(e)) setError(errorText(e))
       return
     }
     setScanned(data)
@@ -191,7 +194,8 @@ export default function Home({ active, onShowResults, onBusyChange }: Props) {
       setMultiTickets(data.tickets)
       setStage('multi')
     } catch (e) {
-      if (!isCanceled(e)) setError(errorText(e))
+      if (isLoginRequired(e)) onRequireLogin()
+      else if (!isCanceled(e)) setError(errorText(e))
     } finally {
       clearTimers()
       setProgress(null)
@@ -243,7 +247,8 @@ export default function Home({ active, onShowResults, onBusyChange }: Props) {
       setStage('result')
     } catch (e) {
       // Huỷ lúc dò: ở lại bước đang đứng (màn chụp nếu vé được dò luôn, form nếu dò từ form).
-      if (!isCanceled(e)) setError(errorText(e))
+      if (isLoginRequired(e)) onRequireLogin()
+      else if (!isCanceled(e)) setError(errorText(e))
     } finally {
       clearTimers()
       setProgress(null)

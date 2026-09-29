@@ -44,8 +44,8 @@ export default function LuckyNumbers({ onShowResults }: { onShowResults: (focus:
       <div className="grid grid-cols-2 gap-1 bg-muted p-1 rounded-xl border border-line/60" role="tablist">
         {([['vietlott', 'Vietlott'], ['dream', 'Luận số giấc mơ']] as const).map(([m, label]) => (
           <button key={m} role="tab" aria-selected={m === mode} onClick={() => setMode(m)}
-                  className={`py-2.5 rounded-lg text-sm font-semibold transition ${m === mode
-                    ? 'bg-surface dark:bg-brand-500/10 shadow-sm text-brand-700 dark:text-brand-400'
+                  className={`py-2.5 rounded-lg text-sm font-semibold transition active:scale-95 ${m === mode
+                    ? 'tab-pop bg-surface dark:bg-brand-500/10 shadow-sm text-brand-700 dark:text-brand-400'
                     : 'text-ink-faint hover:text-ink-soft'}`}>
             {label}
           </button>
@@ -109,8 +109,8 @@ function VietlottPicker() {
           <div className="grid grid-cols-2 gap-1 bg-muted p-1 rounded-xl border border-line/60" role="tablist">
             {(Object.keys(LUCKY_GAMES) as LuckyGame[]).map(g => (
               <button key={g} role="tab" aria-selected={g === game} onClick={() => switchGame(g)}
-                      className={`py-2.5 rounded-lg text-sm font-semibold transition ${g === game
-                        ? 'bg-surface dark:bg-brand-500/10 shadow-sm text-brand-700 dark:text-brand-400'
+                      className={`py-2.5 rounded-lg text-sm font-semibold transition active:scale-95 ${g === game
+                        ? 'tab-pop bg-surface dark:bg-brand-500/10 shadow-sm text-brand-700 dark:text-brand-400'
                         : 'text-ink-faint hover:text-ink-soft'}`}>
                 {LUCKY_GAMES[g].name}
               </button>
@@ -181,20 +181,21 @@ function VietlottPicker() {
                 return (
                   <li key={i} className="flex items-center gap-2">
                     <span className="w-10 shrink-0 text-xs font-semibold text-ink-faint">{LUCKY_GAMES[h.game].short}</span>
-                    <span className="space-y-1.5">
+                    {/* 6 số luôn nằm 1 hàng: bi co theo bề ngang (tối đa 32px) thay vì xuống dòng. */}
+                    <span className="flex-1 min-w-0 space-y-1.5">
                       {h.sets.map((set, r) => (
-                        <span key={r} className="flex flex-wrap gap-1.5">
+                        <span key={r} className="grid grid-cols-6 gap-1 max-w-[14.5rem]">
                           {set.map(n => (
                             <span key={n}
-                                  className={`ball w-8 h-8 rounded-full flex items-center justify-center
-                                              text-xs font-bold tabular-nums ${BALL[h.game]}`}>
+                                  className={`ball w-full max-w-8 aspect-square rounded-full flex items-center justify-center
+                                              text-[11px] sm:text-xs font-bold tabular-nums ${BALL[h.game]}`}>
                               {pad(n)}
                             </span>
                           ))}
                         </span>
                       ))}
                     </span>
-                    <span className="ml-auto flex items-center">
+                    <span className="shrink-0 flex items-center">
                       <a href={smsHref(sms)} title={`Gửi SMS tới ${SMS_NUMBER}`} aria-label={`Gửi SMS tới ${SMS_NUMBER}`}
                          className="rounded-lg p-1.5 text-ink-faint hover:text-ink-soft hover:bg-muted">
                         <Icon name="sms" className="w-4 h-4" />

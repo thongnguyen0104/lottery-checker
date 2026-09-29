@@ -41,6 +41,7 @@ public class ScanController : ControllerBase
 
     /// <summary>Bước 1: gửi ảnh → trả info đã OCR (số vé, ngày, đài) kèm thời gian từng chặng.</summary>
     [HttpPost("/api/scan")]
+    [GuestQuota(GuestAction.Scan)]
     [EnableRateLimiting(RateLimitPolicy)]
     [RequestSizeLimit(10_000_000)]
     public async Task<IActionResult> Scan(IFormFile image, CancellationToken ct)
@@ -259,6 +260,7 @@ public class ScanController : ControllerBase
     /// Chỉ Gemini: OCR cục bộ/OCR.space đọc cả ảnh thành một mớ chữ, không tách được chữ nào thuộc vé nào.
     /// </summary>
     [HttpPost("/api/scan-multi")]
+    [GuestQuota(GuestAction.Check)] // dò luôn trong request → tính lượt dò
     [EnableRateLimiting(RateLimitPolicy)]
     [RequestSizeLimit(10_000_000)]
     public async Task<IActionResult> ScanMulti(IFormFile image, CancellationToken ct)
@@ -416,6 +418,7 @@ public class ScanController : ControllerBase
 
     /// <summary>Bước 2: user bấm "Dò" với info đã xác nhận/chỉnh sửa.</summary>
     [HttpPost("/api/check")]
+    [GuestQuota(GuestAction.Check)]
     public async Task<IActionResult> Check([FromBody] CheckRequest req, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(req.TicketNumber)
