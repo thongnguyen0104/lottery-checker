@@ -1,0 +1,38 @@
+{
+  "tabs": { "vietlott": "Vietlott", "dream": "Luận số giấc mơ" },
+  "copy": { "title": "Copy: {{text}}", "aria": "Copy SMS {{text}}", "label": "Copy", "done": "Đã copy" },
+  "sms": { "sendTo": "Gửi SMS tới {{number}}" },
+  "picker": {
+    "title": "6 số may mắn",
+    "subtitle": "Bí ý tưởng? Để máy chọn giúp bộ số Vietlott.",
+    "range": "6 số ngẫu nhiên từ 01 đến {{max}}",
+    "sets": "Số bộ",
+    "pick": "Chọn số",
+    "pickAgain": "Chọn bộ khác",
+    "history": "Các bộ vừa chọn",
+    "historyEmpty": "Chưa có bộ nào — bấm Chọn số để bắt đầu.",
+    "odds": "Xác suất trúng Jackpot {{game}}: 1/{{odds}}.",
+    "oddsNote": "Bộ số nào cũng có cơ hội như nhau — chọn cho vui thôi nhé!"
+  },
+  "dream": {
+    "title": "Luận số giấc mơ",
+    "subtitle": "Kể lại giấc mơ, máy tra sổ mơ dân gian ra số tham khảo.",
+    "suggestionsLabel": "Gợi ý:",
+    "suggestions": {
+      "s1": "Tôi mơ thấy con rắn trắng bò vào nhà",
+      "s2": "Mơ thấy mèo đen trước cửa",
+      "s3": "Mơ thấy Thần Tài"
+    },
+    "thinking": "Đang tra sổ mơ",
+    "tailTitle": "Đuôi {{tail}} trong kết quả gần đây",
+    "collapse": "Thu gọn",
+    "expand": "Xem",
+    "searching": "Đang dò…",
+    "noHits": "Chưa đài nào về đuôi {{tail}} trong dữ liệu hiện có.",
+    "placeholder": "Tôi mơ thấy…",
+    "inputAria": "Kể lại giấc mơ",
+    "send": "Gửi",
+    "disclaimer": "Chỉ để tham khảo cho vui, không có cơ sở khoa học. Đừng nhập thông tin cá nhân — nội dung được gửi tới Google Gemini.",
+    "check": "Dò số {{n}}"
+  }
+}

@@ -6,28 +6,29 @@ import { useEffect, useState } from 'react'
 // v2: đổi mặc định sang Hoàng kim + nền tối — key mới để lựa chọn cũ (đỏ / theo máy) không che mất.
 const STORAGE_KEY = 'dvs-theme-v2'
 
+// Tên hiển thị ở common.json → theme.accents/modes/backgrounds.<id>.
 // ink = màu dấu ✓ trên ô màu trong bảng chọn (mặc định trắng); vàng sáng cần chữ tối.
 export const ACCENTS = [
-  { id: 'gold', name: 'Hoàng kim', from: '#FBBF24', to: '#D97706', ink: '#0F172A' },
-  { id: 'red', name: 'Đỏ may mắn', from: '#DC2626', to: '#EA580C' },
-  { id: 'orange', name: 'Cam hoàng hôn', from: '#EA580C', to: '#E11D48' },
-  { id: 'pink', name: 'Hồng kẹo ngọt', from: '#DB2777', to: '#9333EA' },
-  { id: 'violet', name: 'Tím mộng mơ', from: '#7C3AED', to: '#C026D3' },
-  { id: 'blue', name: 'Xanh đại dương', from: '#2563EB', to: '#0891B2' },
-  { id: 'mint', name: 'Xanh bạc hà', from: '#059669', to: '#65A30D' },
+  { id: 'gold', from: '#FBBF24', to: '#D97706', ink: '#0F172A' },
+  { id: 'red', from: '#DC2626', to: '#EA580C' },
+  { id: 'orange', from: '#EA580C', to: '#E11D48' },
+  { id: 'pink', from: '#DB2777', to: '#9333EA' },
+  { id: 'violet', from: '#7C3AED', to: '#C026D3' },
+  { id: 'blue', from: '#2563EB', to: '#0891B2' },
+  { id: 'mint', from: '#059669', to: '#65A30D' },
 ] as const
 
 export const MODES = [
-  { id: 'light', name: 'Sáng' },
-  { id: 'dark', name: 'Tối' },
-  { id: 'system', name: 'Theo máy' },
+  { id: 'light' },
+  { id: 'dark' },
+  { id: 'system' },
 ] as const
 
 export const BACKGROUNDS = [
-  { id: 'aurora', name: 'Cực quang' },
-  { id: 'dots', name: 'Chấm bi' },
-  { id: 'grid', name: 'Kẻ ô' },
-  { id: 'plain', name: 'Trơn' },
+  { id: 'aurora' },
+  { id: 'dots' },
+  { id: 'grid' },
+  { id: 'plain' },
 ] as const
 
 export type Accent = (typeof ACCENTS)[number]['id']

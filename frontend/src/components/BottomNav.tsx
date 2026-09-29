@@ -1,11 +1,13 @@
 import Icon, { BusyDot } from './Icon'
+import { useTranslation } from 'react-i18next'
 import { VIEWS, type View } from '../views'
 
 /** Thanh tab dưới đáy cho điện thoại (ẩn từ md trở lên — màn rộng dùng tab trên AppHeader). */
 /** busy = Dò vé đang quét/dò → chấm nhấp nháy trên tab đó khi user đang ở tab khác. */
 export default function BottomNav({ view, busy, onChange }: { view: View; busy?: boolean; onChange: (v: View) => void }) {
+  const { t } = useTranslation()
   return (
-    <nav aria-label="Tính năng"
+    <nav aria-label={t('app.features')}
          className="md:hidden fixed inset-x-0 bottom-0 z-30 pb-[env(safe-area-inset-bottom)]
                     bg-surface/85 backdrop-blur-xl border-t border-line/70">
       <div className="grid grid-cols-3 max-w-md mx-auto px-2">
@@ -21,8 +23,8 @@ export default function BottomNav({ view, busy, onChange }: { view: View; busy?:
                 <Icon name={v.icon} className={`w-[22px] h-[22px] ${active ? 'wiggle' : ''}`} />
                 {busy && !active && v.id === 'check' && <BusyDot />}
               </span>
-              {v.short}
-              {busy && !active && v.id === 'check' && <span className="sr-only">(đang xử lý)</span>}
+              {t(`views.${v.id}.short`)}
+              {busy && !active && v.id === 'check' && <span className="sr-only">{t('app.busy')}</span>}
             </button>
           )
         })}

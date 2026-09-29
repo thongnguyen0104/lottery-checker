@@ -1,5 +1,6 @@
 import { useEffect, type ReactNode } from 'react'
 import Icon, { type IconName } from './Icon'
+import { useTranslation } from 'react-i18next'
 import { ACCENTS, BACKGROUNDS, MODES, type Mode, type Theme } from '../theme'
 
 const MODE_ICONS: Record<Mode, IconName> = { light: 'sun', dark: 'moon', system: 'monitor' }
@@ -13,6 +14,7 @@ type Props = {
 /** Điện thoại: tấm trượt từ đáy lên; màn rộng: bảng nổi góc trên phải, cạnh nút mở.
  *  Đổi gì áp dụng ngay (xem trực tiếp trên trang phía sau) — không cần nút Lưu. */
 export default function ThemePicker({ theme, onChange, onClose }: Props) {
+  const { t } = useTranslation()
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
     window.addEventListener('keydown', onKey)
@@ -24,7 +26,7 @@ export default function ThemePicker({ theme, onChange, onClose }: Props) {
       {/* Chạm ra ngoài là đóng. Lớp phủ nhạt để vẫn thấy trang đổi màu phía sau. */}
       <div className="absolute inset-0 bg-black/25 sm:bg-black/10" onClick={onClose} aria-hidden />
 
-      <div role="dialog" aria-modal="true" aria-label="Tuỳ chỉnh giao diện"
+      <div role="dialog" aria-modal="true" aria-label={t('theme.dialog')}
            className="sheet-up absolute inset-x-0 bottom-0 max-h-[85vh] overflow-y-auto
                       bg-surface text-ink rounded-t-3xl border border-line shadow-2xl
                       px-5 pt-3 pb-[calc(1.25rem+env(safe-area-inset-bottom))]
@@ -34,15 +36,15 @@ export default function ThemePicker({ theme, onChange, onClose }: Props) {
 
         <div className="flex items-center justify-between mb-4">
           <h2 className="flex items-center gap-2 text-lg font-bold">
-            <Icon name="palette" className="w-5 h-5 text-brand-700 dark:text-brand-400" /> Giao diện của bạn
+            <Icon name="palette" className="w-5 h-5 text-brand-700 dark:text-brand-400" /> {t('theme.heading')}
           </h2>
-          <button onClick={onClose} aria-label="Đóng"
+          <button onClick={onClose} aria-label={t('theme.close')}
                   className="btn-close w-9 h-9 rounded-full flex items-center justify-center bg-muted text-ink-soft">
             <Icon name="close" className="w-4 h-4" />
           </button>
         </div>
 
-        <Section title="Chế độ">
+        <Section title={t('theme.mode')}>
           <div className="grid grid-cols-3 gap-1 p-1 rounded-xl bg-muted">
             {MODES.map(m => {
               const active = theme.mode === m.id
@@ -51,14 +53,14 @@ export default function ThemePicker({ theme, onChange, onClose }: Props) {
                         className={`flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-semibold transition
                                     ${active ? 'bg-surface dark:bg-brand-500/10 shadow-sm text-brand-700 dark:text-brand-400' : 'text-ink-faint'}`}>
                   <Icon name={MODE_ICONS[m.id]} className="w-4 h-4" />
-                  {m.name}
+                  {t(`theme.modes.${m.id}`)}
                 </button>
               )
             })}
           </div>
         </Section>
 
-        <Section title="Màu chủ đạo">
+        <Section title={t('theme.accent')}>
           <div className="grid grid-cols-4 gap-1.5">
             {ACCENTS.map(a => {
               const active = theme.accent === a.id
@@ -73,14 +75,14 @@ export default function ThemePicker({ theme, onChange, onClose }: Props) {
                         }}>
                     {active && <Icon name="check" className="w-5 h-5" />}
                   </span>
-                  <span className="text-xs font-medium text-ink-soft text-center leading-tight">{a.name}</span>
+                  <span className="text-xs font-medium text-ink-soft text-center leading-tight">{t(`theme.accents.${a.id}`)}</span>
                 </button>
               )
             })}
           </div>
         </Section>
 
-        <Section title="Hình nền">
+        <Section title={t('theme.background')}>
           <div className="grid grid-cols-4 gap-2">
             {BACKGROUNDS.map(b => {
               const active = theme.bg === b.id
@@ -90,7 +92,7 @@ export default function ThemePicker({ theme, onChange, onClose }: Props) {
                   <span className={`bgfx-${b.id} block w-full aspect-[3/4] rounded-xl bg-canvas border-2 transition
                                     ${active ? 'border-brand-500 ring-4 ring-brand-500/15' : 'border-line'}`} />
                   <span className={`text-xs font-medium ${active ? 'text-brand-700 dark:text-brand-400' : 'text-ink-soft'}`}>
-                    {b.name}
+                    {t(`theme.backgrounds.${b.id}`)}
                   </span>
                 </button>
               )
@@ -98,7 +100,7 @@ export default function ThemePicker({ theme, onChange, onClose }: Props) {
           </div>
         </Section>
 
-        <p className="text-xs text-ink-faint text-center">Lựa chọn được lưu trên máy này cho lần sau.</p>
+        <p className="text-xs text-ink-faint text-center">{t('theme.saved')}</p>
       </div>
     </div>
   )

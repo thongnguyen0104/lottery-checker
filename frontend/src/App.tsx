@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import AppHeader from './components/AppHeader'
 import BottomNav from './components/BottomNav'
 import ThemePicker from './components/ThemePicker'
@@ -13,6 +14,7 @@ import { useTheme } from './theme'
 import { viewFromPath, viewPath, type View } from './views'
 
 export default function App() {
+  const { t } = useTranslation()
   // Mở đúng màn theo URL (link chia sẻ / F5); đường dẫn lạ về Dò vé và sửa luôn URL. Xoá state lịch
   // sử còn sót từ trước khi tải lại (vd đang ở bảng 1 đài) — bước bên trong không nằm trên URL.
   // Chạy trước effect của các con để Home ghi stage đầu tiên lên đúng mục này.
@@ -84,18 +86,18 @@ export default function App() {
             fade-up chạy lại mỗi lần hiện ra vì trình duyệt khởi động lại animation khi hết display:none. */}
         <div hidden={view !== 'check'} className="fade-up">
           <Home key={sessionKey} active={view === 'check'} onShowResults={focus => go('results', focus)} onBusyChange={setChecking}
-                onRequireLogin={() => setAuthReason('Bạn đã dùng hết lượt dò thử. Đăng nhập hoặc tạo tài khoản để dò tiếp nhé.')} />
+                onRequireLogin={() => setAuthReason(t('auth.trialUsedUp'))} />
         </div>
         <div hidden={view !== 'lucky'} className="fade-up">
           {account ? <LuckyNumbers key={sessionKey} onShowResults={focus => go('results', focus)} /> : (
             <div className="card p-6 text-center space-y-3">
               <Icon name="user" className="w-10 h-10 mx-auto text-brand-700 dark:text-brand-400" />
-              <p className="font-semibold">Đăng nhập để dùng 6 Số May Mắn</p>
-              <p className="text-sm text-ink-soft">Chưa đăng nhập bạn chỉ xem được kết quả xổ số và dò thử 1 vé.</p>
+              <p className="font-semibold">{t('auth.luckyTitle')}</p>
+              <p className="text-sm text-ink-soft">{t('auth.luckyBody')}</p>
               <button onClick={() => setAuthReason(null)}
                       className="px-5 py-2.5 rounded-xl font-semibold bg-gradient-to-r from-primary to-primary-end
                                  text-on-primary shadow-md shadow-primary/25 active:scale-95 transition">
-                Đăng nhập / Đăng ký
+                {t('auth.loginTitle')}
               </button>
             </div>
           )}

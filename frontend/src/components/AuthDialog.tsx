@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
+import { useTranslation } from 'react-i18next'
 import Icon from './Icon'
 import { checkUsername, login, register, type Account } from '../api/client'
 import { PASSWORD_RULES, USERNAME_MAX, normalizeUsername, passwordValid, usernameError } from '../utils/accountRules'
@@ -16,6 +17,7 @@ type Props = {
 
 /** Đăng nhập / đăng ký bằng username + mật khẩu. Cùng kiểu bảng trượt với DonateDialog. */
 export default function AuthDialog({ onClose, onDone, reason }: Props) {
+  const { t } = useTranslation()
   const [mode, setMode] = useState<Mode>('login')
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
@@ -42,13 +44,13 @@ export default function AuthDialog({ onClose, onDone, reason }: Props) {
   useEffect(() => {
     if (!wantCheck) return
     const ctrl = new AbortController()
-    const t = setTimeout(() => {
+    const timer = setTimeout(() => {
       checkUsername(normalized, ctrl.signal)
         .then(r => setChecked(r.available ? { name: normalized, state: 'ok' }
           : { name: normalized, state: 'taken', message: r.error ?? undefined }))
         .catch(() => setChecked({ name: normalized, state: 'idle' }))  // lỗi mạng: để máy chủ báo lúc bấm Đăng ký
     }, 400)
-    return () => { clearTimeout(t); ctrl.abort() }
+    return () => { clearTimeout(timer); ctrl.abort() }
   }, [normalized, wantCheck])
 
   const canSubmit = isRegister
@@ -79,7 +81,7 @@ export default function AuthDialog({ onClose, onDone, reason }: Props) {
     <div className="fixed inset-0 z-50">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} aria-hidden />
 
-      <div role="dialog" aria-modal="true" aria-label={isRegister ? 'Đăng ký' : 'Đăng nhập'}
+      <div role="dialog" aria-modal="true" aria-label={isRegister ? t('auth.register') : t('auth.login')}
            className="sheet-up absolute inset-x-0 bottom-0 max-h-[90vh] overflow-y-auto
                       bg-surface text-ink rounded-t-3xl border border-line shadow-2xl
                       px-5 pt-3 pb-[calc(1.25rem+env(safe-area-inset-bottom))]
@@ -90,9 +92,9 @@ export default function AuthDialog({ onClose, onDone, reason }: Props) {
         <div className="flex items-center justify-between mb-3">
           <h2 className="flex items-center gap-2 text-lg font-bold">
             <Icon name="user" className="w-5 h-5 text-brand-700 dark:text-brand-400" />
-            {isRegister ? 'Tạo tài khoản' : 'Đăng nhập'}
+            {isRegister ? t('auth.createAccount') : t('auth.login')}
           </h2>
-          <button onClick={onClose} aria-label="Đóng"
+          <button onClick={onClose} aria-label={t('auth.close')}
                   className="btn-close w-9 h-9 rounded-full flex items-center justify-center bg-muted text-ink-soft">
             <Icon name="close" className="w-4 h-4" />
           </button>
@@ -105,29 +107,29 @@ export default function AuthDialog({ onClose, onDone, reason }: Props) {
             <button key={m} type="button" onClick={() => switchMode(m)}
                     className={`py-2 rounded-lg text-sm font-semibold transition ${mode === m
                       ? 'bg-surface text-brand-700 shadow-sm dark:text-brand-400' : 'text-ink-faint hover:text-ink'}`}>
-              {m === 'login' ? 'Đăng nhập' : 'Đăng ký'}
+              {m === 'login' ? t('auth.login') : t('auth.register')}
             </button>
           ))}
         </div>
 
         <form onSubmit={submit} className="space-y-3" noValidate>
           <label className="block">
-            <span className="text-sm font-medium text-ink-soft">Tên đăng nhập</span>
+            <span className="text-sm font-medium text-ink-soft">{t('auth.username')}</span>
             <input value={username} onChange={e => setUsername(e.target.value.replace(/\s/g, ''))}
                    maxLength={USERNAME_MAX} autoComplete="username" autoCapitalize="none" spellCheck={false}
-                   placeholder="10–20 ký tự" className={field(isRegister && (!!nameErr || nameCheck.state === 'taken'))} />
+                   placeholder={t('auth.usernamePlaceholder')} className={field(isRegister && (!!nameErr || nameCheck.state === 'taken'))} />
             {isRegister && username && (
               <span className={`mt-1 block text-xs ${nameErr || nameCheck.state === 'taken' ? 'text-bad'
                 : nameCheck.state === 'ok' ? 'text-ok' : 'text-ink-faint'}`}>
-                {nameErr ?? (nameCheck.state === 'checking' ? 'Đang kiểm tra...'
-                  : nameCheck.state === 'taken' ? nameCheck.message ?? 'Tên đăng nhập này đã có người dùng.'
-                  : nameCheck.state === 'ok' ? 'Tên này dùng được.' : '')}
+                {nameErr ?? (nameCheck.state === 'checking' ? t('auth.checking')
+                  : nameCheck.state === 'taken' ? nameCheck.message ?? t('auth.usernameTaken')
+                  : nameCheck.state === 'ok' ? t('auth.usernameOk') : '')}
               </span>
             )}
           </label>
 
           <label className="block">
-            <span className="text-sm font-medium text-ink-soft">Mật khẩu</span>
+            <span className="text-sm font-medium text-ink-soft">{t('auth.password')}</span>
             <div className="relative">
               <input type={showPw ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)}
                      autoComplete={isRegister ? 'new-password' : 'current-password'} maxLength={64}
@@ -135,7 +137,7 @@ export default function AuthDialog({ onClose, onDone, reason }: Props) {
               <button type="button" onClick={() => setShowPw(v => !v)}
                       className="absolute right-2 top-1/2 -translate-y-[calc(50%-2px)] px-2 py-1 text-xs font-semibold
                                  text-ink-faint hover:text-ink">
-                {showPw ? 'Ẩn' : 'Hiện'}
+                {showPw ? t('auth.hide') : t('auth.show')}
               </button>
             </div>
           </label>
@@ -146,18 +148,18 @@ export default function AuthDialog({ onClose, onDone, reason }: Props) {
                 {PASSWORD_RULES.map(r => {
                   const ok = r.test(password)
                   return (
-                    <li key={r.label} className={`flex items-center gap-1.5 ${ok ? 'text-ok' : 'text-ink-faint'}`}>
-                      <Icon name={ok ? 'ok' : 'fail'} className="w-3.5 h-3.5" /> {r.label}
+                    <li key={r.key} className={`flex items-center gap-1.5 ${ok ? 'text-ok' : 'text-ink-faint'}`}>
+                      <Icon name={ok ? 'ok' : 'fail'} className="w-3.5 h-3.5" /> {t(`auth.rules.${r.key}`)}
                     </li>
                   )
                 })}
               </ul>
               <label className="block">
-                <span className="text-sm font-medium text-ink-soft">Nhập lại mật khẩu</span>
+                <span className="text-sm font-medium text-ink-soft">{t('auth.confirmPassword')}</span>
                 <input type={showPw ? 'text' : 'password'} value={confirm} onChange={e => setConfirm(e.target.value)}
                        autoComplete="new-password" maxLength={64} className={field(!!confirm && confirm !== password)} />
                 {confirm && confirm !== password &&
-                  <span className="mt-1 block text-xs text-bad">Mật khẩu nhập lại chưa khớp.</span>}
+                  <span className="mt-1 block text-xs text-bad">{t('auth.passwordMismatch')}</span>}
               </label>
             </>
           )}
@@ -172,7 +174,7 @@ export default function AuthDialog({ onClose, onDone, reason }: Props) {
                   className="w-full py-3 rounded-xl font-semibold bg-gradient-to-r from-primary to-primary-end
                              text-on-primary shadow-md shadow-primary/25 active:scale-[0.98] transition
                              disabled:opacity-50 disabled:active:scale-100">
-            {busy ? 'Đang xử lý...' : isRegister ? 'Đăng ký' : 'Đăng nhập'}
+            {busy ? t('auth.busy') : isRegister ? t('auth.register') : t('auth.login')}
           </button>
         </form>
       </div>

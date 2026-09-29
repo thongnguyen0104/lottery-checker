@@ -1,6 +1,8 @@
 import { useCallback, useState } from 'react'
 import Icon from './Icon'
 import ConfirmDialog from './ConfirmDialog'
+import { useTranslation } from 'react-i18next'
+import { currentLang } from '../i18n'
 import { VIEWS, type View } from '../views'
 import type { Account } from '../api/client'
 
@@ -20,7 +22,8 @@ type Props = {
 /** Thanh trên cùng: logo + tên tính năng đang mở; màn rộng có thêm tab chuyển tính năng
  *  (điện thoại dùng BottomNav cho vừa tầm ngón cái). Nút bảng màu mở ThemePicker. */
 export default function AppHeader({ view, busy, onChange, onOpenTheme, onOpenDonate, account, onOpenAuth, onLogout }: Props) {
-  const current = VIEWS.find(v => v.id === view)!
+  const { t, i18n } = useTranslation()
+  const lang = currentLang()
   const [confirmLogout, setConfirmLogout] = useState(false)
   const closeConfirm = useCallback(() => setConfirmLogout(false), [])
 
@@ -36,18 +39,18 @@ export default function AppHeader({ view, busy, onChange, onOpenTheme, onOpenDon
             <Icon name="ticket" className="w-[22px] h-[22px]" />
           </span>
           <span className="min-w-0">
-            <span className="block text-lg font-extrabold leading-tight bg-gradient-to-r from-brand-700 to-accent
+            <span className="block truncate text-lg font-extrabold leading-tight bg-gradient-to-r from-brand-700 to-accent
                              bg-clip-text text-transparent dark:from-brand-300 dark:to-brand-500">
-              Dò Vé Số
+              {t('app.name')}
             </span>
             {/* Điện thoại không có tab ở trên → ghi tính năng đang mở ngay dưới tên app */}
-            <span className="block text-xs text-ink-faint truncate md:hidden">{current.hint}</span>
-            <span className="hidden md:block text-xs text-ink-faint">Chụp là biết trúng</span>
+            <span className="block text-xs text-ink-faint truncate md:hidden">{t(`views.${view}.hint`)}</span>
+            <span className="hidden md:block text-xs text-ink-faint">{t('app.tagline')}</span>
           </span>
         </button>
 
         <nav className="hidden md:flex mx-auto items-center gap-1 p-1 rounded-xl bg-muted/80 border border-line/60"
-             aria-label="Tính năng">
+             aria-label={t('app.features')}>
           {VIEWS.map(v => {
             const active = v.id === view
             return (
@@ -62,14 +65,14 @@ export default function AppHeader({ view, busy, onChange, onOpenTheme, onOpenDon
                     <span aria-hidden className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-brand-500 motion-safe:animate-pulse" />
                   )}
                 </span>
-                {v.title}
-                {busy && !active && v.id === 'check' && <span className="sr-only">(đang xử lý)</span>}
+                {t(`views.${v.id}.title`)}
+                {busy && !active && v.id === 'check' && <span className="sr-only">{t('app.busy')}</span>}
               </button>
             )
           })}
         </nav>
 
-        <button onClick={onOpenDonate} title="Ủng hộ" aria-label="Ủng hộ Dò Vé Số"
+        <button onClick={onOpenDonate} title={t('app.donate')} aria-label={t('app.donateLabel')}
                 className="ml-auto md:ml-0 shrink-0 w-11 h-11 rounded-xl flex items-center justify-center
                            bg-surface border border-line text-accent hover:text-brand-700 dark:hover:text-brand-400
                            shadow-sm transition active:scale-95">
@@ -77,15 +80,24 @@ export default function AppHeader({ view, busy, onChange, onOpenTheme, onOpenDon
         </button>
 
         <button onClick={account ? () => setConfirmLogout(true) : onOpenAuth}
-                title={account ? `${account.username} — bấm để đăng xuất` : 'Đăng nhập / Đăng ký'}
-                aria-label={account ? 'Đăng xuất' : 'Đăng nhập'}
+                title={account ? t('auth.logoutTitle', { username: account.username }) : t('auth.loginTitle')}
+                aria-label={account ? t('auth.logout') : t('auth.login')}
                 className={`shrink-0 w-11 h-11 rounded-xl flex items-center justify-center bg-surface border border-line
                            shadow-sm transition active:scale-95 hover:text-brand-700 dark:hover:text-brand-400
                            ${account ? 'text-brand-700 dark:text-brand-400' : 'text-ink-faint'}`}>
           <Icon name={account ? 'logout' : 'user'} className="w-[22px] h-[22px]" />
         </button>
 
-        <button onClick={onOpenTheme} title="Đổi màu & hình nền" aria-label="Đổi màu và hình nền"
+        {/* Đổi ngôn ngữ VI ⇄ EN: hiện ngôn ngữ đang dùng, bấm là sang ngôn ngữ kia (i18n tự nhớ lựa chọn) */}
+        <button onClick={() => i18n.changeLanguage(lang === 'vi' ? 'en' : 'vi')}
+                title={t('app.switchLang')} aria-label={t('app.switchLang')}
+                className="shrink-0 w-11 h-11 rounded-xl flex items-center justify-center
+                           bg-surface border border-line text-ink-faint hover:text-brand-700 dark:hover:text-brand-400
+                           text-sm font-bold tracking-wide shadow-sm transition active:scale-95">
+          {lang.toUpperCase()}
+        </button>
+
+        <button onClick={onOpenTheme} title={t('app.openThemeTitle')} aria-label={t('app.openTheme')}
                 className="shrink-0 w-11 h-11 rounded-xl flex items-center justify-center
                            bg-surface border border-line text-ink-faint hover:text-brand-700 dark:hover:text-brand-400
                            shadow-sm transition active:scale-95">
@@ -93,8 +105,9 @@ export default function AppHeader({ view, busy, onChange, onOpenTheme, onOpenDon
         </button>
       </div>
       {confirmLogout && account && (
-        <ConfirmDialog title="Đăng xuất?" message={`Bạn đang đăng nhập với tài khoản ${account.username}.`}
-                       confirmLabel="Đăng xuất" onClose={closeConfirm}
+        <ConfirmDialog title={t('auth.logoutConfirmTitle')}
+                       message={t('auth.logoutConfirmMessage', { username: account.username })}
+                       confirmLabel={t('auth.logout')} onClose={closeConfirm}
                        onConfirm={() => { closeConfirm(); onLogout() }} />
       )}
     </header>

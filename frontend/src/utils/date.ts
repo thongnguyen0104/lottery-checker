@@ -1,17 +1,26 @@
+import { currentLang, currentLocale } from '../i18n'
+
 const WEEKDAYS = ['Chủ Nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy']
 const pad = (n: number) => String(n).padStart(2, '0')
 
 // Dựng Date từ từng thành phần (giờ địa phương), KHÔNG new Date('YYYY-MM-DD') — chuỗi đó bị
 // hiểu là UTC nên máy ở múi giờ âm sẽ lùi sang hôm trước.
-export const weekday = (iso: string) => {
+const toDate = (iso: string) => {
   const [y, m, d] = iso.split('-').map(Number)
-  return WEEKDAYS[new Date(y, m - 1, d).getDay()]
+  return new Date(y, m - 1, d)
 }
 
-/** 'YYYY-MM-DD' → 'DD/MM/YYYY' */
-export const formatDate = (iso: string) => iso.split('-').reverse().join('/')
+// Tiếng Việt giữ bảng tên thứ riêng (viết hoa kiểu "Thứ Bảy" quen dùng); tiếng Anh dùng Intl.
+export const weekday = (iso: string) => currentLang() === 'en'
+  ? toDate(iso).toLocaleDateString(currentLocale(), { weekday: 'long' })
+  : WEEKDAYS[toDate(iso).getDay()]
 
-/** 'YYYY-MM-DD' → 'Thứ Bảy, 26/09/2026' */
+/** 'YYYY-MM-DD' → 'DD/MM/YYYY' (tiếng Anh: 'Sep 26, 2026' — tránh nhầm ngày/tháng kiểu Mỹ) */
+export const formatDate = (iso: string) => currentLang() === 'en'
+  ? toDate(iso).toLocaleDateString(currentLocale(), { month: 'short', day: 'numeric', year: 'numeric' })
+  : iso.split('-').reverse().join('/')
+
+/** 'YYYY-MM-DD' → 'Thứ Bảy, 26/09/2026' (tiếng Anh: 'Saturday, Sep 26, 2026') */
 export const formatDay = (iso: string) => `${weekday(iso)}, ${formatDate(iso)}`
 
 /** Hôm nay theo giờ máy, dạng 'YYYY-MM-DD' (toISOString là giờ UTC — trước 7h sáng ở VN còn là hôm qua). */

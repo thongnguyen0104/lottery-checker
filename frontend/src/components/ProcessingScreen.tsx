@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import Icon from './Icon'
 
 type Props = {
@@ -22,14 +23,15 @@ const VERY_SLOW_S = 15
 // checklist từng bước (xong ✓ / đang chạy / chờ) để user thấy máy đang làm tới đâu.
 export default function ProcessingScreen({ title, imageUrl, steps, current, detail, onCancel }: Props) {
   // Đổi tiêu đề (quét → dò) thì Home đổi key nên đếm lại từ 0 cho từng chặng.
+  const { t } = useTranslation('check')
   const [elapsed, setElapsed] = useState(0)
   useEffect(() => {
     const id = window.setInterval(() => setElapsed(s => s + 1), 1000)
     return () => clearInterval(id)
   }, [])
   const hint = elapsed >= VERY_SLOW_S
-    ? 'Mạng hơi chậm, máy vẫn đang xử lý. Bạn có thể chờ thêm hoặc huỷ để thử lại.'
-    : elapsed >= SLOW_S ? 'Vẫn đang xử lý, thường mất 5–10 giây…' : null
+    ? t('processing.verySlow')
+    : elapsed >= SLOW_S ? t('processing.slow') : null
   const [imgFailed, setImgFailed] = useState(false)
   // Ảnh gốc 12MP giải mã mất một nhịp → hiện dần khi xong, thay vì "bụp" ra giữa chừng.
   const [imgLoaded, setImgLoaded] = useState(false)
@@ -46,7 +48,7 @@ export default function ProcessingScreen({ title, imageUrl, steps, current, deta
           <button onClick={onCancel}
                   className="justify-self-end px-3 py-2 rounded-xl text-sm font-semibold text-slate-300
                              hover:text-white hover:bg-white/10 transition">
-            Huỷ
+            {t('processing.cancel')}
           </button>
         )}
       </div>
@@ -63,7 +65,7 @@ export default function ProcessingScreen({ title, imageUrl, steps, current, deta
             min-w-0 + max-w-full: flex item mặc định nở theo bề rộng gốc của ảnh (4000px) */}
         <div className="relative overflow-hidden min-w-0 max-w-full">
           {showImage ? (
-            <img src={imageUrl} alt="Vé đang được quét" decoding="async"
+            <img src={imageUrl} alt={t('processing.imageAlt')} decoding="async"
                  onLoad={() => setImgLoaded(true)} onError={() => setImgFailed(true)}
                  className={`block max-w-full max-h-[55vh] brightness-[.65] transition-opacity duration-300
                              ${imgLoaded ? 'opacity-100' : 'opacity-0'}`} />

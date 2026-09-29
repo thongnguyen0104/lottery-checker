@@ -1,3 +1,4 @@
+using LotteryChecker.Api.Services;
 using LotteryChecker.Api.Data;
 using LotteryChecker.Api.Models;
 using Microsoft.AspNetCore.Mvc;
@@ -24,6 +25,7 @@ public class GuestQuotaAttribute(GuestAction action) : TypeFilterAttribute(typeo
 public class GuestQuotaFilter(AppDbContext db, IConfiguration config, TimeProvider clock) : IAsyncActionFilter
 {
     public const string LoginRequiredError = "Bạn đã dùng hết lượt dò thử. Đăng nhập hoặc tạo tài khoản để dò tiếp nhé.";
+    public const string LoginRequiredErrorEn = "You've used your free check. Log in or create an account to keep checking.";
 
     public async Task OnActionExecutionAsync(ActionExecutingContext ctx, ActionExecutionDelegate next)
     {
@@ -43,7 +45,7 @@ public class GuestQuotaFilter(AppDbContext db, IConfiguration config, TimeProvid
             : (usage?.Checks ?? 0, config.GetValue("Guest:CheckLimit", 1));
         if (used >= limit)
         {
-            ctx.Result = new ObjectResult(new { error = LoginRequiredError, code = "login_required" }) { StatusCode = 401 };
+            ctx.Result = new ObjectResult(new { error = Lang.T(ctx.HttpContext.Request, LoginRequiredError, LoginRequiredErrorEn), code = "login_required" }) { StatusCode = 401 };
             return;
         }
 

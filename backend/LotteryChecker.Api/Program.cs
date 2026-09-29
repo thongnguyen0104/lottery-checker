@@ -146,7 +146,7 @@ builder.Services.AddRateLimiter(o =>
                 Window = TimeSpan.FromMinutes(1),
             }));
     o.OnRejected = (ctx, ct) => new ValueTask(ctx.HttpContext.Response.WriteAsJsonAsync(
-        new { error = "Bạn thao tác hơi nhiều rồi, nghỉ một lát rồi thử lại nhé." }, ct));
+        new { error = Lang.T(ctx.HttpContext.Request, "Bạn thao tác hơi nhiều rồi, nghỉ một lát rồi thử lại nhé.", "Too many requests — take a short break and try again.") }, ct));
 });
 
 // API chạy sau Caddy/cloudflared cùng máy (127.0.0.1 — proxy mặc định được tin): lấy IP thật từ

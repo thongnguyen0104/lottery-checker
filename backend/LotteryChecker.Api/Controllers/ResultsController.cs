@@ -1,4 +1,5 @@
 using LotteryChecker.Api.Data;
+using LotteryChecker.Api.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -46,7 +47,7 @@ public class ResultsController : ControllerBase
             .ToListAsync(ct);
 
         if (rows.Count == 0)
-            return NotFound(new { error = $"Chưa có kết quả đài {province} ngày {date:dd/MM/yyyy}." });
+            return NotFound(new { error = Lang.T(Request, $"Chưa có kết quả đài {province} ngày {date:dd/MM/yyyy}.", $"No results yet for {province} on {date:dd/MM/yyyy}.") });
 
         var prizes = rows
             .GroupBy(r => r.PrizeTier)
@@ -65,7 +66,7 @@ public class ResultsController : ControllerBase
     public async Task<ActionResult<TailHitDto[]>> SearchTail([FromQuery] string? tail, CancellationToken ct)
     {
         if (tail is not { Length: 2 } || !tail.All(char.IsAsciiDigit))
-            return BadRequest(new { error = "Cần đúng 2 chữ số, vd ?tail=32." });
+            return BadRequest(new { error = Lang.T(Request, "Cần đúng 2 chữ số, vd ?tail=32.", "Exactly 2 digits required, e.g. ?tail=32.") });
 
         var rows = await _db.LotteryResults
             .Where(r => r.Number.EndsWith(tail))

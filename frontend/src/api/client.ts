@@ -1,4 +1,5 @@
 import axios from 'axios'
+import i18n, { currentLang } from '../i18n'
 import {
   compressImage, DEFAULT_COMPRESS, type CompressOptions, type CompressStages,
 } from '../utils/compressImage'
@@ -11,6 +12,9 @@ const api = axios.create({
   baseURL: API_BASE,
   timeout: 15_000, // tra DB/kết quả chỉ vài chục ms — quá 15s là mạng có vấn đề; quét ảnh đặt riêng
 })
+
+// Báo ngôn ngữ đang chọn để máy chủ trả lời nhắn lỗi (và luận giấc mơ) đúng tiếng.
+api.interceptors.request.use(cfg => { cfg.headers.set('Accept-Language', currentLang()); return cfg })
 
 /**
  * Thời gian từng chặng phía máy chủ (ms) — xem StageTimer/ScanController ở backend.
@@ -137,33 +141,33 @@ export const isCanceled = (e: unknown) => e instanceof Error && e.name === 'Canc
 
 // Câu cho người dùng khi máy chủ không gửi kèm lời nhắn (error) — không lộ mã/thuật ngữ kỹ thuật.
 const statusText = (status: number) =>
-  status === 429 ? 'Bạn thao tác hơi nhiều rồi, nghỉ một lát rồi thử lại nhé.'
-  : status === 413 ? 'Ảnh quá lớn. Hãy chọn ảnh nhỏ hơn 10MB hoặc chụp lại.'
-  : status >= 500 ? 'Máy chủ đang gặp sự cố, bạn thử lại sau ít phút nhé.'
-  : 'Yêu cầu không hợp lệ, bạn thử lại nhé.'
+  status === 429 ? i18n.t('errors.tooMany')
+  : status === 413 ? i18n.t('errors.tooLarge')
+  : status >= 500 ? i18n.t('errors.server')
+  : i18n.t('errors.badRequest')
 
-// Chuẩn hoá lỗi axios thành thông báo tiếng Việt dễ hiểu
+// Chuẩn hoá lỗi axios thành thông báo dễ hiểu theo ngôn ngữ đang chọn
 function toFriendlyError(e: unknown): Error {
   if (axios.isAxiosError(e)) {
-    if (axios.isCancel(e)) return Object.assign(new Error('Đã huỷ'), { name: 'CanceledError' })
+    if (axios.isCancel(e)) return Object.assign(new Error(i18n.t('errors.canceled')), { name: 'CanceledError' })
     if (e.response) {
       // Server có trả lời (4xx/5xx) — lấy lời nhắn từ body nếu có. 5xx thì bỏ qua body: trang lỗi
       // mặc định (title "Internal Server Error"...) là tiếng Anh kỹ thuật.
       const { status } = e.response
       const data = e.response.data as { error?: string; code?: string } | undefined
       if (data?.code === 'login_required')
-        return Object.assign(new Error(data.error ?? 'Cần đăng nhập'), { name: 'LoginRequiredError' })
+        return Object.assign(new Error(data.error ?? i18n.t('auth.loginRequired')), { name: 'LoginRequiredError' })
       return new Error((status < 500 || status === 503) && data?.error ? data.error : statusText(status))
     }
     if (e.code === 'ECONNABORTED' || e.code === 'ETIMEDOUT')
-      return new Error('Máy chủ phản hồi quá lâu. Kiểm tra mạng rồi bấm Thử lại nhé.')
+      return new Error(i18n.t('errors.timeout'))
     // Chi tiết cho dev xem ở console, user chỉ cần biết kiểm tra mạng.
     console.warn('API không phản hồi', API_BASE || '(cùng origin)', e.message)
     return new Error(navigator.onLine === false
-      ? 'Bạn đang ngoại tuyến. Bật Wi-Fi hoặc 4G rồi bấm Thử lại.'
-      : 'Không kết nối được. Kiểm tra mạng rồi bấm Thử lại.')
+      ? i18n.t('errors.offline')
+      : i18n.t('errors.network'))
   }
-  return new Error((e as Error)?.message ?? 'Lỗi không xác định')
+  return new Error((e as Error)?.message ?? i18n.t('errors.unknown'))
 }
 
 // Nén (nếu bật) rồi gửi ảnh lên `url` — dùng chung cho quét 1 vé và quét nhiều vé.

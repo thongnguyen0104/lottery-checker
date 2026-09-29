@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { createPortal } from 'react-dom'
+import { useTranslation } from 'react-i18next'
 
 type Props = {
   title: string
@@ -11,6 +12,7 @@ type Props = {
 
 /** Hộp xác nhận thay cho window.confirm — cùng kiểu với DonateDialog/ThemePicker. */
 export default function ConfirmDialog({ title, message, confirmLabel, onConfirm, onClose }: Props) {
+  const { t } = useTranslation()
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
     window.addEventListener('keydown', onKey)
@@ -32,7 +34,7 @@ export default function ConfirmDialog({ title, message, confirmLabel, onConfirm,
         <div className="mt-5 grid grid-cols-2 gap-2">
           <button onClick={onClose}
                   className="py-2.5 rounded-xl font-semibold bg-muted text-ink-soft hover:text-ink active:scale-95 transition">
-            Huỷ
+            {t('confirmDialog.cancel')}
           </button>
           <button onClick={onConfirm} autoFocus
                   className="py-2.5 rounded-xl font-semibold bg-gradient-to-r from-primary to-primary-end

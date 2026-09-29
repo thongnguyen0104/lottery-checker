@@ -17,7 +17,7 @@ namespace LotteryChecker.Api.Controllers;
 public class AuthController(AppDbContext db, TimeProvider clock) : ControllerBase
 {
     public const string RateLimitPolicy = "auth";
-    private const string TakenError = "Tên đăng nhập này đã có người dùng.";
+    private string TakenError => Lang.T(Request, "Tên đăng nhập này đã có người dùng.", "This username is already taken.");
     private static readonly PasswordHasher<User> Hasher = new();
 
     public record Credentials(string? Username, string? Password);
@@ -28,7 +28,7 @@ public class AuthController(AppDbContext db, TimeProvider clock) : ControllerBas
     public async Task<IActionResult> CheckUsername([FromQuery] string? username)
     {
         var u = AccountRules.Normalize(username);
-        var error = AccountRules.UsernameError(u);
+        var error = AccountRules.UsernameError(u, Lang.IsEn(Request));
         if (error != null) return Ok(new { available = false, error });
         var taken = await db.Users.AnyAsync(x => x.Username == u);
         return Ok(new { available = !taken, error = taken ? TakenError : null });
@@ -39,7 +39,7 @@ public class AuthController(AppDbContext db, TimeProvider clock) : ControllerBas
     public async Task<IActionResult> Register(Credentials body)
     {
         var u = AccountRules.Normalize(body.Username);
-        var error = AccountRules.UsernameError(u) ?? AccountRules.PasswordError(body.Password);
+        var error = AccountRules.UsernameError(u, Lang.IsEn(Request)) ?? AccountRules.PasswordError(body.Password, Lang.IsEn(Request));
         if (error != null) return BadRequest(new { error });
         if (await db.Users.AnyAsync(x => x.Username == u)) return Conflict(new { error = TakenError });
 
@@ -65,7 +65,7 @@ public class AuthController(AppDbContext db, TimeProvider clock) : ControllerBas
         // Cùng một câu cho sai tên và sai mật khẩu — không để lộ tên nào đã tồn tại.
         if (user == null || Hasher.VerifyHashedPassword(user, user.PasswordHash, body.Password ?? "")
                 is PasswordVerificationResult.Failed)
-            return Unauthorized(new { error = "Sai tên đăng nhập hoặc mật khẩu." });
+            return Unauthorized(new { error = Lang.T(Request, "Sai tên đăng nhập hoặc mật khẩu.", "Wrong username or password.") });
 
         await SignInAsync(user);
         return Ok(new { username = user.Username });

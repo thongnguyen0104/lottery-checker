@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
+import { Trans, useTranslation } from 'react-i18next'
 import { getProvinceResult, type ProvinceResult as Result } from '../api/client'
 import { provinceName } from '../data/provinces'
 import { formatDay } from '../utils/date'
 import Icon from './Icon'
+import { tierShort } from '../i18n/prizes'
 
 // Kết quả đã xổ không đổi nữa → giữ trong phiên, bấm qua lại giữa các đài khỏi tải lại.
 const cache = new Map<string, Result>()
@@ -30,6 +32,7 @@ function commonSuffix(ticket: string | undefined, n: string) {
 export default function ProvinceResult({
   drawDate, province, sameDay, ticketNumber, onSelectProvince, backLabel, onBack,
 }: Props) {
+  const { t } = useTranslation('results')
   const key = `${drawDate}/${province}`
   const [fetched, setFetched] = useState<{ key: string; data?: Result; error?: string } | null>(null)
 
@@ -41,7 +44,7 @@ export default function ProvinceResult({
         cache.set(key, data)
         if (!cancelled) setFetched({ key, data })
       })
-      .catch(e => { if (!cancelled) setFetched({ key, error: e?.message ?? 'Lỗi không xác định' }) })
+      .catch(e => { if (!cancelled) setFetched({ key, error: e?.message ?? t('unknownError') }) })
     return () => { cancelled = true }
   }, [key, drawDate, province])
 
@@ -54,7 +57,7 @@ export default function ProvinceResult({
   return (
     <div className="space-y-4 max-w-2xl mx-auto">
       <div className="flex items-center justify-between gap-3">
-        <h1 className="text-xl md:text-3xl font-extrabold tracking-tight">Xổ số {provinceName(province)}</h1>
+        <h1 className="text-xl md:text-3xl font-extrabold tracking-tight">{t('provinceTitle', { province: provinceName(province) })}</h1>
         <button onClick={onBack} className="btn btn-soft shrink-0 px-3 py-2 text-sm">
           <Icon name="back" className="w-4 h-4" /> {backLabel}
         </button>
@@ -64,8 +67,8 @@ export default function ProvinceResult({
         <div className="alert flex items-center gap-2 bg-ok/10 border-ok/30">
           <Icon name="ticket" className="w-4 h-4 shrink-0 text-ok" />
           <span>
-            Đang so với vé <b className="tracking-wider">{ticketNumber}</b> — chữ số cuối trùng vé được tô xanh,
-            số trúng giải có khung.
+            <Trans t={t} i18nKey="comparing" values={{ ticket: ticketNumber }}
+                   components={{ b: <b className="tracking-wider" /> }} />
           </span>
         </div>
       )}
@@ -93,7 +96,7 @@ export default function ProvinceResult({
         {!data && !error && (
           <div className="p-6 flex items-center justify-center gap-2 text-ink-faint">
             <span className="w-5 h-5 rounded-full border-2 border-brand-500/20 border-t-brand-500 motion-safe:animate-spin" />
-            Đang tải...
+            {t('loading')}
           </div>
         )}
         {error && (
@@ -111,7 +114,7 @@ export default function ProvinceResult({
                   <tr key={tier} className="border-t border-line/70 first:border-t-0 odd:bg-muted/50">
                     <th scope="row"
                         className="w-14 py-2.5 text-sm font-semibold text-ink-faint border-r border-line/70">
-                      {special ? 'ĐB' : `G.${tier}`}
+                      {tierShort(tier)}
                     </th>
                     <td className="py-2.5 px-3">
                       <div className="flex flex-wrap justify-center gap-x-5 gap-y-1">

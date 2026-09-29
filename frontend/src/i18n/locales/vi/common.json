@@ -1,0 +1,96 @@
+{
+  "prize": {
+    "DB": "Giải Đặc Biệt", "subDB": "Giải Phụ Đặc Biệt", "consolation": "Giải Khuyến Khích",
+    "1": "Giải Nhất", "2": "Giải Nhì", "3": "Giải Ba", "4": "Giải Tư",
+    "5": "Giải Năm", "6": "Giải Sáu", "7": "Giải Bảy", "8": "Giải Tám"
+  },
+  "prizeShort": { "DB": "ĐB", "n": "G.{{n}}" },
+  "app": {
+    "name": "Dò Vé Số",
+    "tagline": "Chụp là biết trúng",
+    "features": "Tính năng",
+    "busy": "(đang xử lý)",
+    "openTheme": "Đổi màu và hình nền",
+    "openThemeTitle": "Đổi màu & hình nền",
+    "switchLang": "Chuyển sang tiếng Anh",
+    "donate": "Ủng hộ",
+    "donateLabel": "Ủng hộ Dò Vé Số"
+  },
+  "auth": {
+    "login": "Đăng nhập",
+    "logout": "Đăng xuất",
+    "loginTitle": "Đăng nhập / Đăng ký",
+    "logoutTitle": "{{username}} — bấm để đăng xuất",
+    "logoutConfirmTitle": "Đăng xuất?",
+    "logoutConfirmMessage": "Bạn đang đăng nhập với tài khoản {{username}}.",
+    "register": "Đăng ký",
+    "createAccount": "Tạo tài khoản",
+    "close": "Đóng",
+    "username": "Tên đăng nhập",
+    "usernamePlaceholder": "10–20 ký tự",
+    "checking": "Đang kiểm tra...",
+    "usernameTaken": "Tên đăng nhập này đã có người dùng.",
+    "usernameOk": "Tên này dùng được.",
+    "password": "Mật khẩu",
+    "hide": "Ẩn",
+    "show": "Hiện",
+    "confirmPassword": "Nhập lại mật khẩu",
+    "passwordMismatch": "Mật khẩu nhập lại chưa khớp.",
+    "busy": "Đang xử lý...",
+    "usernameLength": "Tên đăng nhập phải từ {{min}} đến {{max}} ký tự.",
+    "usernameChars": "Tên đăng nhập chỉ gồm chữ không dấu, số, dấu chấm hoặc gạch dưới.",
+    "rules": {
+      "length": "8–64 ký tự, không khoảng trắng",
+      "upper": "Có chữ hoa (A–Z)",
+      "lower": "Có chữ thường (a–z)",
+      "digit": "Có chữ số (0–9)",
+      "special": "Có ký tự đặc biệt (vd !@#$%)"
+    },
+    "trialUsedUp": "Bạn đã dùng hết lượt dò thử. Đăng nhập hoặc tạo tài khoản để dò tiếp nhé.",
+    "luckyTitle": "Đăng nhập để dùng 6 Số May Mắn",
+    "luckyBody": "Chưa đăng nhập bạn chỉ xem được kết quả xổ số và dò thử 1 vé.",
+    "loginRequired": "Cần đăng nhập"
+  },
+  "donate": {
+    "title": "Ủng hộ Dò Vé Số",
+    "close": "Đóng",
+    "body": "Web miễn phí, không quảng cáo. Nếu thấy có ích, bạn mời mình ly cà phê để duy trì máy chủ nhé!",
+    "qrAlt": "Mã QR MoMo / VietQR — NGUYEN HOANG THONG",
+    "download": "Tải ảnh QR",
+    "hint": "Trên điện thoại: tải ảnh về rồi mở app ngân hàng/MoMo → Quét QR → chọn ảnh."
+  },
+  "confirmDialog": {
+    "cancel": "Huỷ"
+  },
+  "views": {
+    "check": { "title": "Dò Vé Số", "short": "Dò vé", "hint": "Chụp vé, tự đọc số và dò giải" },
+    "lucky": { "title": "6 Số May Mắn", "short": "Số may mắn", "hint": "Chọn số Vietlott, luận số giấc mơ" },
+    "results": { "title": "Kết Quả Xổ Số", "short": "Kết quả", "hint": "Xem bảng kết quả chi tiết từng đài" }
+  },
+  "theme": {
+    "dialog": "Tuỳ chỉnh giao diện",
+    "heading": "Giao diện của bạn",
+    "close": "Đóng",
+    "mode": "Chế độ",
+    "accent": "Màu chủ đạo",
+    "background": "Hình nền",
+    "saved": "Lựa chọn được lưu trên máy này cho lần sau.",
+    "accents": {
+      "gold": "Hoàng kim", "red": "Đỏ may mắn", "orange": "Cam hoàng hôn", "pink": "Hồng kẹo ngọt",
+      "violet": "Tím mộng mơ", "blue": "Xanh đại dương", "mint": "Xanh bạc hà"
+    },
+    "modes": { "light": "Sáng", "dark": "Tối", "system": "Theo máy" },
+    "backgrounds": { "aurora": "Cực quang", "dots": "Chấm bi", "grid": "Kẻ ô", "plain": "Trơn" }
+  },
+  "errors": {
+    "tooMany": "Bạn thao tác hơi nhiều rồi, nghỉ một lát rồi thử lại nhé.",
+    "tooLarge": "Ảnh quá lớn. Hãy chọn ảnh nhỏ hơn 10MB hoặc chụp lại.",
+    "server": "Máy chủ đang gặp sự cố, bạn thử lại sau ít phút nhé.",
+    "badRequest": "Yêu cầu không hợp lệ, bạn thử lại nhé.",
+    "canceled": "Đã huỷ",
+    "timeout": "Máy chủ phản hồi quá lâu. Kiểm tra mạng rồi bấm Thử lại nhé.",
+    "offline": "Bạn đang ngoại tuyến. Bật Wi-Fi hoặc 4G rồi bấm Thử lại.",
+    "network": "Không kết nối được. Kiểm tra mạng rồi bấm Thử lại.",
+    "unknown": "Lỗi không xác định"
+  }
+}
