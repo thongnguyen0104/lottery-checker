@@ -8,7 +8,8 @@ Thư mục này là bản rút gọn để chạy.
 | `setup-server.sh` | trên VM (1 lần) | iptables, .NET runtime, Tesseract + symlink native, Caddy, thư mục, systemd, Caddyfile |
 | `publish.ps1` | máy Windows (mỗi lần deploy) | build backend + frontend, nén, scp, restart service |
 | `lottery-api.service` | template | systemd unit (`__APP_USER__` được thay khi setup) |
-| `Caddyfile.template` | template | Caddy config (`__DOMAIN__` được thay khi setup) |
+| `Caddyfile.template` | template | Caddy config (`__SITE__`/`__BIND__` được thay khi setup) |
+| `CLOUDFLARE.md` | hướng dẫn | đưa web ra sau Cloudflare Tunnel: chống DDoS, giấu IP, đóng port 80/443 (`setup-server.sh <domain> --tunnel`) |
 | `oci-retry-arm.ps1` | máy Windows | thử tạo VM ARM liên tục cho tới khi Oracle có capacity |
 | `tunnel.ps1` | máy Windows | chạy app ra internet qua Cloudflare Tunnel, không cần VM |
 | `ORACLE-VM.md` | hướng dẫn | tạo VM Oracle Always Free từng bước (đăng ký → mạng → VM → IP tĩnh → DuckDNS) |

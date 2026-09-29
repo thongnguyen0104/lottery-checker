@@ -1,45 +1,2028 @@
 {
-  "_note": "BẢN NHÁP — bảng 40 con vật dân gian miền Nam (con thứ n ứng với n, n+40, n+80). Cần người duyệt lại trước khi dùng thật. Thêm mục mới: key không dấu, numbers là chuỗi 2 chữ số.",
+  "_note": "BẢN DỮ LIỆU THAM KHẢO — Sổ mơ dân gian. Canonical và alternative mappings được tách riêng vì các nguồn dân gian có thể khác nhau. Không dùng dữ liệu này để khẳng định kết quả xổ số.",
+  "schema_version": "2.0",
+  "data_policy": {
+    "canonical_source": "so_mo_40",
+    "number_format": "2-digit-string",
+    "max_keys_per_query": 3,
+    "allow_synonyms": true,
+    "allow_contextual_variants": true,
+    "prefer_exact_match": true,
+    "prefer_specific_match_over_generic": true,
+    "do_not_invent_numbers": true
+  },
+  "sources": [
+    {
+      "id": "so_mo_40_primary",
+      "name": "Sổ mơ 40 mục",
+      "type": "primary_reference"
+    },
+    {
+      "id": "so_mo_cong_khai",
+      "name": "Các sổ mơ dân gian công khai",
+      "type": "cross_reference"
+    },
+    {
+      "id": "so_mo_tinh_huong",
+      "name": "Các sổ mơ theo tình huống",
+      "type": "alternative_reference"
+    }
+  ],
+  "conflicts": [
+    {
+      "key": "ret",
+      "issue": "Các nguồn có thể ghi mapping khác nhau cho Rết.",
+      "decision": "Giữ mapping canonical hiện tại và đánh dấu alternative nếu cần."
+    },
+    {
+      "key": "than_tai",
+      "issue": "Một số sổ mơ riêng có thể ghi thêm giá trị ngoài bảng 40 mục.",
+      "decision": "Không ghi đè canonical."
+    },
+    {
+      "key": "ong_tao",
+      "issue": "Một số sổ mơ riêng có thể ghi thêm giá trị ngoài bảng 40 mục.",
+      "decision": "Không ghi đè canonical."
+    }
+  ],
   "entries": [
-    { "key": "ca_trang", "label": "Cá trắng", "aliases": ["cá trắng", "cá"], "numbers": ["01", "41", "81"] },
-    { "key": "oc", "label": "Ốc", "aliases": ["ốc", "con ốc", "sò", "hến"], "numbers": ["02", "42", "82"] },
-    { "key": "ngong", "label": "Ngỗng", "aliases": ["ngỗng", "con ngỗng"], "numbers": ["03", "43", "83"] },
-    { "key": "cong", "label": "Công", "aliases": ["chim công", "con công"], "numbers": ["04", "44", "84"] },
-    { "key": "trun", "label": "Trùn", "aliases": ["trùn", "giun", "con giun", "con trùn"], "numbers": ["05", "45", "85"] },
-    { "key": "cop", "label": "Cọp", "aliases": ["cọp", "hổ", "con hổ", "con cọp"], "numbers": ["06", "46", "86"] },
-    { "key": "heo", "label": "Heo", "aliases": ["heo", "lợn", "con heo", "con lợn"], "numbers": ["07", "47", "87"] },
-    { "key": "tho", "label": "Thỏ", "aliases": ["thỏ", "con thỏ"], "numbers": ["08", "48", "88"] },
-    { "key": "trau", "label": "Trâu", "aliases": ["trâu", "con trâu", "con bò"], "numbers": ["09", "49", "89"] },
-    { "key": "rong_bay", "label": "Rồng bay", "aliases": ["rồng bay", "rồng"], "numbers": ["10", "50", "90"] },
-    { "key": "cho", "label": "Chó", "aliases": ["chó", "con chó", "cún"], "numbers": ["11", "51", "91"] },
-    { "key": "ngua", "label": "Ngựa", "aliases": ["ngựa", "con ngựa"], "numbers": ["12", "52", "92"] },
-    { "key": "voi", "label": "Voi", "aliases": ["voi", "con voi"], "numbers": ["13", "53", "93"] },
-    { "key": "meo_nha", "label": "Mèo nhà", "aliases": ["mèo", "con mèo", "mèo nhà"], "numbers": ["14", "54", "94"] },
-    { "key": "chuot", "label": "Chuột", "aliases": ["chuột", "con chuột"], "numbers": ["15", "55", "95"] },
-    { "key": "ong", "label": "Ong", "aliases": ["ong", "con ong", "tổ ong"], "numbers": ["16", "56", "96"] },
-    { "key": "hac", "label": "Hạc", "aliases": ["hạc", "con hạc", "cò", "con cò"], "numbers": ["17", "57", "97"] },
-    { "key": "meo_rung", "label": "Mèo rừng", "aliases": ["mèo rừng", "mèo hoang", "báo"], "numbers": ["18", "58", "98"] },
-    { "key": "buom", "label": "Bướm", "aliases": ["bướm", "con bướm"], "numbers": ["19", "59", "99"] },
-    { "key": "ret", "label": "Rết", "aliases": ["rết", "con rết"], "numbers": ["20", "60"] },
-    { "key": "co_gai", "label": "Cô gái", "aliases": ["cô gái", "thiếu nữ", "người con gái"], "numbers": ["21", "61"] },
-    { "key": "bo_cau", "label": "Bồ câu", "aliases": ["bồ câu", "chim bồ câu", "chim"], "numbers": ["22", "62"] },
-    { "key": "khi", "label": "Khỉ", "aliases": ["khỉ", "con khỉ"], "numbers": ["23", "63"] },
-    { "key": "ech", "label": "Ếch", "aliases": ["ếch", "con ếch", "nhái", "cóc"], "numbers": ["24", "64"] },
-    { "key": "o", "label": "Ó", "aliases": ["chim ó", "đại bàng", "diều hâu"], "numbers": ["25", "65"] },
-    { "key": "rong_nam", "label": "Rồng nằm", "aliases": ["rồng nằm"], "numbers": ["26", "66"] },
-    { "key": "rua", "label": "Rùa", "aliases": ["rùa", "con rùa"], "numbers": ["27", "67"] },
-    { "key": "ga", "label": "Gà", "aliases": ["gà", "con gà"], "numbers": ["28", "68"] },
-    { "key": "luon", "label": "Lươn", "aliases": ["lươn", "con lươn"], "numbers": ["29", "69"] },
-    { "key": "ca_do", "label": "Cá đỏ", "aliases": ["cá đỏ", "cá vàng"], "numbers": ["30", "70"] },
-    { "key": "tom", "label": "Tôm", "aliases": ["tôm", "con tôm"], "numbers": ["31", "71"] },
-    { "key": "ran", "label": "Rắn", "aliases": ["rắn", "con rắn", "trăn", "rắn hổ mang"], "numbers": ["32", "72"] },
-    { "key": "nhen", "label": "Nhện", "aliases": ["nhện", "con nhện", "mạng nhện"], "numbers": ["33", "73"] },
-    { "key": "nai", "label": "Nai", "aliases": ["nai", "con nai", "hươu"], "numbers": ["34", "74"] },
-    { "key": "de", "label": "Dê", "aliases": ["dê", "con dê", "cừu"], "numbers": ["35", "75"] },
-    { "key": "ba_vai", "label": "Bà vãi", "aliases": ["bà vãi", "ni cô", "sư cô"], "numbers": ["36", "76"] },
-    { "key": "ong_troi", "label": "Ông Trời", "aliases": ["ông trời", "ngọc hoàng"], "numbers": ["37", "77"] },
-    { "key": "ong_dia", "label": "Ông Địa", "aliases": ["ông địa", "thổ địa"], "numbers": ["38", "78"] },
-    { "key": "than_tai", "label": "Thần Tài", "aliases": ["thần tài"], "numbers": ["39", "79"] },
-    { "key": "ong_tao", "label": "Ông Táo", "aliases": ["ông táo", "táo quân", "bếp"], "numbers": ["40", "80", "00"] }
+    {
+      "key": "ca_trang",
+      "label": "Cá trắng",
+      "aliases": [
+        "cá trắng",
+        "con cá trắng",
+        "cá màu trắng"
+      ],
+      "numbers": [
+        "01",
+        "41",
+        "81"
+      ]
+    },
+    {
+      "key": "oc",
+      "label": "Ốc",
+      "aliases": [
+        "ốc",
+        "con ốc",
+        "ốc sên"
+      ],
+      "numbers": [
+        "02",
+        "42",
+        "82"
+      ]
+    },
+    {
+      "key": "vit",
+      "label": "Vịt",
+      "aliases": [
+        "vịt",
+        "con vịt",
+        "vịt trời",
+        "đàn vịt"
+      ],
+      "numbers": [
+        "03",
+        "43",
+        "83"
+      ]
+    },
+    {
+      "key": "cong",
+      "label": "Công",
+      "aliases": [
+        "công",
+        "con công",
+        "chim công"
+      ],
+      "numbers": [
+        "04",
+        "44",
+        "84"
+      ]
+    },
+    {
+      "key": "trung",
+      "label": "Trùng",
+      "aliases": [
+        "trùng",
+        "con trùng",
+        "trùn",
+        "con trùn",
+        "giun",
+        "con giun",
+        "giun đất"
+      ],
+      "numbers": [
+        "05",
+        "45",
+        "85"
+      ]
+    },
+    {
+      "key": "cop",
+      "label": "Cọp",
+      "aliases": [
+        "cọp",
+        "con cọp",
+        "hổ",
+        "con hổ"
+      ],
+      "numbers": [
+        "06",
+        "46",
+        "86"
+      ]
+    },
+    {
+      "key": "heo",
+      "label": "Heo",
+      "aliases": [
+        "heo",
+        "con heo",
+        "lợn",
+        "con lợn",
+        "heo nhà",
+        "lợn nhà"
+      ],
+      "numbers": [
+        "07",
+        "47",
+        "87"
+      ]
+    },
+    {
+      "key": "tho",
+      "label": "Thỏ",
+      "aliases": [
+        "thỏ",
+        "con thỏ",
+        "thỏ con"
+      ],
+      "numbers": [
+        "08",
+        "48",
+        "88"
+      ]
+    },
+    {
+      "key": "trau",
+      "label": "Trâu",
+      "aliases": [
+        "trâu",
+        "con trâu",
+        "trâu nhà",
+        "trâu rừng"
+      ],
+      "numbers": [
+        "09",
+        "49",
+        "89"
+      ]
+    },
+    {
+      "key": "rong_nam",
+      "label": "Rồng nằm",
+      "aliases": [
+        "rồng nằm",
+        "rồng đang nằm",
+        "con rồng nằm"
+      ],
+      "numbers": [
+        "10",
+        "50",
+        "90"
+      ]
+    },
+    {
+      "key": "cho",
+      "label": "Chó",
+      "aliases": [
+        "chó",
+        "con chó",
+        "cún",
+        "chó con",
+        "cún con"
+      ],
+      "numbers": [
+        "11",
+        "51",
+        "91"
+      ]
+    },
+    {
+      "key": "ngua",
+      "label": "Ngựa",
+      "aliases": [
+        "ngựa",
+        "con ngựa",
+        "ngựa con",
+        "đàn ngựa"
+      ],
+      "numbers": [
+        "12",
+        "52",
+        "92"
+      ]
+    },
+    {
+      "key": "voi",
+      "label": "Voi",
+      "aliases": [
+        "voi",
+        "con voi",
+        "voi con",
+        "đàn voi"
+      ],
+      "numbers": [
+        "13",
+        "53",
+        "93"
+      ]
+    },
+    {
+      "key": "meo_nha",
+      "label": "Mèo nhà",
+      "aliases": [
+        "mèo",
+        "con mèo",
+        "mèo nhà",
+        "mèo nuôi",
+        "mèo con"
+      ],
+      "numbers": [
+        "14",
+        "54",
+        "94"
+      ]
+    },
+    {
+      "key": "chuot",
+      "label": "Chuột",
+      "aliases": [
+        "chuột",
+        "con chuột",
+        "chuột nhà",
+        "chuột con",
+        "đàn chuột"
+      ],
+      "numbers": [
+        "15",
+        "55",
+        "95"
+      ]
+    },
+    {
+      "key": "ong",
+      "label": "Ong",
+      "aliases": [
+        "ong",
+        "con ong",
+        "đàn ong",
+        "tổ ong",
+        "ong mật",
+        "ong vàng"
+      ],
+      "numbers": [
+        "16",
+        "56",
+        "96"
+      ]
+    },
+    {
+      "key": "hac",
+      "label": "Hạc",
+      "aliases": [
+        "hạc",
+        "con hạc",
+        "chim hạc"
+      ],
+      "numbers": [
+        "17",
+        "57",
+        "97"
+      ]
+    },
+    {
+      "key": "meo_rung",
+      "label": "Mèo rừng",
+      "aliases": [
+        "mèo rừng",
+        "con mèo rừng",
+        "mèo hoang",
+        "mèo núi"
+      ],
+      "numbers": [
+        "18",
+        "58",
+        "98"
+      ]
+    },
+    {
+      "key": "buom",
+      "label": "Bướm",
+      "aliases": [
+        "bướm",
+        "con bướm",
+        "bươm bướm",
+        "bướm bay",
+        "đàn bướm"
+      ],
+      "numbers": [
+        "19",
+        "59",
+        "99"
+      ]
+    },
+    {
+      "key": "ret",
+      "label": "Rết",
+      "aliases": [
+        "rết",
+        "con rết",
+        "rết lớn",
+        "rết đỏ"
+      ],
+      "numbers": [
+        "19",
+        "60"
+      ]
+    },
+    {
+      "key": "co_gai",
+      "label": "Cô gái",
+      "aliases": [
+        "cô gái",
+        "người con gái",
+        "thiếu nữ",
+        "cô nàng"
+      ],
+      "numbers": [
+        "21",
+        "61"
+      ]
+    },
+    {
+      "key": "bo_cau",
+      "label": "Bồ câu",
+      "aliases": [
+        "bồ câu",
+        "chim bồ câu",
+        "con bồ câu",
+        "đàn bồ câu"
+      ],
+      "numbers": [
+        "22",
+        "62"
+      ]
+    },
+    {
+      "key": "khi",
+      "label": "Khỉ",
+      "aliases": [
+        "khỉ",
+        "con khỉ",
+        "khỉ con",
+        "đàn khỉ"
+      ],
+      "numbers": [
+        "23",
+        "63"
+      ]
+    },
+    {
+      "key": "ech",
+      "label": "Ếch",
+      "aliases": [
+        "ếch",
+        "con ếch",
+        "ếch con",
+        "đàn ếch"
+      ],
+      "numbers": [
+        "24",
+        "64"
+      ]
+    },
+    {
+      "key": "o",
+      "label": "Ó",
+      "aliases": [
+        "ó",
+        "chim ó",
+        "con ó"
+      ],
+      "numbers": [
+        "25",
+        "65"
+      ]
+    },
+    {
+      "key": "rong_bay",
+      "label": "Rồng bay",
+      "aliases": [
+        "rồng bay",
+        "con rồng bay",
+        "rồng đang bay",
+        "rồng bay trên trời"
+      ],
+      "numbers": [
+        "26",
+        "66"
+      ]
+    },
+    {
+      "key": "rua",
+      "label": "Rùa",
+      "aliases": [
+        "rùa",
+        "con rùa",
+        "rùa con",
+        "đàn rùa"
+      ],
+      "numbers": [
+        "27",
+        "67"
+      ]
+    },
+    {
+      "key": "ga",
+      "label": "Gà",
+      "aliases": [
+        "gà",
+        "con gà",
+        "gà trống",
+        "gà mái",
+        "gà con",
+        "đàn gà"
+      ],
+      "numbers": [
+        "28",
+        "68"
+      ]
+    },
+    {
+      "key": "luon",
+      "label": "Lươn",
+      "aliases": [
+        "lươn",
+        "con lươn",
+        "lươn đồng"
+      ],
+      "numbers": [
+        "29",
+        "69"
+      ]
+    },
+    {
+      "key": "ca_den",
+      "label": "Cá đen",
+      "aliases": [
+        "cá đen",
+        "con cá đen",
+        "cá màu đen"
+      ],
+      "numbers": [
+        "30",
+        "70"
+      ]
+    },
+    {
+      "key": "tom",
+      "label": "Tôm",
+      "aliases": [
+        "tôm",
+        "con tôm",
+        "tôm con",
+        "đàn tôm"
+      ],
+      "numbers": [
+        "31",
+        "71"
+      ]
+    },
+    {
+      "key": "ran",
+      "label": "Rắn",
+      "aliases": [
+        "rắn",
+        "con rắn",
+        "rắn con",
+        "trăn",
+        "con trăn",
+        "rắn hổ mang",
+        "con rắn hổ mang"
+      ],
+      "numbers": [
+        "32",
+        "72"
+      ]
+    },
+    {
+      "key": "nhen",
+      "label": "Nhện",
+      "aliases": [
+        "nhện",
+        "con nhện",
+        "nhện con",
+        "mạng nhện",
+        "tơ nhện"
+      ],
+      "numbers": [
+        "33",
+        "73"
+      ]
+    },
+    {
+      "key": "nai",
+      "label": "Nai",
+      "aliases": [
+        "nai",
+        "con nai",
+        "nai con",
+        "đàn nai"
+      ],
+      "numbers": [
+        "34",
+        "74"
+      ]
+    },
+    {
+      "key": "de",
+      "label": "Dê",
+      "aliases": [
+        "dê",
+        "con dê",
+        "dê con",
+        "đàn dê"
+      ],
+      "numbers": [
+        "35",
+        "75"
+      ]
+    },
+    {
+      "key": "ba_vai",
+      "label": "Bà Vãi",
+      "aliases": [
+        "bà vãi",
+        "bà vải",
+        "ni cô",
+        "sư cô"
+      ],
+      "numbers": [
+        "36",
+        "76"
+      ]
+    },
+    {
+      "key": "ong_troi",
+      "label": "Ông Trời",
+      "aliases": [
+        "ông trời",
+        "ngọc hoàng",
+        "ngọc hoàng thượng đế"
+      ],
+      "numbers": [
+        "37",
+        "77"
+      ]
+    },
+    {
+      "key": "ong_dia",
+      "label": "Ông Địa",
+      "aliases": [
+        "ông địa",
+        "thổ địa",
+        "thổ công",
+        "ông thổ địa"
+      ],
+      "numbers": [
+        "38",
+        "78"
+      ]
+    },
+    {
+      "key": "than_tai",
+      "label": "Thần Tài",
+      "aliases": [
+        "thần tài",
+        "ông thần tài",
+        "vị thần tài",
+        "tượng thần tài",
+        "ông tài"
+      ],
+      "numbers": [
+        "39",
+        "79"
+      ]
+    },
+    {
+      "key": "ong_tao",
+      "label": "Ông Táo",
+      "aliases": [
+        "ông táo",
+        "táo quân",
+        "vua bếp",
+        "thần bếp",
+        "ông công ông táo"
+      ],
+      "numbers": [
+        "40",
+        "80"
+      ]
+    }
+  ],
+  "extended_entries": [
+    {
+      "key": "ba_ba",
+      "label": "Ba ba",
+      "aliases": [
+        "ba ba",
+        "con ba ba"
+      ],
+      "numbers": [
+        "76"
+      ],
+      "source_type": "alternative"
+    },
+    {
+      "key": "bo",
+      "label": "Bò",
+      "aliases": [
+        "bò",
+        "con bò",
+        "bò nhà",
+        "bò đực",
+        "bò cái"
+      ],
+      "numbers": [
+        "41",
+        "91"
+      ],
+      "source_type": "alternative"
+    },
+    {
+      "key": "cao",
+      "label": "Cáo",
+      "aliases": [
+        "cáo",
+        "con cáo",
+        "cáo đỏ",
+        "cáo rừng"
+      ],
+      "numbers": [
+        "28",
+        "48"
+      ],
+      "source_type": "alternative"
+    },
+    {
+      "key": "ca_chep",
+      "label": "Cá chép",
+      "aliases": [
+        "cá chép",
+        "con cá chép"
+      ],
+      "numbers": [
+        "58"
+      ],
+      "source_type": "alternative"
+    },
+    {
+      "key": "ca_loc",
+      "label": "Cá lóc",
+      "aliases": [
+        "cá lóc",
+        "con cá lóc",
+        "cá quả"
+      ],
+      "numbers": [
+        "68"
+      ],
+      "source_type": "alternative"
+    },
+    {
+      "key": "ca_sau",
+      "label": "Cá sấu",
+      "aliases": [
+        "cá sấu",
+        "con cá sấu"
+      ],
+      "numbers": [
+        "89"
+      ],
+      "source_type": "alternative"
+    },
+    {
+      "key": "ca_tre",
+      "label": "Cá trê",
+      "aliases": [
+        "cá trê",
+        "con cá trê"
+      ],
+      "numbers": [
+        "48"
+      ],
+      "source_type": "alternative"
+    },
+    {
+      "key": "ca_trach",
+      "label": "Cá trạch",
+      "aliases": [
+        "cá trạch",
+        "con cá trạch"
+      ],
+      "numbers": [
+        "85"
+      ],
+      "source_type": "alternative"
+    },
+    {
+      "key": "ca_tram",
+      "label": "Cá trắm",
+      "aliases": [
+        "cá trắm",
+        "con cá trắm"
+      ],
+      "numbers": [
+        "01",
+        "41",
+        "81",
+        "43"
+      ],
+      "source_type": "alternative"
+    },
+    {
+      "key": "ca_vang",
+      "label": "Cá vàng",
+      "aliases": [
+        "cá vàng",
+        "con cá vàng"
+      ],
+      "numbers": [
+        "20",
+        "29"
+      ],
+      "source_type": "alternative"
+    },
+    {
+      "key": "cua",
+      "label": "Cua",
+      "aliases": [
+        "cua",
+        "con cua",
+        "cua đồng",
+        "cua biển",
+        "cua bể"
+      ],
+      "numbers": [
+        "67",
+        "89"
+      ],
+      "source_type": "alternative"
+    },
+    {
+      "key": "de_con",
+      "label": "Dế",
+      "aliases": [
+        "dế",
+        "con dế",
+        "dế mèn"
+      ],
+      "numbers": [
+        "27",
+        "72"
+      ],
+      "source_type": "alternative"
+    },
+    {
+      "key": "dia",
+      "label": "Đỉa",
+      "aliases": [
+        "đỉa",
+        "con đỉa"
+      ],
+      "numbers": [
+        "43"
+      ],
+      "source_type": "alternative"
+    },
+    {
+      "key": "gian",
+      "label": "Gián",
+      "aliases": [
+        "gián",
+        "con gián",
+        "gián nhà"
+      ],
+      "numbers": [
+        "01",
+        "49"
+      ],
+      "source_type": "alternative"
+    },
+    {
+      "key": "ha_ma",
+      "label": "Hà mã",
+      "aliases": [
+        "hà mã",
+        "con hà mã"
+      ],
+      "numbers": [
+        "56"
+      ],
+      "source_type": "alternative"
+    },
+    {
+      "key": "muoi",
+      "label": "Muỗi",
+      "aliases": [
+        "muỗi",
+        "con muỗi"
+      ],
+      "numbers": [
+        "46"
+      ],
+      "source_type": "alternative"
+    },
+    {
+      "key": "qua",
+      "label": "Quạ",
+      "aliases": [
+        "quạ",
+        "con quạ",
+        "chim quạ"
+      ],
+      "numbers": [
+        "25",
+        "62",
+        "65"
+      ],
+      "source_type": "alternative"
+    },
+    {
+      "key": "ruoi",
+      "label": "Ruồi",
+      "aliases": [
+        "ruồi",
+        "con ruồi"
+      ],
+      "numbers": [
+        "35"
+      ],
+      "source_type": "alternative"
+    },
+    {
+      "key": "soc",
+      "label": "Sóc",
+      "aliases": [
+        "sóc",
+        "con sóc"
+      ],
+      "numbers": [
+        "24",
+        "64"
+      ],
+      "source_type": "alternative"
+    },
+    {
+      "key": "su_tu",
+      "label": "Sư tử",
+      "aliases": [
+        "sư tử",
+        "con sư tử"
+      ],
+      "numbers": [
+        "25",
+        "45"
+      ],
+      "source_type": "alternative"
+    },
+    {
+      "key": "phuong_hoang",
+      "label": "Phượng hoàng",
+      "aliases": [
+        "phượng hoàng",
+        "chim phượng hoàng"
+      ],
+      "numbers": [
+        "13",
+        "78",
+        "98"
+      ],
+      "source_type": "alternative"
+    },
+    {
+      "key": "ki_lan",
+      "label": "Kỳ lân",
+      "aliases": [
+        "kỳ lân",
+        "con kỳ lân"
+      ],
+      "numbers": [
+        "65",
+        "78"
+      ],
+      "source_type": "alternative"
+    },
+    {
+      "key": "tien",
+      "label": "Tiền",
+      "aliases": [
+        "tiền",
+        "tiền bạc",
+        "tiền mặt",
+        "tiền giấy",
+        "tiền xu"
+      ],
+      "numbers": [
+        "52"
+      ],
+      "source_type": "alternative"
+    },
+    {
+      "key": "vang",
+      "label": "Vàng",
+      "aliases": [
+        "vàng",
+        "vàng bạc",
+        "vàng miếng",
+        "vàng thỏi"
+      ],
+      "numbers": [
+        "52"
+      ],
+      "source_type": "alternative"
+    },
+    {
+      "key": "nhan_vang",
+      "label": "Nhẫn vàng",
+      "aliases": [
+        "nhẫn vàng",
+        "chiếc nhẫn vàng",
+        "đeo nhẫn vàng"
+      ],
+      "numbers": [
+        "00",
+        "01",
+        "10"
+      ],
+      "source_type": "alternative"
+    },
+    {
+      "key": "day_chuyen_vang",
+      "label": "Dây chuyền vàng",
+      "aliases": [
+        "dây chuyền vàng",
+        "dây chuyền",
+        "vòng cổ vàng"
+      ],
+      "numbers": [
+        "08",
+        "80"
+      ],
+      "source_type": "alternative"
+    },
+    {
+      "key": "vi_tien",
+      "label": "Ví tiền",
+      "aliases": [
+        "ví",
+        "ví tiền",
+        "bóp tiền",
+        "bóp"
+      ],
+      "numbers": [
+        "67"
+      ],
+      "source_type": "alternative"
+    },
+    {
+      "key": "dam_cuoi",
+      "label": "Đám cưới",
+      "aliases": [
+        "đám cưới",
+        "đám hỏi",
+        "lễ cưới",
+        "đi đám cưới",
+        "dự đám cưới"
+      ],
+      "numbers": [
+        "07",
+        "09",
+        "75"
+      ],
+      "source_type": "alternative"
+    },
+    {
+      "key": "dam_ma",
+      "label": "Đám ma",
+      "aliases": [
+        "đám ma",
+        "đám tang",
+        "tang lễ",
+        "đi đám tang",
+        "đám hiếu"
+      ],
+      "numbers": [
+        "34",
+        "35"
+      ],
+      "source_type": "alternative"
+    },
+    {
+      "key": "nguoi_chet",
+      "label": "Người chết",
+      "aliases": [
+        "người chết",
+        "người đã chết",
+        "người qua đời",
+        "xác người",
+        "người mất"
+      ],
+      "numbers": [
+        "06",
+        "26"
+      ],
+      "source_type": "alternative"
+    },
+    {
+      "key": "nguoi_chet_song_lai",
+      "label": "Người chết sống lại",
+      "aliases": [
+        "người chết sống lại",
+        "người đã chết sống lại",
+        "người chết hồi sinh",
+        "người chết trở về"
+      ],
+      "numbers": [
+        "62",
+        "74"
+      ],
+      "source_type": "alternative"
+    },
+    {
+      "key": "ong_gia",
+      "label": "Ông già",
+      "aliases": [
+        "ông già",
+        "ông cụ",
+        "cụ già",
+        "người đàn ông lớn tuổi"
+      ],
+      "numbers": [
+        "36",
+        "56",
+        "76"
+      ],
+      "source_type": "alternative"
+    },
+    {
+      "key": "ba_gia",
+      "label": "Bà già",
+      "aliases": [
+        "bà già",
+        "bà cụ",
+        "cụ bà",
+        "người phụ nữ lớn tuổi"
+      ],
+      "numbers": [
+        "54",
+        "59"
+      ],
+      "source_type": "alternative"
+    },
+    {
+      "key": "phap_su",
+      "label": "Pháp sư",
+      "aliases": [
+        "pháp sư",
+        "thầy pháp"
+      ],
+      "numbers": [
+        "09",
+        "29",
+        "35",
+        "96"
+      ],
+      "source_type": "alternative"
+    },
+    {
+      "key": "phat",
+      "label": "Phật",
+      "aliases": [
+        "Phật",
+        "Đức Phật",
+        "Phật tổ",
+        "tượng Phật"
+      ],
+      "numbers": [
+        "57",
+        "75"
+      ],
+      "source_type": "alternative"
+    },
+    {
+      "key": "ong_su",
+      "label": "Ông sư",
+      "aliases": [
+        "ông sư",
+        "nhà sư",
+        "thầy tu",
+        "tu sĩ"
+      ],
+      "numbers": [
+        "16",
+        "36",
+        "61"
+      ],
+      "source_type": "alternative"
+    },
+    {
+      "key": "nha",
+      "label": "Nhà",
+      "aliases": [
+        "nhà",
+        "ngôi nhà",
+        "căn nhà",
+        "nhà ở"
+      ],
+      "numbers": [
+        "27",
+        "41",
+        "77",
+        "91"
+      ],
+      "source_type": "alternative"
+    },
+    {
+      "key": "nha_dep",
+      "label": "Nhà đẹp",
+      "aliases": [
+        "nhà đẹp",
+        "ngôi nhà đẹp",
+        "căn nhà đẹp"
+      ],
+      "numbers": [
+        "16",
+        "66"
+      ],
+      "source_type": "alternative"
+    },
+    {
+      "key": "nha_to",
+      "label": "Nhà to",
+      "aliases": [
+        "nhà to",
+        "nhà lớn",
+        "biệt thự lớn"
+      ],
+      "numbers": [
+        "51",
+        "89"
+      ],
+      "source_type": "alternative"
+    },
+    {
+      "key": "nha_toi",
+      "label": "Nhà tối",
+      "aliases": [
+        "nhà tối",
+        "căn nhà tối",
+        "nhà tối tăm"
+      ],
+      "numbers": [
+        "25",
+        "65"
+      ],
+      "source_type": "alternative"
+    },
+    {
+      "key": "nha_ve_sinh",
+      "label": "Nhà vệ sinh",
+      "aliases": [
+        "nhà vệ sinh",
+        "toilet",
+        "wc",
+        "phòng vệ sinh",
+        "nhà tắm"
+      ],
+      "numbers": [
+        "34",
+        "71"
+      ],
+      "source_type": "alternative"
+    },
+    {
+      "key": "ban_tho",
+      "label": "Bàn thờ",
+      "aliases": [
+        "bàn thờ",
+        "bàn thờ gia tiên",
+        "bàn thờ Phật"
+      ],
+      "numbers": [
+        "15",
+        "43",
+        "46",
+        "95"
+      ],
+      "source_type": "alternative"
+    },
+    {
+      "key": "ban_tho_do",
+      "label": "Bàn thờ bị đổ",
+      "aliases": [
+        "bàn thờ bị đổ",
+        "bàn thờ đổ",
+        "bàn thờ bị ngã"
+      ],
+      "numbers": [
+        "05",
+        "55"
+      ],
+      "source_type": "alternative"
+    },
+    {
+      "key": "ban_tho_nhang",
+      "label": "Bàn thờ nghi ngút",
+      "aliases": [
+        "bàn thờ nghi ngút",
+        "khói nhang nghi ngút",
+        "bàn thờ nhiều khói"
+      ],
+      "numbers": [
+        "89",
+        "98"
+      ],
+      "source_type": "alternative"
+    },
+    {
+      "key": "quan_tai",
+      "label": "Quan tài",
+      "aliases": [
+        "quan tài",
+        "áo quan",
+        "hòm",
+        "quan tài người chết"
+      ],
+      "numbers": [
+        "06",
+        "26",
+        "56"
+      ],
+      "source_type": "alternative"
+    },
+    {
+      "key": "lua",
+      "label": "Lửa",
+      "aliases": [
+        "lửa",
+        "ngọn lửa",
+        "lửa cháy",
+        "cháy"
+      ],
+      "numbers": [
+        "07",
+        "27",
+        "67",
+        "87"
+      ],
+      "source_type": "alternative"
+    },
+    {
+      "key": "chay_nha",
+      "label": "Cháy nhà",
+      "aliases": [
+        "cháy nhà",
+        "nhà cháy",
+        "ngôi nhà bị cháy"
+      ],
+      "numbers": [
+        "05",
+        "43",
+        "67"
+      ],
+      "source_type": "alternative"
+    },
+    {
+      "key": "nuoc",
+      "label": "Nước",
+      "aliases": [
+        "nước",
+        "nước sạch",
+        "nước uống",
+        "nước trong"
+      ],
+      "numbers": [
+        "35",
+        "45",
+        "65"
+      ],
+      "source_type": "alternative"
+    },
+    {
+      "key": "nuoc_dang",
+      "label": "Nước dâng",
+      "aliases": [
+        "nước dâng",
+        "nước dâng cao",
+        "nước tràn",
+        "nước ngập"
+      ],
+      "numbers": [
+        "06",
+        "56",
+        "66"
+      ],
+      "source_type": "alternative"
+    },
+    {
+      "key": "nuoc_lut",
+      "label": "Nước lụt",
+      "aliases": [
+        "nước lụt",
+        "lụt",
+        "lũ",
+        "ngập lụt",
+        "lũ lụt"
+      ],
+      "numbers": [
+        "67",
+        "68"
+      ],
+      "source_type": "alternative"
+    },
+    {
+      "key": "cau_vong",
+      "label": "Cầu vồng",
+      "aliases": [
+        "cầu vồng",
+        "cầu vồng sau mưa"
+      ],
+      "numbers": [
+        "04",
+        "40",
+        "45"
+      ],
+      "source_type": "alternative"
+    },
+    {
+      "key": "mat_trang",
+      "label": "Mặt trăng",
+      "aliases": [
+        "mặt trăng",
+        "trăng",
+        "ánh trăng",
+        "trăng sáng"
+      ],
+      "numbers": [
+        "18",
+        "81"
+      ],
+      "source_type": "alternative"
+    },
+    {
+      "key": "anh_chop",
+      "label": "Ánh chớp",
+      "aliases": [
+        "ánh chớp",
+        "tia chớp",
+        "sét",
+        "tia sét"
+      ],
+      "numbers": [
+        "53"
+      ],
+      "source_type": "alternative"
+    },
+    {
+      "key": "cay_chuoi",
+      "label": "Cây chuối",
+      "aliases": [
+        "cây chuối",
+        "cây chuối xanh",
+        "buồng chuối"
+      ],
+      "numbers": [
+        "34",
+        "84"
+      ],
+      "source_type": "alternative"
+    },
+    {
+      "key": "cay_khe",
+      "label": "Cây khế",
+      "aliases": [
+        "cây khế",
+        "cây khế ra quả"
+      ],
+      "numbers": [
+        "07",
+        "70"
+      ],
+      "source_type": "alternative"
+    },
+    {
+      "key": "cay_co_thu",
+      "label": "Cây cổ thụ",
+      "aliases": [
+        "cây cổ thụ",
+        "cây rất lớn",
+        "cây lâu năm"
+      ],
+      "numbers": [
+        "50",
+        "54"
+      ],
+      "source_type": "alternative"
+    },
+    {
+      "key": "cay_no_hoa",
+      "label": "Cây nở hoa",
+      "aliases": [
+        "cây nở hoa",
+        "cây ra hoa",
+        "cây đầy hoa"
+      ],
+      "numbers": [
+        "16",
+        "43",
+        "61"
+      ],
+      "source_type": "alternative"
+    },
+    {
+      "key": "cay_sai_qua",
+      "label": "Cây sai quả",
+      "aliases": [
+        "cây sai quả",
+        "cây nhiều quả",
+        "cây đầy quả"
+      ],
+      "numbers": [
+        "36",
+        "49",
+        "73"
+      ],
+      "source_type": "alternative"
+    },
+    {
+      "key": "qua_chuoi",
+      "label": "Quả chuối",
+      "aliases": [
+        "quả chuối",
+        "trái chuối",
+        "nải chuối"
+      ],
+      "numbers": [
+        "34",
+        "43"
+      ],
+      "source_type": "alternative"
+    },
+    {
+      "key": "qua_buoi",
+      "label": "Quả bưởi",
+      "aliases": [
+        "quả bưởi",
+        "trái bưởi",
+        "bưởi"
+      ],
+      "numbers": [
+        "01",
+        "09",
+        "70"
+      ],
+      "source_type": "alternative"
+    },
+    {
+      "key": "qua_cam",
+      "label": "Quả cam",
+      "aliases": [
+        "quả cam",
+        "trái cam",
+        "cam"
+      ],
+      "numbers": [
+        "05",
+        "25",
+        "55"
+      ],
+      "source_type": "alternative"
+    },
+    {
+      "key": "qua_dua",
+      "label": "Quả dừa",
+      "aliases": [
+        "quả dừa",
+        "trái dừa",
+        "dừa"
+      ],
+      "numbers": [
+        "09",
+        "50",
+        "70"
+      ],
+      "source_type": "alternative"
+    },
+    {
+      "key": "qua_du_du",
+      "label": "Quả đu đủ",
+      "aliases": [
+        "đu đủ",
+        "quả đu đủ",
+        "trái đu đủ"
+      ],
+      "numbers": [
+        "58",
+        "89"
+      ],
+      "source_type": "alternative"
+    },
+    {
+      "key": "qua_na",
+      "label": "Quả na",
+      "aliases": [
+        "quả na",
+        "trái na",
+        "na"
+      ],
+      "numbers": [
+        "13",
+        "14"
+      ],
+      "source_type": "alternative"
+    },
+    {
+      "key": "an_com",
+      "label": "Ăn cơm",
+      "aliases": [
+        "ăn cơm",
+        "ngồi ăn cơm",
+        "ăn bữa cơm"
+      ],
+      "numbers": [
+        "74",
+        "85"
+      ],
+      "source_type": "alternative"
+    },
+    {
+      "key": "an_ca",
+      "label": "Ăn cá",
+      "aliases": [
+        "ăn cá",
+        "ăn cá sống",
+        "ăn cá nướng",
+        "ăn cá to"
+      ],
+      "numbers": [
+        "05",
+        "60"
+      ],
+      "source_type": "alternative"
+    },
+    {
+      "key": "an_tom",
+      "label": "Ăn tôm",
+      "aliases": [
+        "ăn tôm",
+        "ăn con tôm"
+      ],
+      "numbers": [
+        "83",
+        "89"
+      ],
+      "source_type": "alternative"
+    },
+    {
+      "key": "an_chuoi",
+      "label": "Ăn chuối",
+      "aliases": [
+        "ăn chuối",
+        "ăn quả chuối"
+      ],
+      "numbers": [
+        "34",
+        "64"
+      ],
+      "source_type": "alternative"
+    },
+    {
+      "key": "an_hoa_qua",
+      "label": "Ăn hoa quả",
+      "aliases": [
+        "ăn hoa quả",
+        "ăn trái cây",
+        "ăn hoa trái",
+        "ăn trái cây nhiều"
+      ],
+      "numbers": [
+        "68",
+        "84"
+      ],
+      "source_type": "alternative"
+    },
+    {
+      "key": "cau_ca",
+      "label": "Câu cá",
+      "aliases": [
+        "câu cá",
+        "đi câu",
+        "đi câu cá",
+        "câu cá dưới ao"
+      ],
+      "numbers": [
+        "24",
+        "64",
+        "74"
+      ],
+      "source_type": "alternative"
+    },
+    {
+      "key": "cau_duoc_ca",
+      "label": "Câu được cá",
+      "aliases": [
+        "câu được cá",
+        "câu được một con cá",
+        "câu cá được cá"
+      ],
+      "numbers": [
+        "33",
+        "83"
+      ],
+      "source_type": "alternative"
+    },
+    {
+      "key": "danh_nhau",
+      "label": "Đánh nhau",
+      "aliases": [
+        "đánh nhau",
+        "đánh lộn",
+        "ẩu đả",
+        "xô xát",
+        "đánh nhau với người khác"
+      ],
+      "numbers": [
+        "03",
+        "07",
+        "59"
+      ],
+      "source_type": "alternative"
+    },
+    {
+      "key": "chay_mau",
+      "label": "Chảy máu",
+      "aliases": [
+        "chảy máu",
+        "bị chảy máu",
+        "máu chảy",
+        "thấy máu"
+      ],
+      "numbers": [
+        "08",
+        "19",
+        "29",
+        "69"
+      ],
+      "source_type": "alternative"
+    },
+    {
+      "key": "cat_toc",
+      "label": "Cắt tóc",
+      "aliases": [
+        "cắt tóc",
+        "đi cắt tóc",
+        "cắt tóc cho mình",
+        "cắt tóc ngắn"
+      ],
+      "numbers": [
+        "82",
+        "83",
+        "85"
+      ],
+      "source_type": "alternative"
+    },
+    {
+      "key": "danh_rang",
+      "label": "Đánh răng",
+      "aliases": [
+        "đánh răng",
+        "chải răng",
+        "đánh răng buổi sáng"
+      ],
+      "numbers": [
+        "47",
+        "67",
+        "79"
+      ],
+      "source_type": "alternative"
+    },
+    {
+      "key": "di_hoc",
+      "label": "Đi học",
+      "aliases": [
+        "đi học",
+        "đến trường",
+        "đi học lại",
+        "trở lại trường"
+      ],
+      "numbers": [
+        "17"
+      ],
+      "source_type": "alternative"
+    },
+    {
+      "key": "di_du_lich",
+      "label": "Đi du lịch",
+      "aliases": [
+        "đi du lịch",
+        "du lịch",
+        "đi chơi xa",
+        "đi tham quan"
+      ],
+      "numbers": [
+        "87"
+      ],
+      "source_type": "alternative"
+    },
+    {
+      "key": "di_tam",
+      "label": "Đi tắm",
+      "aliases": [
+        "đi tắm",
+        "tắm",
+        "tắm rửa",
+        "đang tắm"
+      ],
+      "numbers": [
+        "39",
+        "83",
+        "93"
+      ],
+      "source_type": "alternative"
+    },
+    {
+      "key": "mat_tien",
+      "label": "Mất tiền",
+      "aliases": [
+        "mất tiền",
+        "bị mất tiền",
+        "thất thoát tiền",
+        "mất tiền bạc"
+      ],
+      "numbers": [
+        "69",
+        "71"
+      ],
+      "source_type": "alternative"
+    },
+    {
+      "key": "mat_cua",
+      "label": "Mất của",
+      "aliases": [
+        "mất của",
+        "mất đồ",
+        "mất tài sản",
+        "thất lạc đồ"
+      ],
+      "numbers": [
+        "35",
+        "44",
+        "66"
+      ],
+      "source_type": "alternative"
+    },
+    {
+      "key": "mat_trom",
+      "label": "Mất trộm",
+      "aliases": [
+        "mất trộm",
+        "bị trộm",
+        "bị mất đồ",
+        "nhà bị trộm"
+      ],
+      "numbers": [
+        "01",
+        "03",
+        "43"
+      ],
+      "source_type": "alternative"
+    },
+    {
+      "key": "may_bay",
+      "label": "Máy bay",
+      "aliases": [
+        "máy bay",
+        "phi cơ",
+        "đi máy bay",
+        "máy bay trên trời"
+      ],
+      "numbers": [
+        "17",
+        "47",
+        "71",
+        "74"
+      ],
+      "source_type": "alternative"
+    },
+    {
+      "key": "thuyen",
+      "label": "Thuyền",
+      "aliases": [
+        "thuyền",
+        "con thuyền",
+        "đi thuyền",
+        "chèo thuyền"
+      ],
+      "numbers": [
+        "23",
+        "39",
+        "59",
+        "93"
+      ],
+      "source_type": "alternative"
+    },
+    {
+      "key": "ao_ho_song_ngoi",
+      "label": "Ao hồ sông ngòi",
+      "aliases": [
+        "ao",
+        "hồ",
+        "sông",
+        "ao hồ",
+        "sông ngòi",
+        "mặt hồ",
+        "dòng sông"
+      ],
+      "numbers": [
+        "38",
+        "54",
+        "93"
+      ],
+      "source_type": "alternative"
+    },
+    {
+      "key": "bien",
+      "label": "Biển",
+      "aliases": [
+        "biển",
+        "bãi biển",
+        "đi biển",
+        "nước biển"
+      ],
+      "numbers": [
+        "25",
+        "93"
+      ],
+      "source_type": "alternative"
+    },
+    {
+      "key": "nghia_trang",
+      "label": "Nghĩa trang",
+      "aliases": [
+        "nghĩa trang",
+        "nghĩa địa",
+        "khu mộ",
+        "bãi tha ma"
+      ],
+      "numbers": [
+        "78",
+        "87"
+      ],
+      "source_type": "alternative"
+    },
+    {
+      "key": "ma",
+      "label": "Ma",
+      "aliases": [
+        "ma",
+        "hồn ma",
+        "bóng ma",
+        "ma quỷ",
+        "thấy ma"
+      ],
+      "numbers": [],
+      "source_type": "context_only"
+    },
+    {
+      "key": "ma_duoi",
+      "label": "Ma đuổi",
+      "aliases": [
+        "ma đuổi",
+        "bị ma đuổi",
+        "ma rượt",
+        "hồn ma đuổi theo"
+      ],
+      "numbers": [
+        "33",
+        "34",
+        "35"
+      ],
+      "source_type": "alternative"
+    },
+    {
+      "key": "ma_hien_hinh",
+      "label": "Ma hiện hình",
+      "aliases": [
+        "ma hiện hình",
+        "ma xuất hiện",
+        "hồn ma hiện ra"
+      ],
+      "numbers": [
+        "37"
+      ],
+      "source_type": "alternative"
+    },
+    {
+      "key": "quai_vat",
+      "label": "Quái vật",
+      "aliases": [
+        "quái vật",
+        "quái thú",
+        "quái vật khổng lồ",
+        "sinh vật kỳ lạ"
+      ],
+      "numbers": [
+        "17",
+        "30",
+        "39"
+      ],
+      "source_type": "alternative"
+    },
+    {
+      "key": "trung_vit",
+      "label": "Trứng vịt",
+      "aliases": [
+        "trứng vịt",
+        "quả trứng vịt"
+      ],
+      "numbers": [
+        "00"
+      ],
+      "source_type": "alternative"
+    },
+    {
+      "key": "banh_mi",
+      "label": "Bánh mì",
+      "aliases": [
+        "bánh mì",
+        "ổ bánh mì",
+        "bánh mì đen"
+      ],
+      "numbers": [
+        "35",
+        "54"
+      ],
+      "source_type": "alternative"
+    },
+    {
+      "key": "banh_ngot",
+      "label": "Bánh ngọt",
+      "aliases": [
+        "bánh ngọt",
+        "bánh kem",
+        "bánh sinh nhật"
+      ],
+      "numbers": [
+        "02",
+        "52"
+      ],
+      "source_type": "alternative"
+    },
+    {
+      "key": "khoai_lang",
+      "label": "Khoai lang",
+      "aliases": [
+        "khoai lang",
+        "củ khoai lang",
+        "ăn khoai lang"
+      ],
+      "numbers": [
+        "51",
+        "52",
+        "95"
+      ],
+      "source_type": "alternative"
+    },
+    {
+      "key": "lua_gao",
+      "label": "Lúa gạo",
+      "aliases": [
+        "lúa",
+        "gạo",
+        "lúa gạo",
+        "ruộng lúa"
+      ],
+      "numbers": [
+        "08",
+        "80"
+      ],
+      "source_type": "alternative"
+    }
   ]
 }

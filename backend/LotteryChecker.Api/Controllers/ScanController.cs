@@ -3,12 +3,15 @@ using LotteryChecker.Api.Middleware;
 using LotteryChecker.Api.Models;
 using LotteryChecker.Api.Services;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace LotteryChecker.Api.Controllers;
 
 [ApiController]
 public class ScanController : ControllerBase
 {
+    public const string RateLimitPolicy = "scan";
+
     private readonly ImagePreprocessor _preprocessor;
     private readonly LocalOcrSwitch _localOcr;
     private readonly ITicketOcrEngine _ocr;
@@ -37,6 +40,7 @@ public class ScanController : ControllerBase
 
     /// <summary>Bước 1: gửi ảnh → trả info đã OCR (số vé, ngày, đài) kèm thời gian từng chặng.</summary>
     [HttpPost("/api/scan")]
+    [EnableRateLimiting(RateLimitPolicy)]
     [RequestSizeLimit(10_000_000)]
     public async Task<IActionResult> Scan(IFormFile image, CancellationToken ct)
     {

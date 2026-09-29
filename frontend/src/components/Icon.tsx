@@ -1,6 +1,6 @@
 import {
   Award, Bot, CalendarDays, Camera, Check, ChevronLeft, ChevronRight, CircleAlert, CircleCheck,
-  CircleX, Clock, Dices, Focus, History, Hourglass, ImageUp, Inbox, Lightbulb, ListOrdered, MapPin,
+  CircleX, Clock, Copy, Dices, Focus, History, Hourglass, ImageUp, Inbox, Lightbulb, ListOrdered, MapPin,
   Monitor, Moon, Palette, PencilLine, RotateCcw, Scan, ScanSearch, Sparkles, Sun, Ticket, TicketX, Timer,
   TriangleAlert, Trophy, X, type LucideIcon,
 } from 'lucide-react'
@@ -18,6 +18,7 @@ const ICONS = {
   monitor: Monitor,
   close: X,
   check: Check,
+  copy: Copy,
   upload: ImageUp,
   camera: Camera,
   back: ChevronLeft,

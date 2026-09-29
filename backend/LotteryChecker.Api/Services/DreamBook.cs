@@ -15,6 +15,7 @@ public class DreamBook
     private static readonly Regex TwoDigits = new(@"^\d{2}$", RegexOptions.Compiled);
 
     private readonly Dictionary<string, DreamEntry> _byKey;
+    private readonly Dictionary<string, DreamEntry> _byLabel;
     // Alias dài trước: "mèo rừng" phải thắng "mèo" khi so khớp cục bộ.
     private readonly (Regex Pattern, DreamEntry Entry)[] _aliases;
 
@@ -27,6 +28,7 @@ public class DreamBook
                 throw new InvalidOperationException($"Sổ mơ: mục '{e.Key}' có số không hợp lệ.");
         Entries = entries;
         _byKey = entries.ToDictionary(e => e.Key, StringComparer.OrdinalIgnoreCase);
+        _byLabel = entries.ToDictionary(e => e.Label, StringComparer.OrdinalIgnoreCase);   // tên trùng → lỗi ngay lúc nạp
         _aliases = entries
             .SelectMany(e => e.Aliases.Append(e.Label).Select(a => (Alias: a.ToLowerInvariant(), Entry: e)))
             .DistinctBy(x => x.Alias)
@@ -40,7 +42,12 @@ public class DreamBook
 
     public IReadOnlyList<string> Keys => Entries.Select(e => e.Key).ToArray();
 
-    public DreamEntry? Find(string? key) => key != null && _byKey.TryGetValue(key.Trim(), out var e) ? e : null;
+    public IReadOnlyList<string> Labels => Entries.Select(e => e.Label).ToArray();
+
+    /// <summary>Tìm theo khoá hoặc tên hiển thị (AI trả tên mục — xem DreamInterpreter.BuildRequest).</summary>
+    public DreamEntry? Find(string? keyOrLabel) =>
+        keyOrLabel != null && (_byKey.TryGetValue(keyOrLabel.Trim(), out var e) || _byLabel.TryGetValue(keyOrLabel.Trim(), out e))
+            ? e : null;
 
     /// <summary>
     /// So khớp chuỗi đơn giản, dùng khi Gemini tắt/lỗi. Alias dài khớp trước và "ăn" đoạn chữ đó, để
@@ -66,8 +73,14 @@ public class DreamBook
         using var stream = typeof(DreamBook).Assembly.GetManifestResourceStream("LotteryChecker.Api.Data.dream-book.json")
                            ?? throw new InvalidOperationException("Thiếu resource Data/dream-book.json.");
         var file = JsonSerializer.Deserialize<DreamBookFile>(stream, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-        return file?.Entries ?? [];
+        // Bảng 40 mục (canonical) trước, mở rộng sau: alias trùng thì mục canonical thắng. Mục không có số
+        // ("context_only", vd "ma") chỉ để AI hiểu ngữ cảnh — bỏ, vì luận số không được bịa số.
+        return (file?.Entries ?? []).Concat(file?.ExtendedEntries ?? [])
+            .Where(e => e.Numbers.Length > 0)
+            .ToList();
     }
 
-    private sealed record DreamBookFile(List<DreamEntry> Entries);
+    private sealed record DreamBookFile(
+        List<DreamEntry>? Entries,
+        [property: System.Text.Json.Serialization.JsonPropertyName("extended_entries")] List<DreamEntry>? ExtendedEntries);
 }

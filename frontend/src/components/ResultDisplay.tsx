@@ -126,6 +126,16 @@ export default function ResultDisplay({ result, onRescan, onEdit, onShowTable }:
               </li>
             ))}
           </ul>
+
+          {/* Câu đùa cho vui lúc trúng — ghi rõ "đùa thôi" để không ai tưởng thật */}
+          <div role="note" className="flex items-start gap-3 p-4 rounded-2xl border border-warn/30 bg-warn/10 text-warn">
+            <Icon name="warn" className="w-5 h-5 shrink-0 mt-0.5" />
+            <div className="text-sm">
+              <div className="font-bold">Cảnh báo!</div>
+              <div>Chúng tôi đã biết địa chỉ IP của bạn, chiết khấu cho chúng tôi 5% nhanh! 😏</div>
+              <div className="text-xs opacity-80 mt-1">(Đùa thôi 😄 Chúc mừng bạn nha!)</div>
+            </div>
+          </div>
         </>
       ) : (
         <StatusCard tone="bad" icon="ticketX" title="Tiếc quá, vé không trúng giải nào">

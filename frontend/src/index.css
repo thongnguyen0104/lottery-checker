@@ -242,7 +242,14 @@ input[type="date"]::-webkit-date-and-time-value {
   animation: confetti-fall var(--dur) cubic-bezier(.3, .6, .5, 1) var(--delay) both;
 }
 
+
+/* 3 chấm "đang nghĩ" nảy lần lượt như sóng — kiểu bong bóng chat đang gõ. */
+@keyframes typing-wave {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+  30% { transform: translateY(-5px); opacity: 1; }
+}
+.typing-dot { animation: typing-wave 1.2s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) {
   .scan-sweep, .confetti-piece { display: none; }
-  .step-pop, .fade-up, .sheet-up { animation: none; }
+  .step-pop, .fade-up, .sheet-up, .typing-dot { animation: none; }
 }

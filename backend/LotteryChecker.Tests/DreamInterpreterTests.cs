@@ -50,7 +50,7 @@ public class DreamInterpreterTests
     public void Embedded_book_loads_with_unique_keys_and_two_digit_numbers()
     {
         var book = new DreamBook();
-        book.Entries.Should().HaveCount(40);
+        book.Entries.Should().HaveCount(134);   // 40 canonical + 94 mở rộng có số ("ma" không số bị bỏ)
         book.Keys.Should().OnlyHaveUniqueItems();
         book.Find("ran")!.Numbers.Should().Equal("32", "72");
     }
@@ -61,7 +61,7 @@ public class DreamInterpreterTests
         // AI cố nhét số vào summary và trả thêm khoá lạ — số vẫn phải tra từ sổ mơ, khoá lạ bị bỏ.
         var (sut, _) = Create(GeminiBody(new { summary = "Rắn trắng, số 47", keys = new[] { "ran", "khong_co", "meo_nha" }, explanation = "..." }));
 
-        var r = await sut.InterpretAsync("Tôi mơ thấy con trăn trắng và con mèo");
+        var r = await sut.InterpretAsync("Tôi thấy một thứ dài dài trườn qua sân");
 
         r.Source.Should().Be("ai");
         r.Entries.Select(e => e.Key).Should().Equal("ran", "meo_nha");
@@ -70,26 +70,103 @@ public class DreamInterpreterTests
     }
 
     [Fact]
-    public async Task Request_sends_book_keys_but_not_numbers()
+    public async Task Request_sends_book_labels_only()
     {
         var (sut, handler) = Create(GeminiBody(new { summary = "", keys = Array.Empty<string>(), explanation = "" }));
-        await sut.InterpretAsync("mơ thấy rắn");
+        await sut.InterpretAsync("mơ thấy thứ lạ");
 
-        handler.RequestBody.Should().Contain("- ran: R").And.Contain("\"enum\"").And.NotContain("\"72\"");
+        // Sổ mơ chỉ đi qua enum tên mục — không kèm khoá, alias hay số (tiết kiệm token, AI không thấy số).
+        var body = System.Text.RegularExpressions.Regex.Unescape(handler.RequestBody!);
+        body.Should().Contain("\"Rắn\"").And.Contain("\"enum\"")
+            .And.NotContain("meo_nha").And.NotContain("rắn hổ mang").And.NotContain("\"72\"");
     }
 
     [Fact]
-    public async Task Gemini_error_falls_back_to_local_matching()
+    public async Task Local_match_is_used_first_without_calling_gemini()
     {
-        var (sut, _) = Create("{}", HttpStatusCode.TooManyRequests);
+        var (sut, handler) = Create(GeminiBody(new { summary = "", keys = new[] { "ran" }, explanation = "" }));
 
         var r = await sut.InterpretAsync("Đêm qua tôi mơ thấy mèo rừng đuổi con gà");
 
+        handler.Calls.Should().Be(0);
         r.Source.Should().Be("local");
-        r.AiError.Should().Be("http_429");
         // "mèo rừng" khớp mục dài, không ra thêm "mèo nhà".
         r.Entries.Select(e => e.Key).Should().Equal("meo_rung", "ga");
         r.MainNumber.Should().Be("18");
+    }
+
+    [Fact]
+    public async Task Gemini_error_with_no_local_match_gives_no_number()
+    {
+        var (sut, _) = Create("{}", HttpStatusCode.TooManyRequests);
+
+        var r = await sut.InterpretAsync("Tôi thấy một thứ dài dài trườn qua sân");
+
+        r.Source.Should().Be("local");
+        r.AiError.Should().Be("http_429");
+        r.MainNumber.Should().BeNull();
+    }
+
+    // Trả lời theo model trong URL: model chính lỗi / không chọn được mục → hỏi model dự phòng.
+    private sealed class PerModelHandler(Dictionary<string, (HttpStatusCode, string)> byModel) : HttpMessageHandler
+    {
+        public List<string> Models { get; } = [];
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
+        {
+            var model = byModel.Keys.First(m => request.RequestUri!.AbsolutePath.Contains($"/models/{m}:"));
+            Models.Add(model);
+            var (status, body) = byModel[model];
+            return Task.FromResult(new HttpResponseMessage(status) { Content = new StringContent(body, Encoding.UTF8, "application/json") });
+        }
+    }
+
+    [Theory]
+    [InlineData(HttpStatusCode.ServiceUnavailable)]   // model chính lỗi
+    [InlineData(HttpStatusCode.OK)]                   // model chính trả lời nhưng không chọn được mục
+    public async Task Falls_back_to_next_model_when_primary_fails_or_finds_nothing(HttpStatusCode primaryStatus)
+    {
+        var handler = new PerModelHandler(new()
+        {
+            ["main"] = (primaryStatus, GeminiBody(new { summary = "?", keys = Array.Empty<string>(), explanation = "" })),
+            ["backup"] = (HttpStatusCode.OK, GeminiBody(new { summary = "Rắn", keys = new[] { "ran" }, explanation = "" })),
+        });
+        var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["Gemini:ApiKey"] = "k",
+            ["Gemini:Model"] = "main",
+            ["Gemini:MaxRetries"] = "0",
+            ["DreamChat:FallbackModels:0"] = "backup",
+        }).Build();
+        var sut = new DreamInterpreter(new HttpClient(handler), new DreamBook(),
+            new MemoryCache(new MemoryCacheOptions()), config, NullLogger<DreamInterpreter>.Instance);
+
+        var r = await sut.InterpretAsync("Tôi thấy một thứ dài dài trườn qua sân");
+
+        handler.Models.Should().Equal("main", "backup");
+        r.Source.Should().Be("ai");
+        r.MainNumber.Should().Be("32");
+    }
+
+    [Fact]
+    public async Task DreamChat_model_overrides_scan_model()
+    {
+        var handler = new PerModelHandler(new()
+        {
+            ["dream"] = (HttpStatusCode.OK, GeminiBody(new { summary = "Rắn", keys = new[] { "ran" }, explanation = "" })),
+        });
+        var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["Gemini:ApiKey"] = "k",
+            ["Gemini:Model"] = "scan",
+            ["DreamChat:Model"] = "dream",
+        }).Build();
+        var sut = new DreamInterpreter(new HttpClient(handler), new DreamBook(),
+            new MemoryCache(new MemoryCacheOptions()), config, NullLogger<DreamInterpreter>.Instance);
+
+        await sut.InterpretAsync("Tôi thấy một thứ dài dài trườn qua sân");
+
+        handler.Models.Should().Equal("dream");
     }
 
     [Fact]
@@ -118,8 +195,8 @@ public class DreamInterpreterTests
     public async Task Same_message_is_cached()
     {
         var (sut, handler) = Create(GeminiBody(new { summary = "Rắn", keys = new[] { "ran" }, explanation = "" }));
-        await sut.InterpretAsync("mơ thấy rắn");
-        await sut.InterpretAsync("  Mơ   thấy rắn ");
+        await sut.InterpretAsync("mơ thấy thứ lạ");
+        await sut.InterpretAsync("  Mơ   thấy thứ lạ ");
         handler.Calls.Should().Be(1);
     }
 }

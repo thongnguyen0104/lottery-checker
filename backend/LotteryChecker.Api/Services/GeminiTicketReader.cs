@@ -32,11 +32,14 @@ public class GeminiTicketReader
     private readonly HttpClient _http;
     private readonly ILogger<GeminiTicketReader> _log;
     private readonly GeminiOptions _opt;
+    private readonly GeminiQuota? _quota;
 
-    public GeminiTicketReader(HttpClient http, IConfiguration config, ILogger<GeminiTicketReader> log)
+    public GeminiTicketReader(HttpClient http, IConfiguration config, ILogger<GeminiTicketReader> log,
+                              GeminiQuota? quota = null)
     {
         _http = http;
         _log = log;
+        _quota = quota;
         _opt = config.GetSection("Gemini").Get<GeminiOptions>() ?? new GeminiOptions();
     }
 
@@ -99,6 +102,11 @@ public class GeminiTicketReader
 
     private async Task<Result> SendOnceAsync(byte[] jpeg, CancellationToken ct)
     {
+        if (_quota != null && !_quota.TryAcquireScan(_opt.Model))
+        {
+            _log.LogInformation("Gemini: hết hạn mức soi vé/phút — bỏ qua, lùi về nguồn khác.");
+            return new Result(null, GeminiQuota.Error);
+        }
         try
         {
             // Key đi bằng header, KHÔNG để ở query ?key= — URL hay lọt vào log/exception message.

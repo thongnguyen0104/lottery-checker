@@ -44,7 +44,7 @@ export type CloudProvider = 'gemini' | 'ocrspace'
 
 /**
  * Một lượt gọi một nguồn cloud (backend thử Gemini trước, lỗi thì OCR.space). error null = trả lời
- * được; Gemini: 'timeout' | 'http_429' | 'http_503' | 'http_<mã>' | 'empty' | 'bad_json' | 'network';
+ * được; Gemini: 'timeout' | 'rate_limited' | 'http_429' | 'http_503' | 'http_<mã>' | 'empty' | 'bad_json' | 'network';
  * OCR.space: 'failed'. retried = mã lỗi các lượt Gemini đã tự gọi lại (vd 503 quá tải) — ms gồm cả chúng.
  */
 export type CloudAttempt = { provider: CloudProvider; ms: number; error: string | null; retried?: string[] | null }
