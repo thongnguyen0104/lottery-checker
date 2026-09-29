@@ -34,7 +34,7 @@ function statusOf(t: MultiTicket): { tone: Tone; icon: IconName; label: string }
     case 'NoData': return { tone: 'info', icon: 'empty', label: 'Chưa có kết quả' }
     default: return r.isWinner
       ? { tone: 'ok', icon: 'trophy', label: formatVND(r.totalPrize) }
-      : { tone: 'bad', icon: 'ticketX', label: 'Không trúng' }
+      : { tone: 'bad', icon: 'ticketX', label: 'Chúc bạn may mắn lần sau' }
   }
 }
 
@@ -113,7 +113,8 @@ export default function MultiResultDisplay({ tickets, imageUrl, onOpen, onRescan
                     </span>
                   </span>
                 </span>
-                <span className={`shrink-0 inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold
+                <span className={`shrink-0 max-w-[8.5rem] sm:max-w-none inline-flex items-center gap-1 rounded-2xl px-2.5 py-1
+                                  text-xs font-bold leading-tight
                                   ${BADGE[s.tone]}`}>
                   <Icon name={s.icon} className="w-3.5 h-3.5" /> {s.label}
                 </span>
