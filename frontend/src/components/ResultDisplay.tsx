@@ -1,4 +1,5 @@
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
+import ScratchCard from './ScratchCard'
 import Confetti from './Confetti'
 import Icon, { IconBadge, type IconName } from './Icon'
 import { provinceName } from '../data/provinces'
@@ -48,10 +49,13 @@ export default function ResultDisplay({ result, onRescan, rescanLabel, onEdit, o
   const won = status === 'Checked' && isWinner
   // Cảnh báo đùa chỉ hiện khi trúng Giải Đặc Biệt (tên do backend LotteryMatcher đặt; "Giải Phụ Đặc Biệt" không tính).
   const jackpot = won && winnings.some(w => w.tierName === 'Giải Đặc Biệt')
+  // Đã dò thật thì cho user tự cào lớp bạc xem trúng/trượt; hiệu ứng mừng chỉ chạy sau khi cào xong.
+  const [revealed, setRevealed] = useState(status !== 'Checked')
+  const onReveal = () => setRevealed(true)
 
   return (
     <div className="space-y-4">
-      {won && <Confetti />}
+      {won && revealed && <Confetti />}
 
       {/* Tấm vé màu primary (Hoàng kim: vàng, chữ navy); ô số dùng màu chữ pha loãng nên hợp mọi bảng màu */}
       <div className="ticket-shadow">
@@ -109,6 +113,8 @@ export default function ResultDisplay({ result, onRescan, rescanLabel, onEdit, o
         </StatusCard>
       ) : isWinner ? (
         <>
+          <ScratchCard onReveal={onReveal}>
+          <div className="space-y-4">
           {/* Trúng: khung xanh ngọc (trạng thái thành công), số tiền màu vàng brand */}
           <StatusCard tone="ok" icon="trophy" title="Chúc mừng! Vé trúng thưởng">
             <div className="text-4xl sm:text-5xl font-extrabold tracking-tight tabular-nums mt-1
@@ -130,9 +136,11 @@ export default function ResultDisplay({ result, onRescan, rescanLabel, onEdit, o
               </li>
             ))}
           </ul>
+          </div>
+          </ScratchCard>
 
           {/* Câu đùa cho vui lúc trúng ĐB — ghi rõ "đùa thôi" để không ai tưởng thật */}
-          {jackpot && (
+          {jackpot && revealed && (
             <>
               <div className="alarm-frame" aria-hidden="true" />
               <div role="note" className="flex items-start gap-3 p-4 rounded-2xl border-2 border-red-600
@@ -148,9 +156,11 @@ export default function ResultDisplay({ result, onRescan, rescanLabel, onEdit, o
           )}
         </>
       ) : (
-        <StatusCard tone="bad" icon="ticketX" title="Tiếc quá, vé không trúng giải nào">
-          Chúc bạn may mắn lần sau!
-        </StatusCard>
+        <ScratchCard onReveal={onReveal}>
+          <StatusCard tone="bad" icon="ticketX" title="Tiếc quá, vé không trúng giải nào">
+            Chúc bạn may mắn lần sau!
+          </StatusCard>
+        </ScratchCard>
       )}
 
       <p className="text-xs text-ink-faint text-center px-2">
