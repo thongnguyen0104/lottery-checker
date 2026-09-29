@@ -6,14 +6,16 @@ import AvailableData, { type ResultsFocus } from './components/AvailableData'
 import LuckyNumbers from './components/LuckyNumbers'
 import Home from './pages/Home'
 import { useTheme } from './theme'
-import type { View } from './views'
+import { viewFromPath, viewPath, type View } from './views'
 
 export default function App() {
-  // App luôn mở ở Dò vé: xoá state lịch sử còn sót từ trước khi tải lại trang (vd đang ở bảng 1 đài),
-  // chạy trước effect của các con để Home ghi stage đầu tiên lên đúng mục này.
+  // Mở đúng màn theo URL (link chia sẻ / F5); đường dẫn lạ về Dò vé và sửa luôn URL. Xoá state lịch
+  // sử còn sót từ trước khi tải lại (vd đang ở bảng 1 đài) — bước bên trong không nằm trên URL.
+  // Chạy trước effect của các con để Home ghi stage đầu tiên lên đúng mục này.
   const [view, setView] = useState<View>(() => {
-    history.replaceState({ view: 'check' }, '')
-    return 'check'
+    const v = viewFromPath(location.pathname)
+    history.replaceState({ view: v }, '', viewPath(v) + location.search + location.hash)
+    return v
   })
   const [resultsFocus, setResultsFocus] = useState<ResultsFocus | null>(null)
   const [theme, setTheme] = useTheme()
@@ -29,7 +31,7 @@ export default function App() {
     setResultsFocus(focus)
     setView(v)
     window.scrollTo(0, 0)
-    history.pushState({ view: v, focus }, '')
+    history.pushState({ view: v, focus }, '', viewPath(v))
   }
 
   useEffect(() => {

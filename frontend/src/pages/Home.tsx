@@ -101,8 +101,11 @@ export default function Home({ active, onShowResults, onBusyChange }: Props) {
   // màn mới mở ra ở lưng chừng (tấm vé + kết quả bị cuộn khuất dưới header).
   // Mỗi bước mới = 1 mục lịch sử; bước đổi do Back (popstate) thì mục đó đã có sẵn → bỏ qua.
   useEffect(() => {
-    window.scrollTo(0, 0)
     const st = history.state as HistoryState | null
+    // Đang ở màn khác (mở thẳng /ket-qua, hoặc quét xong khi user đã sang tab khác) thì không đụng
+    // lịch sử/cuộn trang: ghi view 'check' vào đó là Back/URL lệch với màn đang hiện.
+    if ((st?.view ?? 'check') !== 'check') return
+    window.scrollTo(0, 0)
     if (!st?.stage) history.replaceState({ ...st, view: 'check', stage } satisfies HistoryState, '')
     else if (st.stage !== stage) history.pushState({ view: 'check', stage } satisfies HistoryState, '')
   }, [stage])
