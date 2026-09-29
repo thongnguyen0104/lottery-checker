@@ -61,9 +61,9 @@ export default function LuckyNumbers({ onShowResults }: { onShowResults: (focus:
 function SmsBox({ text }: { text: string }) {
   return (
     <div className="mt-5 max-w-md mx-auto flex items-center gap-2 rounded-xl border border-line/60 bg-muted px-3 py-2">
-      <a href={smsHref(text)} title={`Gửi SMS tới ${SMS_NUMBER}`}
-         className="shrink-0 rounded-md bg-brand-500/15 px-1.5 py-0.5 text-xs font-bold text-brand-700 dark:text-brand-400 hover:bg-brand-500/25">
-        SMS
+      <a href={smsHref(text)} title={`Gửi SMS tới ${SMS_NUMBER}`} aria-label={`Gửi SMS tới ${SMS_NUMBER}`}
+         className="shrink-0 rounded-md bg-brand-500/15 p-1.5 text-brand-700 dark:text-brand-400 hover:bg-brand-500/25">
+        <Icon name="sms" className="w-4 h-4" />
       </a>
       <code className="flex-1 text-left text-sm font-mono tabular-nums break-words">{text}</code>
       <CopyButton text={text} label="Copy" />
@@ -195,9 +195,9 @@ function VietlottPicker() {
                       ))}
                     </span>
                     <span className="ml-auto flex items-center">
-                      <a href={smsHref(sms)} title={`Gửi SMS tới ${SMS_NUMBER}`}
-                         className="rounded-lg px-2 py-1.5 text-xs font-bold text-ink-faint hover:text-ink-soft hover:bg-muted">
-                        SMS
+                      <a href={smsHref(sms)} title={`Gửi SMS tới ${SMS_NUMBER}`} aria-label={`Gửi SMS tới ${SMS_NUMBER}`}
+                         className="rounded-lg p-1.5 text-ink-faint hover:text-ink-soft hover:bg-muted">
+                        <Icon name="sms" className="w-4 h-4" />
                       </a>
                       <CopyButton text={sms} />
                     </span>

@@ -1,6 +1,6 @@
 import {
   Award, Bot, CalendarDays, Camera, Check, ChevronLeft, ChevronRight, CircleAlert, CircleCheck,
-  CircleX, Clock, Copy, Dices, Focus, History, Hourglass, ImageUp, Inbox, Layers, Lightbulb, ListOrdered, MapPin,
+  CircleX, Clock, Copy, Dices, Focus, History, Hourglass, ImageUp, Inbox, Layers, Lightbulb, ListOrdered, MapPin, MessageSquareText,
   Monitor, Moon, Palette, PencilLine, RotateCcw, Scan, ScanSearch, Sparkles, Sun, Ticket, TicketX, Timer,
   TriangleAlert, Trophy, X, type LucideIcon,
 } from 'lucide-react'
@@ -45,6 +45,7 @@ const ICONS = {
   list: ListOrdered,
   ai: Bot,
   history: History,
+  sms: MessageSquareText,
 } satisfies Record<string, LucideIcon>
 
 export type IconName = keyof typeof ICONS
