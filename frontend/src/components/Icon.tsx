@@ -1,5 +1,5 @@
 import {
-  Award, Bot, CalendarDays, Camera, Check, ChevronLeft, ChevronRight, CircleAlert, CircleCheck,
+  Award, Bot, Download, HandHeart, CalendarDays, Camera, Check, ChevronLeft, ChevronRight, CircleAlert, CircleCheck,
   CircleX, Clock, Copy, Dices, Focus, History, Hourglass, ImageUp, Inbox, Layers, Lightbulb, ListOrdered, MapPin, MessageSquareText,
   Monitor, Moon, Palette, PencilLine, RotateCcw, Scan, ScanSearch, Sparkles, Sun, Ticket, TicketX, Timer,
   TriangleAlert, Trophy, X, type LucideIcon,
@@ -45,6 +45,8 @@ const ICONS = {
   list: ListOrdered,
   ai: Bot,
   history: History,
+  donate: HandHeart,
+  download: Download,
   sms: MessageSquareText,
 } satisfies Record<string, LucideIcon>
 

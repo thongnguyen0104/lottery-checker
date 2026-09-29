@@ -7,11 +7,12 @@ type Props = {
   busy?: boolean
   onChange: (v: View) => void
   onOpenTheme: () => void
+  onOpenDonate: () => void
 }
 
 /** Thanh trên cùng: logo + tên tính năng đang mở; màn rộng có thêm tab chuyển tính năng
  *  (điện thoại dùng BottomNav cho vừa tầm ngón cái). Nút bảng màu mở ThemePicker. */
-export default function AppHeader({ view, busy, onChange, onOpenTheme }: Props) {
+export default function AppHeader({ view, busy, onChange, onOpenTheme, onOpenDonate }: Props) {
   const current = VIEWS.find(v => v.id === view)!
 
   return (
@@ -59,8 +60,15 @@ export default function AppHeader({ view, busy, onChange, onOpenTheme }: Props) 
           })}
         </nav>
 
-        <button onClick={onOpenTheme} title="Đổi màu & hình nền" aria-label="Đổi màu và hình nền"
+        <button onClick={onOpenDonate} title="Ủng hộ" aria-label="Ủng hộ Dò Vé Số"
                 className="ml-auto md:ml-0 shrink-0 w-11 h-11 rounded-xl flex items-center justify-center
+                           bg-surface border border-line text-accent hover:text-brand-700 dark:hover:text-brand-400
+                           shadow-sm transition active:scale-95">
+          <Icon name="donate" className="w-[22px] h-[22px]" />
+        </button>
+
+        <button onClick={onOpenTheme} title="Đổi màu & hình nền" aria-label="Đổi màu và hình nền"
+                className="shrink-0 w-11 h-11 rounded-xl flex items-center justify-center
                            bg-surface border border-line text-ink-faint hover:text-brand-700 dark:hover:text-brand-400
                            shadow-sm transition active:scale-95">
           <Icon name="palette" className="w-[22px] h-[22px]" />

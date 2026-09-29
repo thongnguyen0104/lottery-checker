@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import AppHeader from './components/AppHeader'
 import BottomNav from './components/BottomNav'
 import ThemePicker from './components/ThemePicker'
+import DonateDialog from './components/DonateDialog'
 import AvailableData, { type ResultsFocus } from './components/AvailableData'
 import LuckyNumbers from './components/LuckyNumbers'
 import Home from './pages/Home'
@@ -21,6 +22,8 @@ export default function App() {
   const [theme, setTheme] = useTheme()
   const [themeOpen, setThemeOpen] = useState(false)
   const closeTheme = useCallback(() => setThemeOpen(false), [])
+  const [donateOpen, setDonateOpen] = useState(false)
+  const closeDonate = useCallback(() => setDonateOpen(false), [])
   // Dò vé đang quét/dò — đánh dấu tab Dò vé để user ghé tab khác biết là máy vẫn đang chạy.
   const [checking, setChecking] = useState(false)
 
@@ -51,7 +54,8 @@ export default function App() {
   return (
     <div className="min-h-screen">
       <div aria-hidden className={`backdrop bgfx-${theme.bg}`} />
-      <AppHeader view={view} busy={checking} onChange={v => go(v)} onOpenTheme={() => setThemeOpen(true)} />
+      <AppHeader view={view} busy={checking} onChange={v => go(v)} onOpenTheme={() => setThemeOpen(true)}
+                 onOpenDonate={() => setDonateOpen(true)} />
 
       {/* Điện thoại: 1 cột + chừa chỗ cho BottomNav (và vạch home của iPhone). Màn rộng: khung
           rộng hơn, từng màn tự chia cột. */}
@@ -78,6 +82,7 @@ export default function App() {
 
       <BottomNav view={view} busy={checking} onChange={v => go(v)} />
       {themeOpen && <ThemePicker theme={theme} onChange={setTheme} onClose={closeTheme} />}
+      {donateOpen && <DonateDialog onClose={closeDonate} />}
     </div>
   )
 }
