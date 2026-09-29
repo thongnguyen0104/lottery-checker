@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { LUCKY_GAMES, pickNumbers, type LuckyGame } from '../utils/lucky'
+import { LUCKY_GAMES, SMS_MAX_SETS, SMS_NUMBER, pickNumbers, smsHref, toSms, type LuckyGame } from '../utils/lucky'
 import Icon from './Icon'
 import DreamChat from './DreamChat'
 import type { ResultsFocus } from './AvailableData'
@@ -15,6 +15,26 @@ const BALL = {
 } satisfies Record<LuckyGame, string>
 
 type Mode = 'vietlott' | 'dream'
+
+/** Nút copy nội dung SMS; đổi thành dấu tích ~1.5s sau khi copy xong. */
+function CopyButton({ text, label }: { text: string; label?: string }) {
+  const [copied, setCopied] = useState(false)
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1500)
+    } catch { /* trình duyệt chặn clipboard — bỏ qua */ }
+  }
+  return (
+    <button onClick={copy} title={`Copy: ${text}`} aria-label={`Copy SMS ${text}`}
+            className={`shrink-0 inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-semibold transition
+                        ${copied ? 'text-ok' : 'text-ink-faint hover:text-ink-soft hover:bg-muted'}`}>
+      <Icon name={copied ? 'check' : 'copy'} className="w-4 h-4" />
+      {label && (copied ? 'Đã copy' : label)}
+    </button>
+  )
+}
 
 /** Tab Số may mắn: chọn ngẫu nhiên Vietlott, hoặc luận số từ giấc mơ. Cả hai luôn mount để giữ state khi đổi mục. */
 export default function LuckyNumbers({ onShowResults }: { onShowResults: (focus: ResultsFocus) => void }) {
@@ -37,21 +57,36 @@ export default function LuckyNumbers({ onShowResults }: { onShowResults: (focus:
   )
 }
 
+/** Ô SMS: nội dung + nút SMS (mở app nhắn tin tới 9969, điền sẵn nội dung) + nút Copy. */
+function SmsBox({ text }: { text: string }) {
+  return (
+    <div className="mt-5 max-w-md mx-auto flex items-center gap-2 rounded-xl border border-line/60 bg-muted px-3 py-2">
+      <a href={smsHref(text)} title={`Gửi SMS tới ${SMS_NUMBER}`}
+         className="shrink-0 rounded-md bg-brand-500/15 px-1.5 py-0.5 text-xs font-bold text-brand-700 dark:text-brand-400 hover:bg-brand-500/25">
+        SMS
+      </a>
+      <code className="flex-1 text-left text-sm font-mono tabular-nums break-words">{text}</code>
+      <CopyButton text={text} label="Copy" />
+    </div>
+  )
+}
+
 function VietlottPicker() {
   const [game, setGame] = useState<LuckyGame>('mega')
-  const [current, setCurrent] = useState<number[] | null>(null)
-  const [history, setHistory] = useState<{ game: LuckyGame; numbers: number[] }[]>([])
+  const [count, setCount] = useState(1)
+  const [current, setCurrent] = useState<number[][] | null>(null)
+  const [history, setHistory] = useState<{ game: LuckyGame; sets: number[][] }[]>([])
   // Tăng mỗi lượt chọn: đổi key của bi → React mount lại → animation nảy chạy lại.
   const [round, setRound] = useState(0)
 
-  // Bộ đang hiện (luôn thuộc `game` hiện tại — đổi loại vé là cất đi) chuyển xuống lịch sử.
+  // Lượt đang hiện (luôn thuộc `game` hiện tại — đổi loại vé là cất đi) chuyển xuống lịch sử.
   const archive = () => {
-    if (current) setHistory(h => [{ game, numbers: current }, ...h].slice(0, HISTORY_MAX))
+    if (current) setHistory(h => [{ game, sets: current }, ...h].slice(0, HISTORY_MAX))
   }
 
   const roll = () => {
     archive()
-    setCurrent(pickNumbers(LUCKY_GAMES[game].max))
+    setCurrent(Array.from({ length: count }, () => pickNumbers(LUCKY_GAMES[game].max)))
     setRound(r => r + 1)
   }
 
@@ -66,7 +101,7 @@ function VietlottPicker() {
     <div className="space-y-4">
       <div>
         <h1 className="text-xl md:text-3xl font-extrabold tracking-tight">6 số may mắn</h1>
-        <p className="text-sm md:text-base text-ink-soft mt-0.5">Bí ý tưởng? Để máy chọn giúp một bộ số Vietlott.</p>
+        <p className="text-sm md:text-base text-ink-soft mt-0.5">Bí ý tưởng? Để máy chọn giúp bộ số Vietlott.</p>
       </div>
 
       <div className="space-y-4 lg:space-y-0 lg:grid lg:grid-cols-[1.4fr_1fr] lg:gap-6 lg:items-start">
@@ -83,27 +118,48 @@ function VietlottPicker() {
           </div>
 
           <div className="card p-5 md:p-7 text-center">
-            <div className="text-sm text-ink-faint mb-4 md:mb-6">
+            <div className="text-sm text-ink-faint mb-3">
               6 số ngẫu nhiên từ 01 đến {LUCKY_GAMES[game].max}
             </div>
-            <div className="grid grid-cols-6 gap-2 sm:gap-3 max-w-md mx-auto" aria-live="polite">
+            <div className="flex items-center justify-center gap-1.5 mb-4 md:mb-6">
+              <span className="text-xs font-semibold text-ink-faint mr-1">Số bộ</span>
+              {Array.from({ length: SMS_MAX_SETS }, (_, i) => i + 1).map(c => (
+                <button key={c} onClick={() => setCount(c)} aria-pressed={c === count}
+                        className={`w-8 h-8 rounded-lg text-sm font-bold transition ${c === count
+                          ? 'bg-brand-500 text-white'
+                          : 'bg-muted text-ink-faint hover:text-ink-soft'}`}>
+                  {c}
+                </button>
+              ))}
+            </div>
+            <div className="space-y-2 sm:space-y-3 max-w-md mx-auto" aria-live="polite">
               {current
-                ? current.map((n, i) => (
-                    <div key={`${round}-${i}`}
-                         className={`ball step-pop aspect-square rounded-full flex items-center justify-center
-                                     text-lg sm:text-2xl font-extrabold tabular-nums ${BALL[game]}`}
-                         style={{ animationDelay: `${i * 90}ms`, animationFillMode: 'both' }}>
-                      {pad(n)}
+                ? current.map((set, r) => (
+                    <div key={`${round}-${r}`} className="grid grid-cols-6 gap-2 sm:gap-3">
+                      {set.map((n, i) => (
+                        <div key={i}
+                             className={`ball step-pop aspect-square rounded-full flex items-center justify-center
+                                         ${current.length > 1 ? 'text-base sm:text-xl' : 'text-lg sm:text-2xl'}
+                                         font-extrabold tabular-nums ${BALL[game]}`}
+                             style={{ animationDelay: `${(r * 6 + i) * 60}ms`, animationFillMode: 'both' }}>
+                          {pad(n)}
+                        </div>
+                      ))}
                     </div>
                   ))
-                : Array.from({ length: 6 }, (_, i) => (
-                    <div key={i}
-                         className="aspect-square rounded-full flex items-center justify-center
-                                    border-2 border-dashed border-line text-ink-faint/60 text-lg sm:text-2xl font-bold">
-                      ?
+                : (
+                    <div className="grid grid-cols-6 gap-2 sm:gap-3">
+                      {Array.from({ length: 6 }, (_, i) => (
+                        <div key={i}
+                             className="aspect-square rounded-full flex items-center justify-center
+                                        border-2 border-dashed border-line text-ink-faint/60 text-lg sm:text-2xl font-bold">
+                          ?
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                  )}
             </div>
+            {current && <SmsBox text={toSms(game, current)} />}
             <button onClick={roll} className="btn btn-primary mt-6 w-full max-w-md py-3.5 text-lg">
               <Icon name="dice" className="w-6 h-6" /> {current ? 'Chọn bộ khác' : 'Chọn số'}
             </button>
@@ -119,21 +175,35 @@ function VietlottPicker() {
             {history.length === 0 && (
               <div className="text-sm text-ink-faint py-4 text-center">Chưa có bộ nào — bấm Chọn số để bắt đầu.</div>
             )}
-            <ul className="space-y-2.5">
-              {history.map((h, i) => (
-                <li key={i} className="flex items-center gap-2">
-                  <span className="w-10 shrink-0 text-xs font-semibold text-ink-faint">{LUCKY_GAMES[h.game].short}</span>
-                  <span className="flex flex-wrap gap-1.5">
-                    {h.numbers.map(n => (
-                      <span key={n}
-                            className={`ball w-8 h-8 rounded-full flex items-center justify-center
-                                        text-xs font-bold tabular-nums ${BALL[h.game]}`}>
-                        {pad(n)}
-                      </span>
-                    ))}
-                  </span>
-                </li>
-              ))}
+            <ul className="space-y-3">
+              {history.map((h, i) => {
+                const sms = toSms(h.game, h.sets)
+                return (
+                  <li key={i} className="flex items-center gap-2">
+                    <span className="w-10 shrink-0 text-xs font-semibold text-ink-faint">{LUCKY_GAMES[h.game].short}</span>
+                    <span className="space-y-1.5">
+                      {h.sets.map((set, r) => (
+                        <span key={r} className="flex flex-wrap gap-1.5">
+                          {set.map(n => (
+                            <span key={n}
+                                  className={`ball w-8 h-8 rounded-full flex items-center justify-center
+                                              text-xs font-bold tabular-nums ${BALL[h.game]}`}>
+                              {pad(n)}
+                            </span>
+                          ))}
+                        </span>
+                      ))}
+                    </span>
+                    <span className="ml-auto flex items-center">
+                      <a href={smsHref(sms)} title={`Gửi SMS tới ${SMS_NUMBER}`}
+                         className="rounded-lg px-2 py-1.5 text-xs font-bold text-ink-faint hover:text-ink-soft hover:bg-muted">
+                        SMS
+                      </a>
+                      <CopyButton text={sms} />
+                    </span>
+                  </li>
+                )
+              })}
             </ul>
           </div>
 
@@ -146,3 +216,4 @@ function VietlottPicker() {
     </div>
   )
 }
+

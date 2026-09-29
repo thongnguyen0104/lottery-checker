@@ -5,12 +5,23 @@
 #   sudo bash deploy/setup-server.sh <domain>
 #   vd: sudo bash deploy/setup-server.sh dove-so.duckdns.org
 #
+# Chạy sau Cloudflare (chống DDoS, giấu IP server) — xem deploy/CLOUDFLARE.md:
+#   sudo CF_TUNNEL_TOKEN=<token> bash deploy/setup-server.sh <domain> --tunnel
+#   -> cài cloudflared, ĐÓNG port 80/443, Caddy chỉ nghe 127.0.0.1:8080.
+#   Token để trong biến môi trường cho khỏi lộ trong `ps`. Chạy lại không có --tunnel là về chế độ thường.
+#
 # Chạy lại nhiều lần được (idempotent) — an toàn khi cần sửa domain hoặc cài lại.
 # Chi tiết từng bước: .claude/deploy-guide.md §2, §3, §5, §6
 # ---------------------------------------------------------------------------
 set -euo pipefail
 
 DOMAIN="${1:-}"
+TUNNEL=false
+[[ "${2:-}" == "--tunnel" ]] && TUNNEL=true
+if $TUNNEL && [[ -z "${CF_TUNNEL_TOKEN:-}" ]] && ! systemctl is-enabled --quiet cloudflared 2>/dev/null; then
+    echo "Thiếu token tunnel. Ví dụ: sudo CF_TUNNEL_TOKEN=eyJh... bash $0 $DOMAIN --tunnel" >&2
+    exit 1
+fi
 if [[ -z "$DOMAIN" ]]; then
     echo "Thiếu domain. Ví dụ: sudo bash $0 dove-so.duckdns.org" >&2
     exit 1
@@ -24,20 +35,30 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 APP_USER="${SUDO_USER:-ubuntu}"
 ARCHDIR="/usr/lib/$(uname -m)-linux-gnu"
 
-echo "==> Domain: $DOMAIN | user: $APP_USER | arch: $(uname -m)"
+echo "==> Domain: $DOMAIN | user: $APP_USER | arch: $(uname -m) | tunnel: $TUNNEL"
 
 # ---------------------------------------------------------------------------
-echo "==> [1/6] Mở port 80/443 trong iptables"
-# Oracle image chặn sẵn ở iptables, mở Security List trên Console là CHƯA đủ.
+if $TUNNEL; then
+    echo "==> [1/6] ĐÓNG port 80/443 trong iptables (chỉ đi vào qua Cloudflare Tunnel)"
+    # cloudflared tự kết nối RA Cloudflare, không cần port vào nào -> đóng hết để IP server
+    # có bị lộ thì cũng không ai đánh thẳng vào web được.
+    for port in 80 443; do
+        while iptables -D INPUT -p tcp --dport "$port" -j ACCEPT 2>/dev/null; do :; done
+        echo "    đóng port $port"
+    done
+else
+    echo "==> [1/6] Mở port 80/443 trong iptables"
+    # Oracle image chặn sẵn ở iptables, mở Security List trên Console là CHƯA đủ.
+    for port in 80 443; do
+        if iptables -C INPUT -p tcp --dport "$port" -j ACCEPT 2>/dev/null; then
+            echo "    port $port đã mở, bỏ qua"
+        else
+            iptables -I INPUT 1 -p tcp --dport "$port" -j ACCEPT
+            echo "    mở port $port"
+        fi
+    done
+fi
 # ---------------------------------------------------------------------------
-for port in 80 443; do
-    if iptables -C INPUT -p tcp --dport "$port" -j ACCEPT 2>/dev/null; then
-        echo "    port $port đã mở, bỏ qua"
-    else
-        iptables -I INPUT 1 -p tcp --dport "$port" -j ACCEPT
-        echo "    mở port $port"
-    fi
-done
 echo iptables-persistent iptables-persistent/autosave_v4 boolean true | debconf-set-selections
 echo iptables-persistent iptables-persistent/autosave_v6 boolean true | debconf-set-selections
 DEBIAN_FRONTEND=noninteractive apt-get install -y -qq iptables-persistent >/dev/null
@@ -105,6 +126,27 @@ else
     apt-get install -y -qq caddy
 fi
 
+if $TUNNEL; then
+    echo "    + cloudflared (Cloudflare Tunnel)"
+    if ! command -v cloudflared >/dev/null 2>&1; then
+        mkdir -p --mode=0755 /usr/share/keyrings
+        curl -fsSL https://pkg.cloudflare.com/cloudflare-main.gpg \
+            -o /usr/share/keyrings/cloudflare-main.gpg
+        echo 'deb [signed-by=/usr/share/keyrings/cloudflare-main.gpg] https://pkg.cloudflare.com/cloudflared any main' \
+            > /etc/apt/sources.list.d/cloudflared.list
+        apt-get update -qq
+        apt-get install -y -qq cloudflared
+    fi
+    if [[ -n "${CF_TUNNEL_TOKEN:-}" ]]; then
+        # Cài lại service với token mới (đổi tunnel / xoay token đều chạy lại được).
+        cloudflared service uninstall >/dev/null 2>&1 || true
+        cloudflared service install "$CF_TUNNEL_TOKEN" >/dev/null
+        echo "    cloudflared service: đã cài với token mới"
+    else
+        echo "    cloudflared service đã có, giữ token cũ"
+    fi
+fi
+
 # ---------------------------------------------------------------------------
 echo "==> [5/6] Thư mục + file cấu hình"
 # ---------------------------------------------------------------------------
@@ -120,10 +162,20 @@ else
     echo "    tạo /etc/lottery-api.env (CHƯA có key — xem phần việc còn lại ở dưới)"
 fi
 
+# Backend tin header CF-Connecting-IP (IP thật của người dùng) CHỈ khi chạy sau tunnel — mở port
+# thẳng mà vẫn tin thì ai cũng giả được IP để né rate limit.
+sed -i '/^Cloudflare__TrustConnectingIp=/d' /etc/lottery-api.env
+if $TUNNEL; then
+    echo 'Cloudflare__TrustConnectingIp=true' >> /etc/lottery-api.env
+    SITE="http://:8080"; BIND="bind 127.0.0.1"
+else
+    SITE="$DOMAIN"; BIND=""
+fi
+
 sed "s|__APP_USER__|$APP_USER|g" "$HERE/lottery-api.service" \
     > /etc/systemd/system/lottery-api.service
-sed "s|__DOMAIN__|$DOMAIN|g" "$HERE/Caddyfile.template" > /etc/caddy/Caddyfile
-echo "    đã ghi lottery-api.service + /etc/caddy/Caddyfile ($DOMAIN)"
+sed -e "s|__SITE__|$SITE|g" -e "s|__BIND__|$BIND|g" "$HERE/Caddyfile.template" > /etc/caddy/Caddyfile
+echo "    đã ghi lottery-api.service + /etc/caddy/Caddyfile ($SITE)"
 
 # ---------------------------------------------------------------------------
 echo "==> [6/6] Bật service"

@@ -44,7 +44,7 @@ export type CloudProvider = 'gemini' | 'ocrspace'
 
 /**
  * Một lượt gọi một nguồn cloud (backend thử Gemini trước, lỗi thì OCR.space). error null = trả lời
- * được; Gemini: 'timeout' | 'http_429' | 'http_503' | 'http_<mã>' | 'empty' | 'bad_json' | 'network';
+ * được; Gemini: 'timeout' | 'rate_limited' | 'http_429' | 'http_503' | 'http_<mã>' | 'empty' | 'bad_json' | 'network';
  * OCR.space: 'failed'. retried = mã lỗi các lượt Gemini đã tự gọi lại (vd 503 quá tải) — ms gồm cả chúng.
  */
 export type CloudAttempt = { provider: CloudProvider; ms: number; error: string | null; retried?: string[] | null }
@@ -146,6 +146,36 @@ function toFriendlyError(e: unknown): Error {
   return new Error((e as Error)?.message ?? 'Lỗi không xác định')
 }
 
+// Nén (nếu bật) rồi gửi ảnh lên `url` — dùng chung cho quét 1 vé và quét nhiều vé.
+async function uploadImage<T>(url: string, blob: Blob, onUploadProgress?: (ratio: number) => void,
+                              timeout?: number) {
+  const options = compressEnabled() ? await loadCompressOptions() : undefined
+  const c = options
+    ? await compressImage(blob, options)
+    : { blob, originalBytes: blob.size, sentBytes: blob.size, compressMs: 0 }
+  const fd = new FormData()
+  fd.append('image', c.blob, 'ticket.jpg')
+  // performance.now() chứ không Date.now(): monotonic, không nhảy khi máy đồng bộ giờ.
+  const startedAt = performance.now()
+  // KHÔNG set Content-Type thủ công: để trình duyệt tự thêm boundary cho multipart
+  const { data } = await api.post(url, fd, {
+    timeout,
+    onUploadProgress: e => { if (e.total) onUploadProgress?.(e.loaded / e.total) },
+  })
+  return {
+    ...(data as T),
+    clientMs: Math.round(performance.now() - startedAt),
+    upload: {
+      originalBytes: c.originalBytes,
+      sentBytes: c.sentBytes,
+      compressMs: c.compressMs,
+      compressed: c.blob !== blob,
+      stages: 'stages' in c ? c.stages : undefined,
+      options,
+    },
+  }
+}
+
 // Bước 1: upload ảnh → nhận info OCR.
 // onUploadProgress: tỉ lệ 0..1 byte đã gửi (1 = gửi xong, máy chủ bắt đầu xử lý) — cho màn chờ.
 export async function scanImage(
@@ -153,30 +183,40 @@ export async function scanImage(
   onUploadProgress?: (ratio: number) => void,
 ): Promise<ScanResponse> {
   try {
-    const options = compressEnabled() ? await loadCompressOptions() : undefined
-    const c = options
-      ? await compressImage(blob, options)
-      : { blob, originalBytes: blob.size, sentBytes: blob.size, compressMs: 0 }
-    const fd = new FormData()
-    fd.append('image', c.blob, 'ticket.jpg')
-    // performance.now() chứ không Date.now(): monotonic, không nhảy khi máy đồng bộ giờ.
-    const startedAt = performance.now()
-    // KHÔNG set Content-Type thủ công: để trình duyệt tự thêm boundary cho multipart
-    const { data } = await api.post('/api/scan', fd, {
-      onUploadProgress: e => { if (e.total) onUploadProgress?.(e.loaded / e.total) },
-    })
-    return {
-      ...(data as Omit<ScanResponse, 'clientMs' | 'upload'>),
-      clientMs: Math.round(performance.now() - startedAt),
-      upload: {
-        originalBytes: c.originalBytes,
-        sentBytes: c.sentBytes,
-        compressMs: c.compressMs,
-        compressed: c.blob !== blob,
-        stages: 'stages' in c ? c.stages : undefined,
-        options,
-      },
-    }
+    return await uploadImage<Omit<ScanResponse, 'clientMs' | 'upload'>>('/api/scan', blob, onUploadProgress)
+  } catch (e) {
+    throw toFriendlyError(e)
+  }
+}
+
+/**
+ * Một vé trong ảnh nhiều vé. result = kết quả dò luôn (máy chủ chắc cả số, đài, ngày); null = còn
+ * nghi ngờ trường nào đó (needsReview) → user sửa trên form rồi dò bằng checkTicket.
+ */
+export type MultiTicket = {
+  ticketNumber: string | null
+  drawDate: string | null
+  province: string | null
+  needsReview: ReviewField[]
+  result: CheckResult | null
+}
+
+export type MultiScanResponse = {
+  /** Theo thứ tự trên ảnh (trên xuống, trái sang). Rỗng = AI không thấy vé nào. */
+  tickets: MultiTicket[]
+  cloudAttempts?: CloudAttempt[] | null
+  timings?: Record<string, number | null>
+  clientMs: number
+}
+
+/** Ảnh chụp nhiều vé: AI đọc tất cả, máy chủ dò luôn vé nào đọc chắc (POST /api/scan-multi). */
+export async function scanMultiImage(
+  blob: Blob,
+  onUploadProgress?: (ratio: number) => void,
+): Promise<MultiScanResponse> {
+  try {
+    // Nhiều vé = Gemini sinh nhiều chữ hơn + dò từng vé → cho thêm thời gian so với quét 1 vé.
+    return await uploadImage<Omit<MultiScanResponse, 'clientMs'>>('/api/scan-multi', blob, onUploadProgress, 90_000)
   } catch (e) {
     throw toFriendlyError(e)
   }

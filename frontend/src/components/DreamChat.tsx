@@ -17,6 +17,7 @@ export default function DreamChat({ onShowResults }: { onShowResults: (focus: Re
   const [turns, setTurns] = useState<Turn[]>([])
   const [busy, setBusy] = useState(false)
   const [search, setSearch] = useState<Search | null>(null)
+  const [resultsOpen, setResultsOpen] = useState(true)
   const endRef = useRef<HTMLDivElement>(null)
   const nextId = useRef(0)
 
@@ -41,6 +42,7 @@ export default function DreamChat({ onShowResults }: { onShowResults: (focus: Re
 
   const check = async (tail: string) => {
     setSearch({ tail })
+    setResultsOpen(true)   // dò số mới thì luôn mở lại bảng
     try {
       setSearch({ tail, hits: await searchTail(tail) })
     } catch (e) {
@@ -80,7 +82,17 @@ export default function DreamChat({ onShowResults }: { onShowResults: (focus: Re
             <div className="flex gap-2 items-start">
               <span className="shrink-0 mt-0.5 text-brand-700 dark:text-brand-400"><Icon name="ai" /></span>
               <div className="flex-1 min-w-0 rounded-2xl rounded-tl-md bg-muted px-3.5 py-3 text-sm space-y-2">
-                {!t.answer && !t.error && <span className="text-ink-faint">Đang tra sổ mơ…</span>}
+                {!t.answer && !t.error && (
+                  <span className="flex items-center gap-2 text-ink-faint" role="status">
+                    <span className="flex items-end gap-1 h-4" aria-hidden>
+                      {[0, 1, 2].map(i => (
+                        <span key={i} className="typing-dot w-1.5 h-1.5 rounded-full bg-brand-500"
+                              style={{ animationDelay: `${i * 0.15}s` }} />
+                      ))}
+                    </span>
+                    Đang tra sổ mơ
+                  </span>
+                )}
                 {t.error && <span className="text-bad">{t.error}</span>}
                 {t.answer && <Answer answer={t.answer} onCheck={check} />}
               </div>
@@ -90,7 +102,20 @@ export default function DreamChat({ onShowResults }: { onShowResults: (focus: Re
 
         {search && (
           <div className="rounded-xl border border-line p-3 text-sm space-y-2">
-            <div className="font-bold">Đuôi {search.tail} trong kết quả gần đây</div>
+            <button onClick={() => setResultsOpen(o => !o)} aria-expanded={resultsOpen}
+                    className="w-full flex items-center justify-between gap-2 text-left font-bold">
+              <span>
+                Đuôi {search.tail} trong kết quả gần đây
+                {search.hits && search.hits.length > 0 && (
+                  <span className="ml-1.5 font-semibold text-ink-faint">({search.hits.length})</span>
+                )}
+              </span>
+              <span className="flex items-center gap-1 text-xs font-semibold text-ink-faint">
+                {resultsOpen ? 'Thu gọn' : 'Xem'}
+                <Icon name="next" className={`w-4 h-4 transition-transform ${resultsOpen ? '-rotate-90' : 'rotate-90'}`} />
+              </span>
+            </button>
+            {resultsOpen && (<>
             {!search.hits && !search.error && <div className="text-ink-faint">Đang dò…</div>}
             {search.error && <div className="text-bad">{search.error}</div>}
             {search.hits?.length === 0 && <div className="text-ink-faint">Chưa đài nào về đuôi {search.tail} trong dữ liệu hiện có.</div>}
@@ -105,6 +130,7 @@ export default function DreamChat({ onShowResults }: { onShowResults: (focus: Re
                 </li>
               ))}
             </ul>
+            </>)}
           </div>
         )}
         <div ref={endRef} />
@@ -143,7 +169,13 @@ function Answer({ answer, onCheck }: { answer: DreamResult; onCheck: (tail: stri
         ))}
       </div>
       <p>{answer.explanation}</p>
-      <div className="text-xs text-ink-faint">Theo sổ mơ: {answer.entries.map(e => `${e.label} (${e.numbers.join(', ')})`).join(' · ')}</div>
+      <div className="flex flex-wrap gap-1.5 text-xs">
+        {answer.entries.map(e => (
+          <span key={e.key} className="rounded-full border border-line/60 bg-surface px-2.5 py-1 text-ink-soft">
+            {e.label} <span className="text-ink-faint">·</span> <span className="font-semibold tabular-nums">{e.numbers.join(' – ')}</span>
+          </span>
+        ))}
+      </div>
       <div className="flex flex-wrap gap-2 pt-1">
         {[answer.mainNumber, ...answer.secondaryNumbers.slice(0, 2)].map(n => (
           <button key={n} onClick={() => onCheck(n)} className="btn btn-secondary text-sm py-1.5 px-3">

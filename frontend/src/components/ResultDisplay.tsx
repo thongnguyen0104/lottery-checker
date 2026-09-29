@@ -22,6 +22,8 @@ type Props = {
     totalPrize: number
   }
   onRescan: () => void
+  /** Nhãn nút onRescan (mặc định "Dò vé khác") — vé trong ảnh nhiều vé thì quay về danh sách. */
+  rescanLabel?: string
   /** Mở lại form với thông tin vừa dò — nhất là khi vé được dò luôn mà máy đọc nhầm. */
   onEdit: () => void
   /** Mở bảng kết quả đầy đủ của đài/ngày trên vé (chỉ hiện nút khi đã có kết quả để dò). */
@@ -40,10 +42,12 @@ const formatDate = (iso: string | null | undefined) => {
 // Giờ xổ lấy trực tiếp từ chuỗi, KHÔNG qua new Date() — tránh browser lệch múi giờ.
 const formatTime = (iso: string | null | undefined) => iso?.slice(11, 16) ?? null
 
-export default function ResultDisplay({ result, onRescan, onEdit, onShowTable }: Props) {
+export default function ResultDisplay({ result, onRescan, rescanLabel, onEdit, onShowTable }: Props) {
   const { isWinner, winnings, totalPrize, extractedNumber, drawDate, province, drawsAt } = result
   const status: Status = result.status ?? 'Checked'
   const won = status === 'Checked' && isWinner
+  // Cảnh báo đùa chỉ hiện khi trúng Giải Đặc Biệt (tên do backend LotteryMatcher đặt; "Giải Phụ Đặc Biệt" không tính).
+  const jackpot = won && winnings.some(w => w.tierName === 'Giải Đặc Biệt')
 
   return (
     <div className="space-y-4">
@@ -126,6 +130,22 @@ export default function ResultDisplay({ result, onRescan, onEdit, onShowTable }:
               </li>
             ))}
           </ul>
+
+          {/* Câu đùa cho vui lúc trúng ĐB — ghi rõ "đùa thôi" để không ai tưởng thật */}
+          {jackpot && (
+            <>
+              <div className="alarm-frame" aria-hidden="true" />
+              <div role="note" className="flex items-start gap-3 p-4 rounded-2xl border-2 border-red-600
+                                          bg-red-600/15 text-red-700 dark:text-red-400">
+                <Icon name="warn" className="alarm-blink w-7 h-7 shrink-0" />
+                <div>
+                  <div className="alarm-blink font-extrabold uppercase tracking-wide">⚠️ Cảnh báo!</div>
+                  <div className="font-semibold">Chúng tôi đã biết địa chỉ IP của bạn, chiết khấu cho chúng tôi 5% nhanh! 😏</div>
+                  <div className="text-xs opacity-80 mt-1">(Đùa thôi 😄 Chúc mừng bạn nha!)</div>
+                </div>
+              </div>
+            </>
+          )}
         </>
       ) : (
         <StatusCard tone="bad" icon="ticketX" title="Tiếc quá, vé không trúng giải nào">
@@ -147,7 +167,7 @@ export default function ResultDisplay({ result, onRescan, onEdit, onShowTable }:
           </button>
         )}
         <button onClick={onRescan} className="btn btn-primary">
-          <Icon name="retry" /> Dò vé khác
+          <Icon name={rescanLabel ? 'back' : 'retry'} /> {rescanLabel ?? 'Dò vé khác'}
         </button>
       </div>
     </div>

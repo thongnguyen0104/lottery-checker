@@ -1,6 +1,10 @@
 # Frontend và API dùng CHUNG 1 origin -> không cần CORS, không cần VITE_API_URL.
-# __DOMAIN__ được setup-server.sh thay bằng domain thật.
-__DOMAIN__ {
+# __SITE__ / __BIND__ được setup-server.sh thay:
+#   - thường:            "<domain>" + (trống)          -> Caddy tự xin HTTPS, nghe 80/443
+#   - --tunnel (Cloudflare): "http://:8080" + "bind 127.0.0.1" -> chỉ cloudflared trên máy gọi vào được,
+#     HTTPS do Cloudflare lo
+__SITE__ {
+    __BIND__
     encode zstd gzip
 
     # API + health -> backend Kestrel (chỉ lắng nghe loopback)

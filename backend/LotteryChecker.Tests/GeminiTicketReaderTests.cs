@@ -99,6 +99,38 @@ public class GeminiTicketReaderTests
         info.OcrConfidence.Should().Be(GeminiTicketReader.AssumedConfidence);
     }
 
+    [Fact(DisplayName = "1b. Ảnh nhiều vé → đủ từng vé theo thứ tự, bỏ vé trùng và vé trống, gửi schema mảng")]
+    public async Task ManyTickets_MapsEachTicket()
+    {
+        var (reader, handler) = Reader(GeminiResponse("""
+            {"tickets":[
+              {"ticketNumber":"988501","drawDate":"2026-09-27","province":"TienGiang"},
+              {"ticketNumber":"988842","drawDate":"2026-09-26","province":"TPHCM"},
+              {"ticketNumber":"988842","drawDate":"2026-09-26","province":"TPHCM"},
+              {"ticketNumber":null,"drawDate":null,"province":null},
+              {"ticketNumber":"631042","drawDate":"2026-09-26","province":"Atlantis"}
+            ]}
+            """));
+
+        var result = await reader.TryReadManyAsync(Jpeg);
+
+        result.Error.Should().BeNull();
+        result.Tickets!.Select(t => t.TicketNumber).Should().Equal("988501", "988842", "631042");
+        result.Tickets![2].Province.Should().BeNull();   // đài lạ → null như vé đơn
+        handler.RequestBody.Should().Contain("\"ARRAY\"");
+    }
+
+    [Fact(DisplayName = "1c. Ảnh nhiều vé mà Gemini trả JSON không có mảng tickets → bad_json")]
+    public async Task ManyTickets_MissingArray_IsBadJson()
+    {
+        var (reader, _) = Reader(GeminiResponse("""{"ticketNumber":"988501"}"""));
+
+        var result = await reader.TryReadManyAsync(Jpeg);
+
+        result.Tickets.Should().BeNull();
+        result.Error.Should().Be("bad_json");
+    }
+
     [Fact(DisplayName = "2. Giá trị sai định dạng (5 chữ số, ngày không có thật, đài lạ) → null, không đưa rác lên form")]
     public async Task InvalidValues_BecomeNull()
     {

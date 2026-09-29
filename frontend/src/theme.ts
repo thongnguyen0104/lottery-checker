@@ -60,6 +60,24 @@ function loadTheme(): Theme {
   }
 }
 
+/**
+ * Favicon theo màu đang chọn: cùng hình với public/favicon.svg (nền gradient, tấm vé kem, vạch quét
+ * xanh) nhưng nền + dãy số lấy màu của bảng màu. File tĩnh vẫn là bản cho lúc trang chưa chạy JS.
+ */
+function faviconHref(accent: Accent) {
+  const a = ACCENTS.find(x => x.id === accent) ?? ACCENTS[0]
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">`
+    + `<defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">`
+    + `<stop offset="0" stop-color="${a.from}"/><stop offset="1" stop-color="${a.to}"/></linearGradient></defs>`
+    + `<rect width="32" height="32" rx="7" fill="url(#bg)"/>`
+    + `<path fill="#FFFBEB" d="M6 8.5h20a1.5 1.5 0 0 1 1.5 1.5v3.5a2.5 2.5 0 0 0 0 5V22a1.5 1.5 0 0 1-1.5 1.5H6A1.5 1.5 0 0 1 4.5 22v-3.5a2.5 2.5 0 0 0 0-5V10A1.5 1.5 0 0 1 6 8.5z"/>`
+    + `<g fill="${a.to}"><rect x="8" y="10.75" width="4.5" height="3.5" rx="1"/>`
+    + `<rect x="13.75" y="10.75" width="4.5" height="3.5" rx="1"/><rect x="19.5" y="10.75" width="4.5" height="3.5" rx="1"/></g>`
+    + `<rect x="8" y="19" width="9" height="1.75" rx=".875" fill="#D6C7A1"/>`
+    + `<rect x="2" y="15.75" width="28" height="1.75" rx=".875" fill="#10B981"/></svg>`
+  return `data:image/svg+xml,${encodeURIComponent(svg)}`
+}
+
 function applyTheme(t: Theme) {
   const mode = t.mode === 'system' ? (darkQuery().matches ? 'dark' : 'light') : t.mode
   const root = document.documentElement
@@ -67,6 +85,13 @@ function applyTheme(t: Theme) {
   root.dataset.accent = t.accent
   root.dataset.bg = t.bg
   document.querySelector('meta[name="theme-color"]')?.setAttribute('content', CANVAS_HEX[mode])
+  // Đổi cả 2 thẻ icon (.ico + .svg): còn thẻ .ico thì có trình duyệt vẫn chọn nó, tab giữ màu cũ.
+  const href = faviconHref(t.accent)
+  document.querySelectorAll<HTMLLinkElement>('link[rel="icon"]').forEach(l => {
+    l.type = 'image/svg+xml'
+    l.removeAttribute('sizes')
+    l.href = href
+  })
 }
 
 /** Theme hiện tại + hàm đổi một phần (vd chỉ đổi màu). Tự áp dụng và lưu mỗi lần đổi. */

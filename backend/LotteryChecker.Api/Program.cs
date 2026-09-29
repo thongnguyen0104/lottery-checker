@@ -86,6 +86,8 @@ builder.Services.AddHttpClient<CloudOcrService>(c => c.Timeout = TimeSpan.FromSe
 
 // Luận số giấc mơ: sổ mơ tĩnh + Gemini chọn mục (cùng key/model với phần đọc vé, bật riêng DreamChat:Enabled).
 builder.Services.AddMemoryCache();
+// Hạn mức Gemini chung cả server (gói free 15 req/phút): soi vé và luận số mỗi bên một phần.
+builder.Services.AddSingleton<GeminiQuota>();
 builder.Services.AddSingleton<DreamBook>();
 builder.Services.AddHttpClient<DreamInterpreter>(c =>
     c.Timeout = TimeSpan.FromSeconds(builder.Configuration.GetValue("DreamChat:TimeoutSeconds", 10)));
@@ -98,11 +100,20 @@ builder.Services.AddRateLimiter(o =>
         RateLimitPartition.GetFixedWindowLimiter(ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown", _ =>
             new FixedWindowRateLimiterOptions
             {
-                PermitLimit = builder.Configuration.GetValue("DreamChat:PermitPerHour", 10),
-                Window = TimeSpan.FromHours(1),
+                PermitLimit = builder.Configuration.GetValue("DreamChat:PermitPerIpPerMinute", 5),
+                Window = TimeSpan.FromMinutes(1),
+            }));
+    // Soi vé: Gemini chỉ 12 lượt/phút cho CẢ server, hết thì lùi về OCR (tốn CPU / lượt OCR.space)
+    // → chặn 1 IP gửi ảnh liên tục làm hết lượt của mọi người.
+    o.AddPolicy(LotteryChecker.Api.Controllers.ScanController.RateLimitPolicy, ctx =>
+        RateLimitPartition.GetFixedWindowLimiter(ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown", _ =>
+            new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = builder.Configuration.GetValue("Ocr:ScanPermitPerIpPerMinute", 10),
+                Window = TimeSpan.FromMinutes(1),
             }));
     o.OnRejected = (ctx, ct) => new ValueTask(ctx.HttpContext.Response.WriteAsJsonAsync(
-        new { error = "Bạn hỏi hơi nhiều rồi, nghỉ một lát rồi thử lại nhé." }, ct));
+        new { error = "Bạn thao tác hơi nhiều rồi, nghỉ một lát rồi thử lại nhé." }, ct));
 });
 
 // API chạy sau Caddy/cloudflared cùng máy (127.0.0.1 — proxy mặc định được tin): lấy IP thật từ
@@ -208,6 +219,9 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseForwardedHeaders();
+// Sau Cloudflare Tunnel: lấy IP thật từ CF-Connecting-IP (xem CloudflareClientIp).
+if (app.Configuration.GetValue("Cloudflare:TrustConnectingIp", false))
+    app.UseCloudflareClientIp();
 
 // Đo + log thời gian mỗi request /api/* — đặt sớm nhất để bao luôn khâu nhận ảnh upload.
 app.UseRequestTiming();

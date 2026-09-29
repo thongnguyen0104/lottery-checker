@@ -33,6 +33,7 @@ const PROVIDER_NAMES: Record<CloudProvider, string> = { gemini: 'Gemini', ocrspa
 const CLOUD_ERRORS: Record<string, string> = {
   timeout: 'quá lâu không trả lời',
   http_429: 'hết lượt miễn phí (429)',
+  rate_limited: 'đang nhiều người dùng, tạm nhường lượt',
   http_503: 'máy chủ AI đang quá tải (503)',
   empty: 'không trả nội dung',
   bad_json: 'trả dữ liệu hỏng',

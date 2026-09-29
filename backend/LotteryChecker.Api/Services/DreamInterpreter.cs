@@ -6,9 +6,9 @@ using Microsoft.Extensions.Caching.Memory;
 namespace LotteryChecker.Api.Services;
 
 /// <summary>
-/// Luận số giấc mơ: Gemini đọc câu tiếng Việt và CHỈ chọn khoá trong <see cref="DreamBook"/>; số chính/phụ
-/// do code tra từ sổ mơ. Gemini tắt/lỗi → lùi về so khớp chuỗi cục bộ (<see cref="DreamBook.MatchLocal"/>),
-/// nên tính năng vẫn chạy khi không có key.
+/// Luận số giấc mơ, theo thứ tự: so khớp sổ mơ cục bộ (<see cref="DreamBook.MatchLocal"/>) → không ra mục
+/// nào thì hỏi Gemini model chính → vẫn không ra (lỗi, hết lượt, hoặc không chọn được mục) thì hỏi lần lượt
+/// DreamChat:FallbackModels. AI CHỈ chọn khoá trong <see cref="DreamBook"/>; số chính/phụ do code tra từ sổ mơ.
 ///
 /// Dùng chung Endpoint/Model/ApiKey với <see cref="GeminiTicketReader"/> (mục "Gemini"), nhưng bật/tắt
 /// riêng bằng DreamChat:Enabled — không phụ thuộc Gemini:Enabled của phần đọc vé.
@@ -28,19 +28,25 @@ public class DreamInterpreter
     private readonly ILogger<DreamInterpreter> _log;
     private readonly bool _enabled;
     private readonly string _endpoint;
-    private readonly string _model;
+    private readonly string[] _models;
     private readonly string? _apiKey;
     private readonly string? _thinkingLevel;
     private readonly int _maxRetries;
     private readonly int _retryDelayMs;
+    private readonly GeminiQuota? _quota;
 
     public DreamInterpreter(HttpClient http, DreamBook book, IMemoryCache cache, IConfiguration config,
-                            ILogger<DreamInterpreter> log)
+                            ILogger<DreamInterpreter> log, GeminiQuota? quota = null)
     {
-        _http = http; _book = book; _cache = cache; _log = log;
+        _http = http; _book = book; _cache = cache; _log = log; _quota = quota;
         _enabled = config.GetValue("DreamChat:Enabled", true);
         _endpoint = config["Gemini:Endpoint"] ?? "https://generativelanguage.googleapis.com/v1beta";
-        _model = config["Gemini:Model"] ?? "gemini-3.1-flash-lite";
+        // Model chính DreamChat:Model (không có thì dùng chung Gemini:Model với đọc vé) rồi tới các model
+        // dự phòng DreamChat:FallbackModels, bỏ trùng. Model riêng = quota Google riêng, không giành lượt với soi vé.
+        _models = new[] { config["DreamChat:Model"] ?? config["Gemini:Model"] ?? "gemini-3.1-flash-lite" }
+            .Concat(config.GetSection("DreamChat:FallbackModels").Get<string[]>() ?? [])
+            .Where(m => !string.IsNullOrWhiteSpace(m)).Select(m => m.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
         _apiKey = config["Gemini:ApiKey"];
         _thinkingLevel = config["DreamChat:ThinkingLevel"] ?? "minimal";
         _maxRetries = config.GetValue("Gemini:MaxRetries", 1);
@@ -66,32 +72,70 @@ public class DreamInterpreter
         var cacheKey = "dream:" + normalized.ToLowerInvariant();
         if (_cache.TryGetValue(cacheKey, out DreamResult? cached) && cached != null) return cached;
 
-        string? aiError = null;
-        if (AiEnabled)
+        // 1) Sổ mơ cục bộ trước: khớp được là trả luôn, không tốn lượt Gemini (gói free chỉ 15 req/phút).
+        var entries = _book.MatchLocal(normalized);
+        if (entries.Count > 0)
         {
-            var (ai, error) = await AskGeminiAsync(normalized, ct);
-            if (ai != null)
+            var local = Build(LocalSummary(entries), entries, LocalExplanation(entries, normalized), "local", null);
+            _cache.Set(cacheKey, local, TimeSpan.FromHours(6));
+            return local;
+        }
+
+        // 2) Không khớp → hỏi Gemini (hiểu từ đồng nghĩa, câu kể dài); model chính lỗi/hết lượt hoặc không
+        //    tìm ra mục nào thì 3) hỏi lần lượt các model dự phòng (mỗi model một quota riêng).
+        string? aiError = null;
+        AiAnswer? emptyAnswer = null;   // model trả lời được nhưng không chọn mục nào
+        if (AiEnabled)
+            foreach (var model in _models)
             {
-                var result = Build(ai.Summary, ai.Keys.Select(_book.Find).OfType<DreamEntry>(), ai.Explanation, "ai", null);
+                var (ai, error) = await AskGeminiAsync(model, normalized, ct);
+                if (ai == null) { aiError = error; continue; }
+                var matched = ai.Keys.Select(_book.Find).OfType<DreamEntry>().ToArray();
+                if (matched.Length == 0) { emptyAnswer ??= ai; continue; }
+
+                var result = Build(ai.Summary, matched, ai.Explanation, "ai", null);
                 _cache.Set(cacheKey, result, TimeSpan.FromHours(6));
-                _log.LogInformation("Luận số AI: {Len} ký tự → {Keys}.", normalized.Length,
+                _log.LogInformation("Luận số AI ({Model}): {Len} ký tự → {Keys}.", model, normalized.Length,
                                     string.Join(",", result.Entries.Select(e => e.Key)));
                 return result;
             }
-            aiError = error;
-        }
 
-        // Lùi về so khớp cục bộ — không cache lâu, để lượt sau có thể được Gemini trả lời.
-        var entries = _book.MatchLocal(normalized);
-        var local = Build(
-            entries.Count == 0 ? "Chưa nhận ra chi tiết nào có trong sổ mơ" : string.Join(", ", entries.Select(e => e.Label)),
-            entries,
-            entries.Count == 0
-                ? "Sổ mơ hiện chưa có mục nào khớp với mô tả này. Thử kể rõ con vật, người hay sự việc bạn thấy."
-                : "Các chi tiết được đối chiếu trực tiếp với sổ mơ dân gian.",
-            "local", aiError);
-        _cache.Set(cacheKey, local, TimeSpan.FromMinutes(5));
-        return local;
+        // Không nguồn nào ra mục → không bịa số. Không cache lâu, để lượt sau có thể được AI trả lời.
+        var none = emptyAnswer != null
+            ? Build(emptyAnswer.Summary, [], emptyAnswer.Explanation, "ai", null)
+            : Build("Chưa nhận ra chi tiết nào có trong sổ mơ", [],
+                    "Sổ mơ hiện chưa có mục nào khớp với mô tả này. Thử kể rõ con vật, người hay sự việc bạn thấy.",
+                    "local", aiError);
+        _cache.Set(cacheKey, none, TimeSpan.FromMinutes(5));
+        return none;
+    }
+
+    private static string LocalSummary(IReadOnlyList<DreamEntry> entries) => entries.Count == 1
+        ? $"Giấc mơ thấy {Lower(entries[0].Label)}"
+        : $"Giấc mơ có {JoinVi(entries.Select(e => Lower(e.Label)))}";
+
+    // Vài mẫu câu cho đỡ lặp; chọn theo hash câu hỏi (không random) để cùng câu → cùng lời trong một lần chạy.
+    private static readonly Func<string, string, string>[] LocalTemplates =
+    [
+        (what, first) => $"Trong giấc mơ của bạn có hình ảnh {what}. Dân gian vẫn tin {first} là điềm báo con số, nên mình tra sổ mơ giúp bạn các cặp số bên dưới nhé.",
+        (what, first) => $"Mơ thấy {what} à? Theo quan niệm xưa, {first} ứng với những con số riêng — đây là các số người ta hay chọn khi gặp giấc mơ như vậy.",
+        (what, first) => $"Chi tiết đáng chú ý nhất là {first}. Mình đã đối chiếu {what} với sổ mơ dân gian và gợi ý bộ số dưới đây, bạn tham khảo cho vui nha.",
+    ];
+
+    private static string LocalExplanation(IReadOnlyList<DreamEntry> entries, string message)
+    {
+        var what = JoinVi(entries.Select(e => Lower(e.Label)));
+        var pick = (int)((uint)StringComparer.OrdinalIgnoreCase.GetHashCode(message) % LocalTemplates.Length);
+        return LocalTemplates[pick](what, Lower(entries[0].Label));
+    }
+
+    private static string Lower(string label) => label.Length == 0 ? label : char.ToLower(label[0]) + label[1..];
+
+    /// <summary>"a", "a và b", "a, b và c".</summary>
+    private static string JoinVi(IEnumerable<string> items)
+    {
+        var list = items.ToList();
+        return list.Count <= 1 ? string.Concat(list) : $"{string.Join(", ", list[..^1])} và {list[^1]}";
     }
 
     /// <summary>Số chính = số đầu của mục đầu tiên; số phụ = các số còn lại, bỏ trùng, tối đa 5.</summary>
@@ -113,24 +157,29 @@ public class DreamInterpreter
 
     internal sealed record AiAnswer(string Summary, string[] Keys, string Explanation);
 
-    private async Task<(AiAnswer? Answer, string? Error)> AskGeminiAsync(string message, CancellationToken ct)
+    private async Task<(AiAnswer? Answer, string? Error)> AskGeminiAsync(string model, string message, CancellationToken ct)
     {
         for (var attempt = 0; ; attempt++)
         {
-            var (answer, error) = await SendOnceAsync(message, ct);
+            var (answer, error) = await SendOnceAsync(model, message, ct);
             if (answer != null || attempt >= _maxRetries || !GeminiTicketReader.IsTransient(error))
                 return (answer, error);
             await Task.Delay(_retryDelayMs, ct);
         }
     }
 
-    private async Task<(AiAnswer?, string?)> SendOnceAsync(string message, CancellationToken ct)
+    private async Task<(AiAnswer?, string?)> SendOnceAsync(string model, string message, CancellationToken ct)
     {
+        if (_quota != null && !_quota.TryAcquireDream(model))
+        {
+            _log.LogInformation("Gemini (luận số, {Model}): hết hạn mức/phút — bỏ qua.", model);
+            return (null, GeminiQuota.Error);
+        }
         try
         {
-            using var req = new HttpRequestMessage(HttpMethod.Post, $"{_endpoint.TrimEnd('/')}/models/{_model}:generateContent")
+            using var req = new HttpRequestMessage(HttpMethod.Post, $"{_endpoint.TrimEnd('/')}/models/{model}:generateContent")
             {
-                Content = new StringContent(JsonSerializer.Serialize(BuildRequest(message)), Encoding.UTF8, "application/json"),
+                Content = new StringContent(JsonSerializer.Serialize(BuildRequest(model, message)), Encoding.UTF8, "application/json"),
             };
             req.Headers.Add("x-goog-api-key", _apiKey);
 
@@ -138,7 +187,7 @@ public class DreamInterpreter
             var body = await resp.Content.ReadAsStringAsync(ct);
             if (!resp.IsSuccessStatusCode)
             {
-                _log.LogWarning("Gemini (luận số) HTTP {Status}.", (int)resp.StatusCode);
+                _log.LogWarning("Gemini (luận số, {Model}) HTTP {Status}.", model, (int)resp.StatusCode);
                 return (null, $"http_{(int)resp.StatusCode}");
             }
 
@@ -161,7 +210,7 @@ public class DreamInterpreter
                 HttpRequestException => "network",
                 _ => "error",
             };
-            _log.LogWarning(ex, "Gemini (luận số) thất bại ({Error}).", error);
+            _log.LogWarning(ex, "Gemini (luận số, {Model}) thất bại ({Error}).", model, error);
             return (null, error);
         }
     }
@@ -172,10 +221,8 @@ public class DreamInterpreter
         return t.Length > max ? t[..max] : t;
     }
 
-    private object BuildRequest(string message)
+    private object BuildRequest(string model, string message)
     {
-        // Gửi cả sổ mơ (vài chục mục, chỉ khoá + tên + từ đồng nghĩa — KHÔNG gửi số) để model chọn khoá.
-        var book = string.Join("\n", _book.Entries.Select(e => $"- {e.Key}: {e.Label} ({string.Join(", ", e.Aliases)})"));
         var generationConfig = new Dictionary<string, object>
         {
             ["responseMimeType"] = "application/json",
@@ -185,14 +232,17 @@ public class DreamInterpreter
                 properties = new Dictionary<string, object>
                 {
                     ["summary"] = new { type = "STRING", description = "Tóm tắt giấc mơ, tối đa 15 từ." },
-                    ["keys"] = new { type = "ARRAY", items = new { type = "STRING", @enum = _book.Keys } },
+                    // Sổ mơ CHỈ gửi qua enum này, dạng tên mục (không khoá, không alias, không số): model tự hiểu
+                    // từ đồng nghĩa, danh sách chỉ xuất hiện 1 lần → ~650 token/lượt thay vì ~3.800.
+                    ["keys"] = new { type = "ARRAY", items = new { type = "STRING", @enum = _book.Labels } },
                     ["explanation"] = new { type = "STRING", description = "1–3 câu tiếng Việt." },
                 },
                 required = new[] { "summary", "keys", "explanation" },
                 propertyOrdering = new[] { "summary", "keys", "explanation" },
             },
         };
-        if (!string.IsNullOrWhiteSpace(_thinkingLevel))
+        // thinkingLevel chỉ có ở dòng Gemini 3 — gửi cho 2.x (dùng thinkingBudget) là bị 400.
+        if (!string.IsNullOrWhiteSpace(_thinkingLevel) && model.StartsWith("gemini-3", StringComparison.OrdinalIgnoreCase))
             generationConfig["thinkingConfig"] = new { thinkingLevel = _thinkingLevel };
 
         return new
@@ -200,7 +250,7 @@ public class DreamInterpreter
             systemInstruction = new { parts = new[] { new { text = SystemPrompt } } },
             contents = new[]
             {
-                new { role = "user", parts = new[] { new { text = $"Sổ mơ:\n{book}\n\nMô tả của người dùng:\n{message}" } } },
+                new { role = "user", parts = new[] { new { text = message } } },
             },
             generationConfig,
         };
@@ -210,8 +260,8 @@ public class DreamInterpreter
         """
         Bạn là trợ lý luận số dân gian cho một website dò vé số.
         - Đọc mô tả giấc mơ/sự việc của người dùng, tìm các con vật, người, sự vật trong đó.
-        - Chỉ chọn khoá có trong "Sổ mơ" được cung cấp, chi tiết quan trọng nhất đứng đầu, tối đa 3 khoá.
-          Hiểu cả từ đồng nghĩa (vd "con trăn" → ran). Không có mục phù hợp thì trả keys rỗng.
+        - Trường keys: chọn tên mục sổ mơ (danh sách cho phép trong schema) khớp chi tiết đó, quan trọng nhất đứng đầu, tối đa 3.
+          Hiểu cả từ đồng nghĩa/cách gọi vùng miền (vd "con trăn" → Rắn, "lợn" → Heo). Không có mục phù hợp thì trả keys rỗng.
         - Không nêu con số nào trong summary/explanation (hệ thống tự điền số).
         - explanation: giải thích ngắn bằng tiếng Việt vì sao chọn các mục đó, giọng thân thiện.
         - Không bao giờ khẳng định sẽ trúng. Nếu nội dung không phải mô tả giấc mơ/sự việc, trả keys rỗng
