@@ -87,6 +87,21 @@
     "showAll": "Xem tất cả bài",
     "postGone": "Bài viết này không còn nữa (có thể đã bị xoá)."
   },
+  "footer": {
+    "about": "Chụp vé số, tự đọc số và dò giải xổ số kiến thiết 3 miền. Miễn phí, không quảng cáo.",
+    "scheduleTitle": "Lịch quay số hôm nay",
+    "scheduleNote": "Giờ Việt Nam. Kết quả đầy đủ thường có sau giờ quay khoảng 30 phút.",
+    "draws": { "south": "Miền Nam", "central": "Miền Trung", "north": "Miền Bắc", "vietlott": "Vietlott" },
+    "games": { "power": "Power 6/55", "mega": "Mega 6/45" },
+    "state": { "done": "Đã quay", "live": "Đang quay", "next": "Sắp quay", "off": "Nghỉ" },
+    "disclaimerTitle": "Chơi có trách nhiệm",
+    "disclaimer": "Kết quả dò chỉ để tham khảo — hãy đối chiếu với kết quả chính thức của công ty xổ số trước khi lĩnh thưởng. Dự đoán và số may mắn chỉ mang tính giải trí, không đảm bảo trúng thưởng. Người dưới 18 tuổi không được tham gia.",
+    "madeIn": "Làm với ♥ tại Việt Nam",
+    "backToTop": "Lên đầu trang",
+    "more": "Xem thêm",
+    "less": "Thu gọn",
+    "allDone": "Hôm nay đã quay xong"
+  },
   "views": {
     "check": { "title": "Dò Vé Số", "short": "Dò vé", "hint": "Chụp vé, tự đọc số và dò giải" },
     "lucky": { "title": "6 Số May Mắn", "short": "Số may mắn", "hint": "Chọn số Vietlott, luận số giấc mơ" },

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import AppHeader from './components/AppHeader'
 import BottomNav from './components/BottomNav'
+import AppFooter from './components/AppFooter'
 import ThemePicker from './components/ThemePicker'
 import DonateDialog from './components/DonateDialog'
 import AuthDialog from './components/AuthDialog'
@@ -103,7 +104,7 @@ export default function App() {
   }, [])
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen flex flex-col">
       <div aria-hidden className={`backdrop bgfx-${theme.bg}`} />
       <AppHeader view={view} busy={checking} onChange={v => go(v)} onOpenTheme={() => setThemeOpen(true)}
                  onOpenDonate={() => setDonateOpen(true)}
@@ -112,10 +113,9 @@ export default function App() {
                  onChangePassword={() => setPwOpen(true)}
                  onOpenNotification={n => { setBlogFocus({ postId: n.postId, commentId: n.commentId, at: Date.now() }); go('blog') }} />
 
-      {/* Điện thoại: 1 cột + chừa chỗ cho BottomNav (và vạch home của iPhone). Màn rộng: khung
-          rộng hơn, từng màn tự chia cột. */}
-      <main className="w-full max-w-md md:max-w-3xl lg:max-w-5xl mx-auto px-4 pt-4 md:pt-8
-                       pb-[calc(6.5rem+env(safe-area-inset-bottom))] md:pb-12">
+      {/* Điện thoại: 1 cột (chỗ cho BottomNav do AppFooter chừa). Màn rộng: khung rộng hơn,
+          từng màn tự chia cột. */}
+      <main className="flex-1 w-full max-w-md md:max-w-3xl lg:max-w-5xl mx-auto px-4 pt-4 md:pt-8 pb-8 md:pb-12">
         {/* Dò vé và 6 số may mắn chỉ ẩn đi chứ không unmount: đang xác nhận vé mà ghé xem kết quả
             đài rồi quay lại thì vẫn còn vé vừa quét (camera thì tắt khi ẩn — xem Home.active).
             fade-up chạy lại mỗi lần hiện ra vì trình duyệt khởi động lại animation khi hết display:none. */}
@@ -199,6 +199,7 @@ export default function App() {
         )}
       </main>
 
+      <AppFooter onNavigate={v => go(v)} onOpenDonate={() => setDonateOpen(true)} />
       <BottomNav view={view} busy={checking} onChange={v => go(v)} />
       {themeOpen && <ThemePicker theme={theme} onChange={setTheme} onClose={closeTheme} />}
       {donateOpen && <DonateDialog onClose={closeDonate} />}

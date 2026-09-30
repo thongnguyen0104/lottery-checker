@@ -87,6 +87,21 @@
     "showAll": "See all posts",
     "postGone": "This post no longer exists (it may have been deleted)."
   },
+  "footer": {
+    "about": "Snap a lottery ticket, read its number automatically and check it against all three regions. Free, no ads.",
+    "scheduleTitle": "Today's draws",
+    "scheduleNote": "Vietnam time. Full results usually land about 30 minutes after the draw.",
+    "draws": { "south": "Southern region", "central": "Central region", "north": "Northern region", "vietlott": "Vietlott" },
+    "games": { "power": "Power 6/55", "mega": "Mega 6/45" },
+    "state": { "done": "Drawn", "live": "Live", "next": "Up next", "off": "No draw" },
+    "disclaimerTitle": "Play responsibly",
+    "disclaimer": "Check results are for reference only — confirm with the lottery company's official results before claiming a prize. Predictions and lucky numbers are for fun and never guarantee a win. You must be 18 or older to play.",
+    "madeIn": "Made with ♥ in Vietnam",
+    "backToTop": "Back to top",
+    "more": "More",
+    "less": "Less",
+    "allDone": "All of today's draws are done"
+  },
   "views": {
     "check": { "title": "Check Ticket", "short": "Check", "hint": "Snap a ticket to read and check it" },
     "lucky": { "title": "Lucky Numbers", "short": "Lucky", "hint": "Vietlott picks and dream numbers" },
