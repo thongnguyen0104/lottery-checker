@@ -8,6 +8,7 @@ Bản đang chạy: **https://dove-so.duckdns.org**
 
 - **Dò vé bằng ảnh**: chụp bằng camera hoặc chọn ảnh có sẵn. Vé đọc chắc chắn cả số, đài và ngày thì dò luôn, còn nghi ngờ trường nào thì hỏi lại người dùng trên form (trường nghi ngờ được đánh dấu).
 - **Kết quả dò**: trúng giải nào, tổng tiền. Có trạng thái riêng cho vé hết hạn lĩnh thưởng (30 ngày), vé chưa tới giờ xổ và đài chưa có kết quả.
+- **Thống kê cộng đồng**: màn Dò vé hiện tổng số vé cả hệ thống đã dò, số vé trúng và tổng tiền thưởng (mỗi vé tính 1 lần).
 - **Bảng kết quả từng đài**: đủ giải ĐB → G.8. Mở từ vé vừa dò thì các chữ số cuối trùng với vé được tô xanh.
 - **6 số may mắn**: chọn ngẫu nhiên kiểu Vietlott Mega 6/45 và Power 6/55.
 - **Dự đoán**: thống kê 2 số cuối của 18 giải trong 1 năm từng đài → số nóng, lô gan, gợi ý giải ĐB, bảng xác suất 00–99 cho mỗi ngày xổ. Xem lại ngày đã xổ để đối chiếu gợi ý với kết quả thật. Chỉ là thống kê cho vui.

@@ -424,3 +424,15 @@ export async function getPrediction(date?: string) {
     throw toFriendlyError(e)
   }
 }
+
+/** Thống kê vé đã dò của cả hệ thống (mỗi vé tính 1 lần). */
+export type CheckSummary = { tickets: number; winners: number; totalPrize: number }
+
+export async function getCheckStats() {
+  try {
+    const { data } = await api.get('/api/stats', { timeout: 5_000 })
+    return data as CheckSummary
+  } catch (e) {
+    throw toFriendlyError(e)
+  }
+}

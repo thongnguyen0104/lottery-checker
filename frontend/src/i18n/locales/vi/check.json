@@ -193,5 +193,6 @@
     "revealAll": "⚡ Cào tất cả / Xem ngay",
     "soundOff": "🔊 Tắt âm thanh",
     "soundOn": "🔇 Bật âm thanh"
-  }
+  },
+  "stats": { "title": "Cộng đồng đã dò", "tickets": "Vé đã dò", "winners": "Vé trúng", "prize": "Tiền thưởng", "billion": "{{n}} tỷ", "million": "{{n}} triệu" }
 }

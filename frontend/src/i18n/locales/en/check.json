@@ -193,5 +193,6 @@
     "revealAll": "⚡ Scratch all / Reveal now",
     "soundOff": "🔊 Sound off",
     "soundOn": "🔇 Sound on"
-  }
+  },
+  "stats": { "title": "Checked by everyone", "tickets": "Tickets checked", "winners": "Winning tickets", "prize": "Prize money", "billion": "{{n}}B ₫", "million": "{{n}}M ₫" }
 }

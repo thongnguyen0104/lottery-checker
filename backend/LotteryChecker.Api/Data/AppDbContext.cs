@@ -10,6 +10,7 @@ public class AppDbContext : DbContext
     public DbSet<LotteryResult> LotteryResults => Set<LotteryResult>();
     public DbSet<User> Users => Set<User>();
     public DbSet<GuestUsage> GuestUsages => Set<GuestUsage>();
+    public DbSet<CheckedTicket> CheckedTickets => Set<CheckedTicket>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -33,6 +34,13 @@ public class AppDbContext : DbContext
         {
             e.HasKey(x => x.Ip);
             e.Property(x => x.Ip).HasMaxLength(45); // đủ cho IPv6
+        });
+
+        b.Entity<CheckedTicket>(e =>
+        {
+            e.HasIndex(x => new { x.DrawDate, x.Province, x.TicketNumber }).IsUnique();
+            e.Property(x => x.Province).HasMaxLength(32);
+            e.Property(x => x.TicketNumber).HasMaxLength(6);
         });
     }
 }

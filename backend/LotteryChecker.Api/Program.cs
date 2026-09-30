@@ -77,6 +77,7 @@ builder.Services.AddSingleton<LocalRetryReader>();   // đọc lại lấp ngày
 builder.Services.AddScoped<ImagePreprocessor>();
 builder.Services.AddScoped<LotteryMatcher>();        // phụ thuộc AppDbContext (Scoped)
 builder.Services.AddScoped<PredictionService>();     // thống kê 1 năm cho màn Dự đoán
+builder.Services.AddScoped<CheckStats>();           // đếm vé đã dò toàn hệ thống
 
 // Hai engine OCR cục bộ — đăng ký CẢ HAI (endpoint debug /api/admin/ocr-debug luôn cần
 // Tesseract để so sánh), còn engine thực sự dùng khi quét thì chọn bằng Ocr:Engine.
