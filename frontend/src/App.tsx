@@ -16,7 +16,7 @@ import AdminPanel from './components/AdminPanel'
 import ChangePasswordDialog from './components/ChangePasswordDialog'
 import Home from './pages/Home'
 import { useTheme } from './theme'
-import { viewFromPath, viewPath, type View } from './views'
+import { blogPostIdFromPath, blogPostPath, viewFromPath, viewPath, type View } from './views'
 
 export default function App() {
   const { t } = useTranslation()
@@ -26,12 +26,21 @@ export default function App() {
   // Chạy trước effect của các con để Home ghi stage đầu tiên lên đúng mục này.
   const [view, setView] = useState<View>(() => {
     const v = viewFromPath(location.pathname)
-    history.replaceState({ view: v }, '', viewPath(v) + location.search + location.hash)
+    const shared = blogPostIdFromPath(location.pathname)
+    history.replaceState({ view: v }, '', (shared ? blogPostPath(shared) : viewPath(v)) + location.search + location.hash)
     return v
   })
   const [resultsFocus, setResultsFocus] = useState<ResultsFocus | null>(null)
-  // Bài mở từ chuông thông báo — Blog hiện bài đó trên cùng, mở sẵn bình luận.
-  const [blogFocus, setBlogFocus] = useState<BlogFocus | null>(null)
+  // Bài mở từ chuông thông báo / link chia sẻ /blog/{guid} — Blog hiện bài đó trên cùng.
+  const [blogFocus, setBlogFocus] = useState<BlogFocus | null>(() => {
+    const shared = blogPostIdFromPath(location.pathname)
+    return shared ? { publicId: shared, at: 0 } : null
+  })
+  // Bỏ bài đang mở: link chia sẻ trên thanh địa chỉ cũng về /blog để F5 không mở lại bài đó.
+  const clearBlogFocus = useCallback(() => {
+    setBlogFocus(null)
+    if (blogPostIdFromPath(location.pathname)) history.replaceState({ view: 'blog' }, '', viewPath('blog'))
+  }, [])
   // Các màn đã mở ít nhất 1 lần — màn nặng (Dự đoán) chỉ mount khi cần rồi giữ lại.
   const [seen, setSeen] = useState<ReadonlySet<View>>(() => new Set([view]))
   if (!seen.has(view)) setSeen(new Set(seen).add(view))
@@ -85,6 +94,9 @@ export default function App() {
         return v
       })
       setResultsFocus(st?.focus ?? null)
+      // Back/Forward về mục lịch sử là link 1 bài → mở lại đúng bài đó.
+      const shared = blogPostIdFromPath(location.pathname)
+      if (shared) setBlogFocus(f => f?.publicId === shared ? f : { publicId: shared, at: Date.now() })
     }
     window.addEventListener('popstate', onPop)
     return () => window.removeEventListener('popstate', onPop)
@@ -135,7 +147,7 @@ export default function App() {
         {seen.has('blog') && (
           <div hidden={view !== 'blog'} className="fade-up">
             <Blog key={sessionKey} account={account ?? null} onRequireLogin={() => setAuthReason(null)}
-                  focus={blogFocus} onClearFocus={() => setBlogFocus(null)} />
+                  focus={blogFocus} onClearFocus={clearBlogFocus} />
           </div>
         )}
         {/* Tài khoản: mount lại mỗi lần mở để lịch sử dò vé có luôn các vé vừa dò. */}

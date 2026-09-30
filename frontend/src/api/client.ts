@@ -16,6 +16,18 @@ const api = axios.create({
 // Báo ngôn ngữ đang chọn để máy chủ trả lời nhắn lỗi (và luận giấc mơ) đúng tiếng.
 api.interceptors.request.use(cfg => { cfg.headers.set('Accept-Language', currentLang()); return cfg })
 
+// Mạng tới VM hay rớt gói lúc bắt tay TLS (đo được 1–4s, có lúc treo tới hết timeout) trong khi máy
+// chủ xử lý chỉ vài trăm ms → GET quá hạn / mất kết nối thì tự gửi lại 1 lần, thường lần 2 qua ngay.
+// Chỉ GET (đọc, gửi lại vô hại); POST/DELETE không lặp để khỏi đăng bài / trừ tiền 2 lần.
+api.interceptors.response.use(undefined, async e => {
+  const cfg = axios.isAxiosError(e) ? e.config as (typeof e.config & { _retried?: boolean }) | undefined : undefined
+  const retriable = axios.isAxiosError(e) && !e.response && !axios.isCancel(e)
+    && ['ECONNABORTED', 'ETIMEDOUT', 'ERR_NETWORK'].includes(e.code ?? '')
+  if (!cfg || !retriable || cfg.method !== 'get' || cfg._retried || cfg.signal?.aborted) throw e
+  cfg._retried = true
+  return api.request(cfg)
+})
+
 /**
  * Thời gian từng chặng phía máy chủ (ms) — xem StageTimer/ScanController ở backend.
  * Các chặng chạy NỐI TIẾP; chặng cloud = null khi OCR cục bộ đã đủ tin (không gọi cloud),
@@ -660,6 +672,8 @@ export type BlogAuthorMode = 'Account' | 'Anonymous' | 'Custom'
 
 export type BlogPost = {
   id: number
+  /** Id công khai cho link chia sẻ /blog/{publicId}. */
+  publicId: string
   title: string
   content: string
   authorMode: BlogAuthorMode
@@ -751,8 +765,8 @@ export async function deleteBlogPost(id: number) {
   }
 }
 
-/** 1 bài — mở thẳng từ chuông thông báo. */
-export async function getBlogPost(id: number) {
+/** 1 bài — mở thẳng từ chuông thông báo (id số) hoặc link chia sẻ (publicId dạng guid). */
+export async function getBlogPost(id: number | string) {
   try {
     const { data } = await api.get(`/api/blog/posts/${id}`)
     return data as BlogPost

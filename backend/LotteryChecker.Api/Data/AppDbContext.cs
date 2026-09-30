@@ -55,6 +55,7 @@ public class AppDbContext : DbContext
         b.Entity<BlogPost>(e =>
         {
             e.HasIndex(x => x.CreatedAt);
+            e.HasIndex(x => x.PublicId).IsUnique();
             e.Property(x => x.Title).HasMaxLength(120);
             e.Property(x => x.Content).HasMaxLength(5000);
             e.Property(x => x.AuthorName).HasMaxLength(30);

@@ -34,6 +34,10 @@
   "deleteConfirmMessage": "\"{{title}}\" will be deleted permanently.",
   "retry": "Try again",
   "counter": "{{count}}/{{max}}",
+  "share": "Share",
+  "copyLink": "Copy link to this post",
+  "linkCopied": "Link copied",
+  "sharedPost": "Shared post",
   "comments": {
     "title": "Comments",
     "toggle": "Comments ({{count}})",

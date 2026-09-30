@@ -30,6 +30,11 @@ public class BlogController(BlogService blog, NotificationService notifications,
     public async Task<IActionResult> Get(int id, CancellationToken ct) =>
         await blog.GetAsync(id, VoterKey(), CurrentUserId(), ct) is { } post ? Ok(post) : NotFound(new { error = NotFoundError });
 
+    /// <summary>1 bài theo id công khai — mở link chia sẻ /blog/{guid}.</summary>
+    [HttpGet("posts/{publicId:guid}")]
+    public async Task<IActionResult> GetShared(Guid publicId, CancellationToken ct) =>
+        await blog.GetAsync(publicId, VoterKey(), CurrentUserId(), ct) is { } post ? Ok(post) : NotFound(new { error = NotFoundError });
+
     [HttpPost("posts")]
     [EnableRateLimiting(PostRateLimitPolicy)]
     public async Task<IActionResult> Create(BlogService.NewPost body, CancellationToken ct)

@@ -14,7 +14,7 @@ public class BlogService(AppDbContext db, TimeProvider clock)
 
     public record NewPost(string? Title, string? Content, BlogAuthorMode AuthorMode, string? AuthorName);
 
-    public record PostDto(int Id, string Title, string Content, BlogAuthorMode AuthorMode, string? AuthorName,
+    public record PostDto(int Id, Guid PublicId, string Title, string Content, BlogAuthorMode AuthorMode, string? AuthorName,
                           DateTime CreatedAt, int Likes, int Dislikes, int MyVote, bool Mine, int CommentCount);
 
     public record PageDto(PostDto[] Items, bool HasMore);
@@ -91,11 +91,18 @@ public class BlogService(AppDbContext db, TimeProvider clock)
         return new PageDto(posts.Select(x => ToDto(x, mine.GetValueOrDefault(x.Id), userId)).ToArray(), hasMore);
     }
 
-    public async Task<PostDto?> GetAsync(int postId, string voterKey, int? userId, CancellationToken ct)
+    public Task<PostDto?> GetAsync(int postId, string voterKey, int? userId, CancellationToken ct) =>
+        GetAsync(db.BlogPosts.Where(x => x.Id == postId), voterKey, userId, ct);
+
+    /// <summary>Bài theo id công khai — mở link chia sẻ /blog/{guid}.</summary>
+    public Task<PostDto?> GetAsync(Guid publicId, string voterKey, int? userId, CancellationToken ct) =>
+        GetAsync(db.BlogPosts.Where(x => x.PublicId == publicId), voterKey, userId, ct);
+
+    private async Task<PostDto?> GetAsync(IQueryable<BlogPost> query, string voterKey, int? userId, CancellationToken ct)
     {
-        var post = await db.BlogPosts.AsNoTracking().FirstOrDefaultAsync(x => x.Id == postId, ct);
+        var post = await query.AsNoTracking().FirstOrDefaultAsync(ct);
         if (post == null) return null;
-        var vote = await db.BlogVotes.AsNoTracking().FirstOrDefaultAsync(v => v.PostId == postId && v.VoterKey == voterKey, ct);
+        var vote = await db.BlogVotes.AsNoTracking().FirstOrDefaultAsync(v => v.PostId == post.Id && v.VoterKey == voterKey, ct);
         return ToDto(post, vote?.Value ?? 0, userId);
     }
 
@@ -228,7 +235,7 @@ public class BlogService(AppDbContext db, TimeProvider clock)
         isAdmin || (userId != null && x.UserId == userId));
 
     private static PostDto ToDto(BlogPost x, int myVote, int? userId) => new(
-        x.Id, x.Title, x.Content, x.AuthorMode, x.AuthorName,
+        x.Id, x.PublicId, x.Title, x.Content, x.AuthorMode, x.AuthorName,
         DateTime.SpecifyKind(x.CreatedAt, DateTimeKind.Utc), x.Likes, x.Dislikes, myVote,
         userId != null && x.UserId == userId, x.CommentCount);
 }

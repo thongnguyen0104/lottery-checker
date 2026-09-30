@@ -15,6 +15,8 @@ public enum BlogAuthorMode
 public class BlogPost
 {
     public int Id { get; set; }
+    /// <summary>Id công khai cho link chia sẻ /blog/{guid} — không lộ số thứ tự, không đoán được bài khác.</summary>
+    public Guid PublicId { get; set; } = Guid.NewGuid();
     public string Title { get; set; } = "";
     public string Content { get; set; } = "";
     public BlogAuthorMode AuthorMode { get; set; }

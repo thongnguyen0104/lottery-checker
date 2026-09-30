@@ -25,4 +25,13 @@ export const viewPath = (v: View) => ROUTES.find(x => x.id === v)!.path
 
 /** Màn ứng với đường dẫn; đường dẫn lạ → Dò vé. Bỏ "/" cuối để "/ket-qua/" cũng khớp. */
 export const viewFromPath = (path: string): View =>
-  ROUTES.find(x => x.path === (path.replace(/\/+$/, '') || '/'))?.id ?? 'check'
+  blogPostIdFromPath(path) ? 'blog'
+    : ROUTES.find(x => x.path === (path.replace(/\/+$/, '') || '/'))?.id ?? 'check'
+
+/** Link chia sẻ riêng của 1 bài Blog: /blog/{guid}. */
+export const blogPostPath = (publicId: string) => `/blog/${publicId}`
+
+const BLOG_POST = /^\/blog\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/?$/i
+
+/** Guid bài trong link chia sẻ; null nếu không phải link 1 bài. */
+export const blogPostIdFromPath = (path: string) => BLOG_POST.exec(path)?.[1].toLowerCase() ?? null

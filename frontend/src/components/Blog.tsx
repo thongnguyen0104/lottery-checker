@@ -6,6 +6,7 @@ import {
 } from '../api/client'
 import { currentLocale } from '../i18n'
 import { timeAgo } from '../utils/date'
+import { blogPostPath } from '../views'
 import ConfirmDialog from './ConfirmDialog'
 import Icon, { IconBadge } from './Icon'
 
@@ -19,8 +20,11 @@ const CLAMP_CHARS = 280
 
 type Sort = 'new' | 'top'
 
-/** Bài mở từ chuông thông báo; at đổi mỗi lần bấm để bấm lại cùng thông báo vẫn cuộn tới. */
-export type BlogFocus = { postId: number; commentId: number; at: number }
+/**
+ * Bài mở riêng trên cùng: từ chuông thông báo (postId + commentId) hoặc link chia sẻ /blog/{guid}
+ * (publicId). at đổi mỗi lần bấm để bấm lại cùng thông báo vẫn cuộn tới.
+ */
+export type BlogFocus = { postId?: number; publicId?: string; commentId?: number; at: number }
 
 type Props = {
   account: Account | null
@@ -125,7 +129,7 @@ export default function Blog({ account, onRequireLogin, focus, onClearFocus }: P
       )}
 
       <div className="space-y-3">
-        {posts.filter(p => p.id !== focus?.postId).map(p => <PostCard key={p.id} post={p} account={account} onRequireLogin={onRequireLogin}
+        {posts.filter(p => p.id !== focus?.postId && p.publicId !== focus?.publicId).map(p => <PostCard key={p.id} post={p} account={account} onRequireLogin={onRequireLogin}
                                  onChange={patch => update(p.id, patch)} />)}
         {loading && page === 1 && Array.from({ length: 3 }, (_, i) => (
           <div key={i} className="card p-4 motion-safe:animate-pulse space-y-3">
@@ -146,7 +150,10 @@ export default function Blog({ account, onRequireLogin, focus, onClearFocus }: P
   )
 }
 
-/** Bài mở từ chuông thông báo: tải riêng bài đó (có thể không nằm ở trang đầu), mở sẵn bình luận. */
+/**
+ * Bài mở từ chuông thông báo (mở sẵn bình luận) hoặc từ link chia sẻ: tải riêng bài đó (có thể không
+ * nằm ở trang đầu).
+ */
 function FocusedPost({ focus, account, onRequireLogin, onClose, onChange }: {
   focus: BlogFocus
   account: Account | null
@@ -155,24 +162,35 @@ function FocusedPost({ focus, account, onRequireLogin, onClose, onChange }: {
   onChange: (id: number, patch: Partial<BlogPost> | null) => void
 }) {
   const { t } = useTranslation()
+  const { t: tb } = useTranslation('blog')
   const [post, setPost] = useState<BlogPost | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const key = focus.publicId ?? focus.postId!
+  const label = focus.publicId ? tb('sharedPost') : t('notifications.focusedPost')
+  const [reload, setReload] = useState(0)
 
   useEffect(() => {
     let alive = true
-    getBlogPost(focus.postId).then(p => alive && setPost(p)).catch(e => alive && setError(e?.message ?? t('notifications.postGone')))
+    getBlogPost(key).then(p => alive && setPost(p)).catch(e => alive && setError(e?.message ?? t('notifications.postGone')))
     return () => { alive = false }
-  }, [focus.postId, t])
+  }, [key, t, reload])
 
   return (
-    <section className="space-y-2 fade-up" aria-label={t('notifications.focusedPost')}>
+    <section className="space-y-2 fade-up" aria-label={label}>
       <div className="flex items-center justify-between gap-2 text-sm">
         <span className="inline-flex items-center gap-1.5 font-semibold text-brand-700 dark:text-brand-400">
-          <Icon name="bell" className="w-4 h-4" /> {t('notifications.focusedPost')}
+          <Icon name={focus.publicId ? 'link' : 'bell'} className="w-4 h-4" /> {label}
         </span>
         <button onClick={onClose} className="font-semibold text-ink-faint hover:text-ink">{t('notifications.showAll')}</button>
       </div>
-      {error && <div className="card p-4 text-sm text-ink-soft">{error}</div>}
+      {error && (
+        <div className="card p-4 flex items-center justify-between gap-3 text-sm text-ink-soft">
+          <span>{error}</span>
+          <button onClick={() => { setError(null); setReload(n => n + 1) }} className="btn btn-soft shrink-0 py-1.5 text-sm">
+            <Icon name="retry" className="w-4 h-4" /> {tb('retry')}
+          </button>
+        </div>
+      )}
       {!post && !error && <div className="card h-40 motion-safe:animate-pulse" />}
       {post && (
         <div className="rounded-2xl ring-2 ring-brand-500/40">
@@ -384,6 +402,7 @@ function PostCard({ post, account, onRequireLogin, onChange, highlightCommentId 
                                            : 'border-line text-ink-soft hover:bg-muted'}`}>
           <Icon name="comment" className="w-4 h-4" /> {post.commentCount}
         </button>
+        <CopyLinkButton publicId={post.publicId} />
         {post.mine && (
           <button onClick={() => setConfirmDelete(true)} title={t('delete')} aria-label={t('delete')}
                   className="ml-auto w-9 h-9 rounded-lg flex items-center justify-center text-ink-faint hover:text-bad hover:bg-bad/10 transition">
@@ -423,12 +442,18 @@ function Comments({ postId, account, onRequireLogin, onCount, highlightId }: {
   // Đang trả lời luồng nào (id bình luận gốc) + "@tên" điền sẵn khi trả lời một câu trả lời.
   const [replyTo, setReplyTo] = useState<{ rootId: number; mention: string } | null>(null)
   const [deleting, setDeleting] = useState<BlogComment | null>(null)
+  const [reload, setReload] = useState(0)
 
   useEffect(() => {
     let alive = true
     getBlogComments(postId).then(c => alive && setComments(c)).catch(e => alive && setError(e?.message ?? ''))
     return () => { alive = false }
-  }, [postId])
+  }, [postId, reload])
+
+  const retry = () => {
+    setError(null)
+    setReload(n => n + 1)
+  }
 
   const added = (c: BlogComment, count: number) => {
     setComments(cs => [...(cs ?? []), c])
@@ -455,7 +480,17 @@ function Comments({ postId, account, onRequireLogin, onCount, highlightId }: {
 
   return (
     <section className="mt-3 pt-3 border-t border-line/60 space-y-3" aria-label={t('comments.title')}>
-      {error && <p className="text-xs text-bad">{error}</p>}
+      {error && (
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-xs text-bad">{error}</p>
+          {/* Chưa tải được danh sách thì mới cần tải lại; lỗi lúc xoá bình luận thì danh sách vẫn còn. */}
+          {!comments && (
+            <button onClick={retry} className="btn btn-soft shrink-0 py-1.5 text-sm">
+              <Icon name="retry" className="w-4 h-4" /> {t('retry')}
+            </button>
+          )}
+        </div>
+      )}
       {!comments && !error && <div className="h-12 rounded-xl bg-muted motion-safe:animate-pulse" />}
       {comments && roots.length === 0 && <p className="text-sm text-ink-faint">{t('comments.empty')}</p>}
 
@@ -586,6 +621,35 @@ function CommentForm({ postId, parentId, initial = '', account, onRequireLogin, 
         </>
       )}
     </form>
+  )
+}
+
+/** Copy link riêng của bài (/blog/{guid}) để chia sẻ; đổi thành dấu tích ~1.5s sau khi copy xong. */
+function CopyLinkButton({ publicId }: { publicId: string }) {
+  const { t } = useTranslation('blog')
+  const [copied, setCopied] = useState(false)
+
+  const copy = async () => {
+    const url = `${location.origin}${blogPostPath(publicId)}`
+    try {
+      await navigator.clipboard.writeText(url)
+    } catch {
+      // Trình duyệt chặn clipboard (http, WebView cũ) — cho hiện link để tự copy.
+      window.prompt(t('copyLink'), url)
+      return
+    }
+    setCopied(true)
+    setTimeout(() => setCopied(false), 1500)
+  }
+
+  return (
+    <button onClick={copy} title={t('copyLink')} aria-label={copied ? t('linkCopied') : t('copyLink')}
+            className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-semibold
+                        transition active:scale-95
+                        ${copied ? 'border-ok/40 bg-ok/10 text-ok' : 'border-line text-ink-soft hover:bg-muted'}`}>
+      <Icon name={copied ? 'check' : 'link'} className="w-4 h-4" />
+      <span className="hidden sm:inline" aria-live="polite">{copied ? t('linkCopied') : t('share')}</span>
+    </button>
   )
 }
 
