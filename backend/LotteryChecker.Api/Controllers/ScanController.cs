@@ -12,6 +12,7 @@ public class ScanController : ControllerBase
 {
     public const string RateLimitPolicy = "scan";
     private const string ImageErrorMessage = "Không đọc được ảnh này. Hãy chọn ảnh JPG/PNG khác hoặc chụp lại.";
+    private const string ImageErrorMessageEn = "Couldn't read this image. Choose another JPG/PNG or retake the photo.";
 
     private readonly ImagePreprocessor _preprocessor;
     private readonly LocalOcrSwitch _localOcr;
@@ -51,7 +52,7 @@ public class ScanController : ControllerBase
         var timer = new StageTimer(HttpContext.RequestStartTicks());
 
         if (image == null || image.Length == 0)
-            return BadRequest(new { error = "Chưa có ảnh" });
+            return BadRequest(new { error = Lang.T(Request, "Chưa có ảnh", "No image uploaded") });
 
         // Luồng mặc định: OCR cục bộ là đường chính; cloud (Gemini rồi OCR.space, nguồn nào đang bật)
         // chỉ là FALLBACK khi kết quả cục bộ không qua validate nghiệp vụ — vé chụp rõ không chạm tới
@@ -201,7 +202,7 @@ public class ScanController : ControllerBase
             // tránh trình duyệt báo "Network Error" do mất CORS header ở trang lỗi dev.
             _log.LogWarning(ex, "Quét ảnh lỗi sau {ElapsedMs}ms ({Stages})", timer.TotalMs, timer);
             // Chi tiết exception chỉ ghi log — user chỉ cần biết phải đổi ảnh.
-            return UnprocessableEntity(new { error = ImageErrorMessage });
+            return UnprocessableEntity(new { error = Lang.T(Request, ImageErrorMessage, ImageErrorMessageEn) });
         }
 
         // Confidence chỉ có nghĩa với OCR cục bộ; cloud không trả điểm tin cậy → null, FE ẩn dòng đó.
@@ -228,7 +229,7 @@ public class ScanController : ControllerBase
             lowConfidence,
             ticketNumberFromCloud = info.TicketNumberFromCloud,
             allProvinces = info.Province == null ? ProvinceMatcher.AllCodes : null,
-            warning = BuildWarning(info),
+            warning = BuildWarning(info, Lang.IsEn(Request)),
             // Kết quả đi đường nào + vì sao local không qua — để benchmark biết tỷ lệ fallback.
             ocrPath,
             cloudProvider,
@@ -268,10 +269,10 @@ public class ScanController : ControllerBase
         var timer = new StageTimer(HttpContext.RequestStartTicks());
 
         if (image == null || image.Length == 0)
-            return BadRequest(new { error = "Chưa có ảnh" });
+            return BadRequest(new { error = Lang.T(Request, "Chưa có ảnh", "No image uploaded") });
         if (!_gemini.IsEnabled)
             return StatusCode(StatusCodes.Status503ServiceUnavailable,
-                              new { error = "Quét nhiều vé cần AI đọc vé (Gemini) nhưng máy chủ đang tắt. Hãy quét từng vé." });
+                              new { error = Lang.T(Request, "Quét nhiều vé cần AI đọc vé (Gemini) nhưng máy chủ đang tắt. Hãy quét từng vé.", "Scanning multiple tickets needs the AI reader, which is currently off. Please scan one ticket at a time.") });
 
         var attempts = new List<CloudAttempt>();
         IReadOnlyList<TicketInfo> infos;
@@ -309,8 +310,8 @@ public class ScanController : ControllerBase
                 return UnprocessableEntity(new
                 {
                     error = read.Error is GeminiQuota.Error or "http_429"
-                        ? "AI đọc vé đang quá tải, bạn thử lại sau ít phút nhé."
-                        : "AI chưa đọc được ảnh này. Thử chụp lại rõ hơn, hoặc quét từng vé.",
+                        ? Lang.T(Request, "AI đọc vé đang quá tải, bạn thử lại sau ít phút nhé.", "The AI reader is busy right now, please try again in a few minutes.")
+                        : Lang.T(Request, "AI chưa đọc được ảnh này. Thử chụp lại rõ hơn, hoặc quét từng vé.", "The AI couldn't read this image. Try a clearer photo, or scan one ticket at a time."),
                     cloudAttempts = attempts,
                 });
             }
@@ -320,7 +321,7 @@ public class ScanController : ControllerBase
         {
             _log.LogWarning(ex, "Quét nhiều vé lỗi sau {ElapsedMs}ms ({Stages})", timer.TotalMs, timer);
             // Chi tiết exception chỉ ghi log — user chỉ cần biết phải đổi ảnh.
-            return UnprocessableEntity(new { error = ImageErrorMessage });
+            return UnprocessableEntity(new { error = Lang.T(Request, ImageErrorMessage, ImageErrorMessageEn) });
         }
 
         // Dò tuần tự: LotteryMatcher dùng chung một DbContext (không chạy song song được), mỗi vé chỉ
@@ -424,21 +425,22 @@ public class ScanController : ControllerBase
         if (string.IsNullOrWhiteSpace(req.TicketNumber)
             || req.TicketNumber.Length != 6
             || !req.TicketNumber.All(char.IsDigit))
-            return BadRequest(new { error = "Số vé phải là 6 chữ số" });
+            return BadRequest(new { error = Lang.T(Request, "Số vé phải là 6 chữ số", "Ticket number must be 6 digits") });
 
         var result = await _matcher.Match(req.TicketNumber, req.DrawDate, req.Province, ct);
         return Ok(result);
     }
 
-    private static string? BuildWarning(TicketInfo i)
+    private static string? BuildWarning(TicketInfo i, bool en)
     {
         var missing = new List<string>();
-        if (i.TicketNumber == null) missing.Add("số vé");
-        if (i.DrawDate == null)     missing.Add("ngày mở thưởng");
-        if (i.Province == null)     missing.Add("đài");
-        return missing.Count > 0
-            ? $"Không tự đọc được: {string.Join(", ", missing)}. Vui lòng kiểm tra/điền tay."
-            : null;
+        if (i.TicketNumber == null) missing.Add(en ? "ticket number" : "số vé");
+        if (i.DrawDate == null)     missing.Add(en ? "draw date" : "ngày mở thưởng");
+        if (i.Province == null)     missing.Add(en ? "province" : "đài");
+        if (missing.Count == 0) return null;
+        return en
+            ? $"Couldn't read: {string.Join(", ", missing)}. Please check and fill in manually."
+            : $"Không tự đọc được: {string.Join(", ", missing)}. Vui lòng kiểm tra/điền tay.";
     }
 }
 

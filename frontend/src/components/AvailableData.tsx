@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { getAvailableDraws } from '../api/client'
 import { provinceName } from '../data/provinces'
 import ProvinceResult from './ProvinceResult'
@@ -16,6 +17,7 @@ type Props = {
 }
 
 export default function AvailableData({ focus, onBack }: Props) {
+  const { t } = useTranslation('results')
   const [data, setData] = useState<{ drawDate: string; provinces: string[] }[] | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -27,7 +29,7 @@ export default function AvailableData({ focus, onBack }: Props) {
   useEffect(() => {
     getAvailableDraws()
       .then(setData)
-      .catch(e => setError(e?.message ?? 'Lỗi không xác định'))
+      .catch(e => setError(e?.message ?? t('unknownError')))
       .finally(() => setLoading(false))
   }, [])
 
@@ -64,7 +66,7 @@ export default function AvailableData({ focus, onBack }: Props) {
         sameDay={data?.find(d => d.drawDate === selected.drawDate)?.provinces ?? []}
         ticketNumber={ofTicket ? focus.ticketNumber : undefined}
         onSelectProvince={province => setSelected({ ...selected, province })}
-        backLabel={focus ? (focus.from === 'lucky' ? 'Luận số' : 'Vé của bạn') : 'Danh sách'}
+        backLabel={focus ? (focus.from === 'lucky' ? t('backLabel.lucky') : t('backLabel.ticket')) : t('backLabel.list')}
         onBack={focus ? onBack : closeDetail}
       />
     )
@@ -76,13 +78,13 @@ export default function AvailableData({ focus, onBack }: Props) {
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl md:text-3xl font-extrabold tracking-tight">Kết quả xổ số</h1>
+          <h1 className="text-xl md:text-3xl font-extrabold tracking-tight">{t('title')}</h1>
           {!loading && !error && !!data?.length && (
-            <p className="text-sm md:text-base text-ink-soft mt-0.5">Chạm vào tên đài để xem bảng kết quả chi tiết.</p>
+            <p className="text-sm md:text-base text-ink-soft mt-0.5">{t('hint')}</p>
           )}
         </div>
         <button onClick={onBack} className="btn btn-soft shrink-0 px-3 py-2 text-sm">
-          <Icon name="back" className="w-4 h-4" /> Quay lại
+          <Icon name="back" className="w-4 h-4" /> {t('back')}
         </button>
       </div>
 
@@ -97,7 +99,7 @@ export default function AvailableData({ focus, onBack }: Props) {
         <div className="card p-6 text-center text-sm text-ink-soft">
           <IconBadge name="empty" tone="info" />
           <p className="mt-3">
-            Chưa có kết quả nào. Kết quả được cập nhật tự động vào buổi tối sau giờ xổ, bạn quay lại sau nhé.
+            {t('empty')}
           </p>
         </div>
       )}
@@ -122,7 +124,7 @@ export default function AvailableData({ focus, onBack }: Props) {
               {d.drawDate === today && (
                 <span className="ml-auto text-[11px] font-bold uppercase tracking-wide text-on-primary rounded-full px-2 py-0.5
                                  bg-gradient-to-r from-primary to-primary-end">
-                  Hôm nay
+                  {t('today')}
                 </span>
               )}
             </div>

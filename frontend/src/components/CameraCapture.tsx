@@ -1,5 +1,6 @@
 import Webcam from 'react-webcam'
 import { useRef, useCallback, useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import Icon from './Icon'
 
 /**
@@ -53,23 +54,10 @@ const CORNERS = [
 
 // Lời trong khung khi camera chưa chạy. "off" báo trước hộp xin quyền để user không bất ngờ mà bấm Chặn;
 // lỗi thì chỉ đường gỡ, vì trình duyệt đã chặn thì app không tự hỏi lại được.
-const CAM_TEXT = {
-  off: {
-    title: 'Dò vé bằng camera',
-    body: 'Bấm Bật camera, trình duyệt hỏi thì chọn Cho phép. Camera chỉ dùng để chụp vé.',
-  },
-  denied: {
-    title: 'Chưa được dùng camera',
-    body: 'Bấm Thử lại rồi chọn Cho phép. Không thấy hỏi thì bấm biểu tượng cạnh địa chỉ web, '
-        + 'bật Camera — hoặc chọn ảnh vé có sẵn.',
-  },
-  error: {
-    title: 'Không mở được camera',
-    body: 'Máy không có camera, hoặc ứng dụng khác đang dùng. Bạn có thể chọn ảnh vé có sẵn.',
-  },
-}
+// Nội dung: check.json → camera.{off,denied,error}.{title,body}.
 
 export default function CameraCapture({ onCapture }: { onCapture: (blob: Blob) => void }) {
+  const { t } = useTranslation('check')
   const webcamRef = useRef<Webcam>(null)
   const [cam, setCam] = useState<Cam>('checking')
   // Webcam chỉ được mount lúc này — mount là trình duyệt bật camera (và hỏi quyền nếu chưa có).
@@ -129,7 +117,7 @@ export default function CameraCapture({ onCapture }: { onCapture: (blob: Blob) =
               ))}
               <span className="absolute -top-9 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full
                                bg-black/45 backdrop-blur px-3 py-1 text-xs font-medium text-white">
-                Đặt vé vào giữa khung
+                {t('camera.alignHint')}
               </span>
             </div>
           </>
@@ -140,13 +128,13 @@ export default function CameraCapture({ onCapture }: { onCapture: (blob: Blob) =
             {cam === 'starting' ? (
               <>
                 <span className="w-8 h-8 rounded-full border-2 border-white/25 border-t-white motion-safe:animate-spin" />
-                Đang mở camera...
+                {t('camera.opening')}
               </>
             ) : (
               <>
                 <Icon name="camera" className="w-8 h-8 text-white/60" />
-                <span className="text-base font-semibold text-white">{CAM_TEXT[cam].title}</span>
-                <span className="max-w-xs">{CAM_TEXT[cam].body}</span>
+                <span className="text-base font-semibold text-white">{t(`camera.${cam}.title`)}</span>
+                <span className="max-w-xs">{t(`camera.${cam}.body`)}</span>
               </>
             )}
           </div>
@@ -157,8 +145,8 @@ export default function CameraCapture({ onCapture }: { onCapture: (blob: Blob) =
               disabled={cam === 'checking' || cam === 'starting'}
               className="btn btn-primary mt-3 w-full py-3.5 text-lg">
         {cam === 'denied' || cam === 'error'
-          ? <><Icon name="retry" className="w-6 h-6" /> Thử lại</>
-          : <><Icon name="camera" className="w-6 h-6" /> {cam === 'off' ? 'Bật camera' : 'Chụp vé'}</>}
+          ? <><Icon name="retry" className="w-6 h-6" /> {t('camera.retry')}</>
+          : <><Icon name="camera" className="w-6 h-6" /> {cam === 'off' ? t('camera.turnOn') : t('camera.capture')}</>}
       </button>
     </div>
   )

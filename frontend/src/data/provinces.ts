@@ -1,3 +1,5 @@
+import { currentLang } from '../i18n'
+
 // Danh sách đài đầy đủ — hard-code (frontend cache, không gọi API mỗi lần).
 // `code` PHẢI khớp đúng code mà backend ProvinceMatcher sinh ra.
 export const ALL_PROVINCES = [
@@ -42,6 +44,14 @@ export const ALL_PROVINCES = [
   { code: 'MB', name: 'Miền Bắc' },
 ]
 
-// Đổi code đài → tên hiển thị tiếng Việt (fallback: trả lại code nếu không tìm thấy)
-export const provinceName = (code: string): string =>
-  ALL_PROVINCES.find(p => p.code === code)?.name ?? code
+// Tên tiếng Anh: bỏ dấu, trừ vài đài có tên quen dùng khác.
+const EN_NAMES: Record<string, string> = { TPHCM: 'Ho Chi Minh City', MB: 'Northern region' }
+const stripDiacritics = (s: string) =>
+  s.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D')
+
+// Đổi code đài → tên hiển thị theo ngôn ngữ đang chọn (fallback: trả lại code nếu không tìm thấy)
+export const provinceName = (code: string): string => {
+  const p = ALL_PROVINCES.find(p => p.code === code)
+  if (!p) return code
+  return currentLang() === 'en' ? EN_NAMES[code] ?? stripDiacritics(p.name) : p.name
+}

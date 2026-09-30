@@ -1,0 +1,12 @@
+{
+  "title": "Lottery results",
+  "hint": "Tap a province to see its full results table.",
+  "back": "Back",
+  "empty": "No results yet. Results are updated automatically in the evening after the draw — please check back later.",
+  "today": "Today",
+  "unknownError": "Unknown error",
+  "backLabel": { "lucky": "Dream numbers", "ticket": "Your ticket", "list": "List" },
+  "provinceTitle": "{{province}} lottery",
+  "comparing": "Comparing with ticket <b>{{ticket}}</b> — matching ending digits are highlighted in green, winning numbers are boxed.",
+  "loading": "Loading..."
+}

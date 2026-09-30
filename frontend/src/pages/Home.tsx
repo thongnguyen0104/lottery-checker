@@ -1,4 +1,6 @@
+import { formatDate as fmtDate } from '../utils/date'
 import { useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import CameraCapture from '../components/CameraCapture'
 import ImageUpload from '../components/ImageUpload'
 import TicketInfoConfirm from '../components/TicketInfoConfirm'
@@ -12,10 +14,11 @@ import {
   type CheckResult, type MultiTicket, type ScanResponse, type TicketQuery,
 } from '../api/client'
 import { ALL_PROVINCES, provinceName } from '../data/provinces'
+import i18n from '../i18n'
 
 type Stage = 'capture' | 'confirm' | 'result' | 'multi'
 
-const MULTI_STEPS = ['Tải ảnh lên', 'AI tìm và đọc từng vé', 'Dò kết quả các vé']
+const MULTI_STEPS = ['home.stepUpload', 'home.stepMultiRead', 'home.stepMultiCheck'] as const
 // Nhiều vé: Gemini đọc cả ảnh thường mất vài giây — tự sang bước "Dò" sau chừng này ms.
 const MULTI_READ_MS = 3500
 
@@ -31,16 +34,15 @@ const toScanResponse = (t: MultiTicket): ScanResponse => ({
 })
 type Progress = { title: string; steps: string[]; step: number; detail?: string }
 
-const SCAN_STEPS = ['Tải ảnh lên', 'Đọc chữ trên vé', 'Nhận diện số vé, đài và ngày']
+const SCAN_STEPS = ['home.stepUpload', 'home.stepReadText', 'home.stepRecognize'] as const
 // Máy chủ không báo tiến độ giữa chừng: upload xong thì sang "Đọc chữ", rồi tự chuyển sang
 // "Nhận diện" sau chừng này ms (≈ thời gian OCR cục bộ hay gặp). Bước cuối chỉ ✓ khi có kết quả.
 const OCR_STEP_MS = 1500
 // Giữ màn "xong hết ✓" một nhịp cho user kịp thấy trước khi chuyển trang — 0 = chuyển ngay.
 const DONE_HOLD_MS = 350
 
-const fmtDate = (iso: string) => iso.split('-').reverse().join('/')
 
-const errorText = (e: unknown) => (e instanceof Error && e.message) || 'Lỗi không xác định'
+const errorText = (e: unknown) => (e instanceof Error && e.message) || i18n.t('check:unknownError')
 
 /** Máy chủ chắc cả 3 trường → thông tin để dò luôn; null = phải hỏi lại user trên form. */
 function autoQuery(s: ScanResponse): TicketQuery | null {
@@ -48,11 +50,11 @@ function autoQuery(s: ScanResponse): TicketQuery | null {
   return { ticketNumber: s.ticketNumber, drawDate: s.drawDate, province: s.province }
 }
 
-const TIPS: [IconName, string][] = [
-  ['sun', 'Đủ sáng, tránh bóng đổ và lóa đèn'],
-  ['frame', 'Chụp thẳng, vé nằm gọn trong khung'],
-  ['focus', 'Lấy nét vào dãy 6 số và dòng ngày'],
-]
+const TIPS = [
+  ['sun', 'home.tipLight'],
+  ['frame', 'home.tipFrame'],
+  ['focus', 'home.tipFocus'],
+] as const satisfies readonly (readonly [IconName, string])[]
 
 type Props = {
   /** false = đang ở tính năng khác (Home chỉ bị ẩn để giữ state) → tắt camera. */
@@ -69,6 +71,7 @@ type Props = {
 type HistoryState = { view?: string; stage?: Stage }
 
 export default function Home({ active, onShowResults, onBusyChange, onRequireLogin }: Props) {
+  const { t } = useTranslation('check')
   const [stage, setStage] = useState<Stage>('capture')
   const [scanned, setScanned] = useState<ScanResponse | null>(null)
   // Thông tin vé của lượt dò gần nhất — mở lại form để sửa (từ màn kết quả, hoặc khi dò lỗi) thì
@@ -149,7 +152,7 @@ export default function Home({ active, onShowResults, onBusyChange, onRequireLog
     setMultiTickets(null)
     setMultiIndex(null)
     if (multiMode) return scanMulti(blob)
-    setProgress({ title: 'Đang đọc vé số...', steps: SCAN_STEPS, step: 0 })
+    setProgress({ title: t('home.titleScan'), steps: SCAN_STEPS.map(k => t(k)), step: 0 })
     let uploaded = false
     let data: ScanResponse
     try {
@@ -180,7 +183,7 @@ export default function Home({ active, onShowResults, onBusyChange, onRequireLog
 
   // Ảnh nhiều vé: 1 request vừa đọc vừa dò luôn các vé đọc chắc → thẳng màn danh sách.
   const scanMulti = async (blob: Blob) => {
-    setProgress({ title: 'Đang đọc các vé...', steps: MULTI_STEPS, step: 0 })
+    setProgress({ title: t('home.titleMulti'), steps: MULTI_STEPS.map(k => t(k)), step: 0 })
     let uploaded = false
     try {
       const data = await scanMultiImage(blob, ratio => {
@@ -225,11 +228,11 @@ export default function Home({ active, onShowResults, onBusyChange, onRequireLog
     setError(null)
     setChecked(info)
     setProgress({
-      title: 'Đang dò kết quả...',
+      title: t('home.titleCheck'),
       steps: [
-        `Tìm kết quả ${provinceName(info.province)} ngày ${fmtDate(info.drawDate)}`,
-        `Dò số ${info.ticketNumber} với các giải`,
-        'Tổng hợp kết quả',
+        t('home.checkFind', { province: provinceName(info.province), date: fmtDate(info.drawDate) }),
+        t('home.checkMatch', { number: info.ticketNumber }),
+        t('home.checkSum'),
       ],
       step: 0,
     })
@@ -271,7 +274,7 @@ export default function Home({ active, onShowResults, onBusyChange, onRequireLog
       {!progress && error && (
         <div className="fade-up card max-w-md mx-auto p-8 text-center">
           <IconBadge name="error" tone="bad" />
-          <div className="text-lg font-bold mt-4 mb-1">Ối, có lỗi rồi</div>
+          <div className="text-lg font-bold mt-4 mb-1">{t('home.errorTitle')}</div>
           <div className="text-sm text-bad mb-5">{error}</div>
           {/* Lỗi lúc dò (đã có thông tin vé): dò lại ngay, khỏi chụp lại — nhất là vé được dò luôn
               chưa qua form. Lỗi lúc quét: về camera. */}
@@ -282,16 +285,16 @@ export default function Home({ active, onShowResults, onBusyChange, onRequireLog
                       setStage('capture')
                     }}
                     className="btn btn-primary w-full">
-              <Icon name="retry" /> Thử lại
+              <Icon name="retry" /> {t('home.retry')}
             </button>
             {checked && scanned && (
               <button onClick={() => { setError(null); setStage('confirm') }} className="btn btn-secondary w-full">
-                <Icon name="edit" /> Sửa thông tin vé
+                <Icon name="edit" /> {t('home.editInfo')}
               </button>
             )}
             {inMulti && (
               <button onClick={backToMulti} className="btn btn-secondary w-full">
-                <Icon name="back" /> Về danh sách vé
+                <Icon name="back" /> {t('home.backToList')}
               </button>
             )}
           </div>
@@ -307,30 +310,30 @@ export default function Home({ active, onShowResults, onBusyChange, onRequireLog
                     Chụp + ô Chọn ảnh trong màn đầu tiên */}
                 <p className="hidden md:flex items-center gap-1.5 mb-1 text-xs font-semibold uppercase tracking-[.18em]
                               text-brand-700 dark:text-brand-400">
-                  <Icon name="sparkles" className="w-3.5 h-3.5" /> Dò vé tự động
+                  <Icon name="sparkles" className="w-3.5 h-3.5" /> {t('home.eyebrow')}
                 </p>
-                <h1 className="text-xl md:text-3xl font-extrabold tracking-tight">Chụp vé, dò liền tay</h1>
+                <h1 className="text-xl md:text-3xl font-extrabold tracking-tight">{t('home.heading')}</h1>
                 <p className="hidden md:block text-ink-soft mt-1">
-                  Đưa vé vào khung rồi bấm chụp — máy tự đọc số vé, đài và ngày để dò giải giúp bạn.
+                  {t('home.subtitle')}
                 </p>
               </div>
 
               {/* 1 vé: đọc kỹ từng vé (OCR máy chủ + AI). Nhiều vé: AI đọc cả ảnh, dò hết một lượt. */}
-              <div role="radiogroup" aria-label="Số vé trong ảnh"
+              <div role="radiogroup" aria-label={t('home.modeGroup')}
                    className="grid grid-cols-2 gap-1 p-1 mb-4 rounded-xl bg-surface border border-line max-w-sm">
-                {([[false, 'ticket', 'Một vé'], [true, 'tickets', 'Nhiều vé']] as const).map(([m, icon, label]) => (
+                {([[false, 'ticket', 'home.modeOne'], [true, 'tickets', 'home.modeMany']] as const).map(([m, icon, label]) => (
                   <button key={label} role="radio" aria-checked={multiMode === m} onClick={() => setMultiMode(m)}
                           className={`flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-semibold transition
                                       ${multiMode === m
                                         ? 'bg-primary text-on-primary shadow-soft'
                                         : 'text-ink-soft hover:text-ink'}`}>
-                    <Icon name={icon} className="w-4 h-4" /> {label}
+                    <Icon name={icon} className="w-4 h-4" /> {t(label)}
                   </button>
                 ))}
               </div>
               {multiMode && (
                 <p className="-mt-2 mb-4 text-xs text-ink-soft">
-                  Xếp tối đa 10 vé không chồng lên nhau, thấy rõ số vé, tên đài và ngày của từng vé.
+                  {t('home.multiHint')}
                 </p>
               )}
 
@@ -343,18 +346,18 @@ export default function Home({ active, onShowResults, onBusyChange, onRequireLog
 
                 <div className="space-y-4 mt-4 md:mt-0">
                   <div className="md:hidden flex items-center gap-3 text-xs font-medium text-ink-faint">
-                    <span className="h-px flex-1 bg-line" /> hoặc <span className="h-px flex-1 bg-line" />
+                    <span className="h-px flex-1 bg-line" /> {t('home.or')} <span className="h-px flex-1 bg-line" />
                   </div>
                   <ImageUpload onSelect={f => handleCapture(f)} />
                   <div className="card p-4">
                     <div className="flex items-center gap-2 font-semibold mb-3">
                       <Icon name="tip" className="w-[18px] h-[18px] text-brand-700 dark:text-brand-400" />
-                      Mẹo chụp rõ nét
+                      {t('home.tipsTitle')}
                     </div>
                     <ul className="space-y-2 text-sm text-ink-soft">
                       {TIPS.map(([icon, text]) => (
                         <li key={icon} className="flex items-center gap-2.5">
-                          <Icon name={icon} className="w-4 h-4 shrink-0 text-ink-faint" /> {text}
+                          <Icon name={icon} className="w-4 h-4 shrink-0 text-ink-faint" /> {t(text)}
                         </li>
                       ))}
                     </ul>
@@ -373,14 +376,14 @@ export default function Home({ active, onShowResults, onBusyChange, onRequireLog
                 onConfirm={runCheck}
                 onRescan={inMulti ? backToMulti : () => setStage('capture')}
                 hideFeedback={inMulti}
-                rescanLabel={inMulti ? 'Danh sách' : undefined}
+                rescanLabel={inMulti ? t('home.listShort') : undefined}
               />
             </div>
           )}
           {shown === 'result' && result && (
             <div className="fade-up max-w-xl mx-auto">
               <ResultDisplay result={result} onRescan={inMulti ? backToMulti : () => setStage('capture')}
-                             rescanLabel={inMulti ? 'Về danh sách vé' : undefined}
+                             rescanLabel={inMulti ? t('home.backToList') : undefined}
                              onEdit={() => setStage('confirm')} onShowTable={onShowResults} />
             </div>
           )}

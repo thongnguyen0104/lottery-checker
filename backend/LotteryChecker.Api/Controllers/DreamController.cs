@@ -25,10 +25,10 @@ public class DreamController : ControllerBase
     {
         var message = req.Message?.Trim();
         if (string.IsNullOrEmpty(message))
-            return BadRequest(new { error = "Bạn hãy kể lại giấc mơ trước đã." });
+            return BadRequest(new { error = Lang.T(Request, "Bạn hãy kể lại giấc mơ trước đã.", "Please describe your dream first.") });
         if (message.Length > MaxMessageLength)
-            return BadRequest(new { error = $"Mô tả dài quá, tối đa {MaxMessageLength} ký tự." });
+            return BadRequest(new { error = Lang.T(Request, $"Mô tả dài quá, tối đa {MaxMessageLength} ký tự.", $"Description is too long, max {MaxMessageLength} characters.") });
 
-        return await _interpreter.InterpretAsync(message, ct);
+        return await _interpreter.InterpretAsync(message, ct, Lang.IsEn(Request));
     }
 }

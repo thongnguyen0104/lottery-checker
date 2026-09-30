@@ -1,0 +1,96 @@
+{
+  "prize": {
+    "DB": "Special Prize", "subDB": "Special Runner-up Prize", "consolation": "Consolation Prize",
+    "1": "First Prize", "2": "Second Prize", "3": "Third Prize", "4": "Fourth Prize",
+    "5": "Fifth Prize", "6": "Sixth Prize", "7": "Seventh Prize", "8": "Eighth Prize"
+  },
+  "prizeShort": { "DB": "Special", "n": "Prize {{n}}" },
+  "app": {
+    "name": "Lottery Checker",
+    "tagline": "Snap it, see if you won",
+    "features": "Features",
+    "busy": "(working)",
+    "openTheme": "Change colors and background",
+    "openThemeTitle": "Colors & background",
+    "switchLang": "Switch to Vietnamese",
+    "donate": "Support us",
+    "donateLabel": "Support Lottery Checker"
+  },
+  "auth": {
+    "login": "Log in",
+    "logout": "Log out",
+    "loginTitle": "Log in / Sign up",
+    "logoutTitle": "{{username}} — tap to log out",
+    "logoutConfirmTitle": "Log out?",
+    "logoutConfirmMessage": "You are logged in as {{username}}.",
+    "register": "Sign up",
+    "createAccount": "Create account",
+    "close": "Close",
+    "username": "Username",
+    "usernamePlaceholder": "10–20 characters",
+    "checking": "Checking...",
+    "usernameTaken": "This username is already taken.",
+    "usernameOk": "This username is available.",
+    "password": "Password",
+    "hide": "Hide",
+    "show": "Show",
+    "confirmPassword": "Confirm password",
+    "passwordMismatch": "Passwords don't match.",
+    "busy": "Working...",
+    "usernameLength": "Username must be {{min}}–{{max}} characters.",
+    "usernameChars": "Username may only contain unaccented letters, digits, dots or underscores.",
+    "rules": {
+      "length": "8–64 characters, no spaces",
+      "upper": "An uppercase letter (A–Z)",
+      "lower": "A lowercase letter (a–z)",
+      "digit": "A digit (0–9)",
+      "special": "A special character (e.g. !@#$%)"
+    },
+    "trialUsedUp": "You've used your free check. Log in or create an account to keep checking.",
+    "luckyTitle": "Log in to use Lucky Numbers",
+    "luckyBody": "Without an account you can only view lottery results and check 1 ticket for free.",
+    "loginRequired": "Login required"
+  },
+  "donate": {
+    "title": "Support Lottery Checker",
+    "close": "Close",
+    "body": "This site is free with no ads. If you find it useful, buy me a coffee to help keep the server running!",
+    "qrAlt": "MoMo / VietQR code — NGUYEN HOANG THONG",
+    "download": "Download QR image",
+    "hint": "On a phone: download the image, open your banking/MoMo app → Scan QR → pick the image."
+  },
+  "confirmDialog": {
+    "cancel": "Cancel"
+  },
+  "views": {
+    "check": { "title": "Check Ticket", "short": "Check", "hint": "Snap a ticket to read and check it" },
+    "lucky": { "title": "Lucky Numbers", "short": "Lucky", "hint": "Vietlott picks and dream numbers" },
+    "results": { "title": "Lottery Results", "short": "Results", "hint": "Full result tables by province" }
+  },
+  "theme": {
+    "dialog": "Customize appearance",
+    "heading": "Your appearance",
+    "close": "Close",
+    "mode": "Mode",
+    "accent": "Accent color",
+    "background": "Background",
+    "saved": "Your choices are saved on this device.",
+    "accents": {
+      "gold": "Gold", "red": "Lucky red", "orange": "Sunset", "pink": "Candy pink",
+      "violet": "Dreamy violet", "blue": "Ocean blue", "mint": "Mint"
+    },
+    "modes": { "light": "Light", "dark": "Dark", "system": "System" },
+    "backgrounds": { "aurora": "Aurora", "dots": "Dots", "grid": "Grid", "plain": "Plain" }
+  },
+  "errors": {
+    "tooMany": "Too many requests. Take a short break and try again.",
+    "tooLarge": "Image too large. Pick one under 10MB or retake it.",
+    "server": "The server is having trouble. Please try again in a few minutes.",
+    "badRequest": "Invalid request. Please try again.",
+    "canceled": "Canceled",
+    "timeout": "The server took too long. Check your connection and tap Retry.",
+    "offline": "You're offline. Turn on Wi-Fi or mobile data and tap Retry.",
+    "network": "Can't connect. Check your connection and tap Retry.",
+    "unknown": "Unknown error"
+  }
+}

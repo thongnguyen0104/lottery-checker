@@ -17,6 +17,8 @@ public class DreamInterpreter
 {
     public const string Disclaimer =
         "Số tham khảo theo quan niệm dân gian, không có cơ sở khoa học và không đảm bảo trúng thưởng.";
+    public const string DisclaimerEn =
+        "Numbers based on folk beliefs — no scientific basis and no guarantee of winning.";
 
     private const int MaxSecondary = 5;
     private static readonly Regex Whitespace = new(@"\s+", RegexOptions.Compiled);
@@ -66,17 +68,17 @@ public class DreamInterpreter
         string Summary, MatchedEntry[] Entries, string? MainNumber, string[] SecondaryNumbers,
         string Explanation, string Disclaimer, string Source, string? AiError);
 
-    public async Task<DreamResult> InterpretAsync(string message, CancellationToken ct = default)
+    public async Task<DreamResult> InterpretAsync(string message, CancellationToken ct = default, bool en = false)
     {
         var normalized = Whitespace.Replace(message.Trim(), " ");
-        var cacheKey = "dream:" + normalized.ToLowerInvariant();
+        var cacheKey = (en ? "dream:en:" : "dream:") + normalized.ToLowerInvariant();
         if (_cache.TryGetValue(cacheKey, out DreamResult? cached) && cached != null) return cached;
 
         // 1) Sổ mơ cục bộ trước: khớp được là trả luôn, không tốn lượt Gemini (gói free chỉ 15 req/phút).
         var entries = _book.MatchLocal(normalized);
         if (entries.Count > 0)
         {
-            var local = Build(LocalSummary(entries), entries, LocalExplanation(entries, normalized), "local", null);
+            var local = Build(LocalSummary(entries, en), entries, LocalExplanation(entries, normalized, en), "local", null, en);
             _cache.Set(cacheKey, local, TimeSpan.FromHours(6));
             return local;
         }
@@ -88,12 +90,12 @@ public class DreamInterpreter
         if (AiEnabled)
             foreach (var model in _models)
             {
-                var (ai, error) = await AskGeminiAsync(model, normalized, ct);
+                var (ai, error) = await AskGeminiAsync(model, normalized, en, ct);
                 if (ai == null) { aiError = error; continue; }
                 var matched = ai.Keys.Select(_book.Find).OfType<DreamEntry>().ToArray();
                 if (matched.Length == 0) { emptyAnswer ??= ai; continue; }
 
-                var result = Build(ai.Summary, matched, ai.Explanation, "ai", null);
+                var result = Build(ai.Summary, matched, ai.Explanation, "ai", null, en);
                 _cache.Set(cacheKey, result, TimeSpan.FromHours(6));
                 _log.LogInformation("Luận số AI ({Model}): {Len} ký tự → {Keys}.", model, normalized.Length,
                                     string.Join(",", result.Entries.Select(e => e.Key)));
@@ -102,15 +104,22 @@ public class DreamInterpreter
 
         // Không nguồn nào ra mục → không bịa số. Không cache lâu, để lượt sau có thể được AI trả lời.
         var none = emptyAnswer != null
-            ? Build(emptyAnswer.Summary, [], emptyAnswer.Explanation, "ai", null)
-            : Build("Chưa nhận ra chi tiết nào có trong sổ mơ", [],
-                    "Sổ mơ hiện chưa có mục nào khớp với mô tả này. Thử kể rõ con vật, người hay sự việc bạn thấy.",
-                    "local", aiError);
+            ? Build(emptyAnswer.Summary, [], emptyAnswer.Explanation, "ai", null, en)
+            : en
+                ? Build("No known dream symbols found", [],
+                        "The dream book has no entry matching this description yet. Try naming the animal, person or event you saw.",
+                        "local", aiError, en)
+                : Build("Chưa nhận ra chi tiết nào có trong sổ mơ", [],
+                        "Sổ mơ hiện chưa có mục nào khớp với mô tả này. Thử kể rõ con vật, người hay sự việc bạn thấy.",
+                        "local", aiError);
         _cache.Set(cacheKey, none, TimeSpan.FromMinutes(5));
         return none;
     }
 
-    private static string LocalSummary(IReadOnlyList<DreamEntry> entries) => entries.Count == 1
+    // Sổ mơ chỉ có tên mục tiếng Việt → bản tiếng Anh vẫn giữ tên mục gốc trong ngoặc kép.
+    private static string LocalSummary(IReadOnlyList<DreamEntry> entries, bool en) => en
+        ? $"A dream about {JoinEn(entries.Select(e => $"\"{e.Label}\""))}"
+        : entries.Count == 1
         ? $"Giấc mơ thấy {Lower(entries[0].Label)}"
         : $"Giấc mơ có {JoinVi(entries.Select(e => Lower(e.Label)))}";
 
@@ -122,14 +131,25 @@ public class DreamInterpreter
         (what, first) => $"Chi tiết đáng chú ý nhất là {first}. Mình đã đối chiếu {what} với sổ mơ dân gian và gợi ý bộ số dưới đây, bạn tham khảo cho vui nha.",
     ];
 
-    private static string LocalExplanation(IReadOnlyList<DreamEntry> entries, string message)
+    private static string LocalExplanation(IReadOnlyList<DreamEntry> entries, string message, bool en)
     {
+        if (en)
+        {
+            var items = JoinEn(entries.Select(e => $"\"{e.Label}\""));
+            return $"Your dream features {items}. By Vietnamese folk tradition these symbols map to lucky numbers, so here are the pairs from the dream book — just for fun!";
+        }
         var what = JoinVi(entries.Select(e => Lower(e.Label)));
         var pick = (int)((uint)StringComparer.OrdinalIgnoreCase.GetHashCode(message) % LocalTemplates.Length);
         return LocalTemplates[pick](what, Lower(entries[0].Label));
     }
 
     private static string Lower(string label) => label.Length == 0 ? label : char.ToLower(label[0]) + label[1..];
+
+    private static string JoinEn(IEnumerable<string> items)
+    {
+        var list = items.ToList();
+        return list.Count <= 1 ? string.Concat(list) : $"{string.Join(", ", list[..^1])} and {list[^1]}";
+    }
 
     /// <summary>"a", "a và b", "a, b và c".</summary>
     private static string JoinVi(IEnumerable<string> items)
@@ -140,7 +160,7 @@ public class DreamInterpreter
 
     /// <summary>Số chính = số đầu của mục đầu tiên; số phụ = các số còn lại, bỏ trùng, tối đa 5.</summary>
     internal static DreamResult Build(string summary, IEnumerable<DreamEntry> matched, string explanation,
-                                      string source, string? aiError)
+                                      string source, string? aiError, bool en = false)
     {
         var entries = matched.DistinctBy(e => e.Key).ToArray();
         var all = entries.SelectMany(e => e.Numbers).Distinct().ToList();
@@ -150,25 +170,25 @@ public class DreamInterpreter
             all.FirstOrDefault(),
             all.Skip(1).Take(MaxSecondary).ToArray(),
             explanation,
-            Disclaimer,
+            en ? DisclaimerEn : Disclaimer,
             source,
             aiError);
     }
 
     internal sealed record AiAnswer(string Summary, string[] Keys, string Explanation);
 
-    private async Task<(AiAnswer? Answer, string? Error)> AskGeminiAsync(string model, string message, CancellationToken ct)
+    private async Task<(AiAnswer? Answer, string? Error)> AskGeminiAsync(string model, string message, bool en, CancellationToken ct)
     {
         for (var attempt = 0; ; attempt++)
         {
-            var (answer, error) = await SendOnceAsync(model, message, ct);
+            var (answer, error) = await SendOnceAsync(model, message, en, ct);
             if (answer != null || attempt >= _maxRetries || !GeminiTicketReader.IsTransient(error))
                 return (answer, error);
             await Task.Delay(_retryDelayMs, ct);
         }
     }
 
-    private async Task<(AiAnswer?, string?)> SendOnceAsync(string model, string message, CancellationToken ct)
+    private async Task<(AiAnswer?, string?)> SendOnceAsync(string model, string message, bool en, CancellationToken ct)
     {
         if (_quota != null && !_quota.TryAcquireDream(model))
         {
@@ -179,7 +199,7 @@ public class DreamInterpreter
         {
             using var req = new HttpRequestMessage(HttpMethod.Post, $"{_endpoint.TrimEnd('/')}/models/{model}:generateContent")
             {
-                Content = new StringContent(JsonSerializer.Serialize(BuildRequest(model, message)), Encoding.UTF8, "application/json"),
+                Content = new StringContent(JsonSerializer.Serialize(BuildRequest(model, message, en)), Encoding.UTF8, "application/json"),
             };
             req.Headers.Add("x-goog-api-key", _apiKey);
 
@@ -221,7 +241,7 @@ public class DreamInterpreter
         return t.Length > max ? t[..max] : t;
     }
 
-    private object BuildRequest(string model, string message)
+    private object BuildRequest(string model, string message, bool en)
     {
         var generationConfig = new Dictionary<string, object>
         {
@@ -231,11 +251,11 @@ public class DreamInterpreter
                 type = "OBJECT",
                 properties = new Dictionary<string, object>
                 {
-                    ["summary"] = new { type = "STRING", description = "Tóm tắt giấc mơ, tối đa 15 từ." },
+                    ["summary"] = new { type = "STRING", description = en ? "Dream summary in English, max 15 words." : "Tóm tắt giấc mơ, tối đa 15 từ." },
                     // Sổ mơ CHỈ gửi qua enum này, dạng tên mục (không khoá, không alias, không số): model tự hiểu
                     // từ đồng nghĩa, danh sách chỉ xuất hiện 1 lần → ~650 token/lượt thay vì ~3.800.
                     ["keys"] = new { type = "ARRAY", items = new { type = "STRING", @enum = _book.Labels } },
-                    ["explanation"] = new { type = "STRING", description = "1–3 câu tiếng Việt." },
+                    ["explanation"] = new { type = "STRING", description = en ? "1–3 sentences in English." : "1–3 câu tiếng Việt." },
                 },
                 required = new[] { "summary", "keys", "explanation" },
                 propertyOrdering = new[] { "summary", "keys", "explanation" },
@@ -247,7 +267,7 @@ public class DreamInterpreter
 
         return new
         {
-            systemInstruction = new { parts = new[] { new { text = SystemPrompt } } },
+            systemInstruction = new { parts = new[] { new { text = en ? SystemPrompt + SystemPromptEn : SystemPrompt } } },
             contents = new[]
             {
                 new { role = "user", parts = new[] { new { text = message } } },
@@ -266,6 +286,14 @@ public class DreamInterpreter
         - explanation: giải thích ngắn bằng tiếng Việt vì sao chọn các mục đó, giọng thân thiện.
         - Không bao giờ khẳng định sẽ trúng. Nếu nội dung không phải mô tả giấc mơ/sự việc, trả keys rỗng
           và nhắc người dùng kể lại giấc mơ.
+        """;
+
+    // Người dùng chọn tiếng Anh: vẫn chọn keys theo sổ mơ tiếng Việt, chỉ đổi ngôn ngữ phần chữ trả về.
+    private const string SystemPromptEn =
+        """
+
+        - Người dùng dùng tiếng Anh: viết summary và explanation bằng tiếng Anh (bỏ qua yêu cầu tiếng Việt ở trên).
+          Mô tả có thể bằng tiếng Anh — vẫn chọn keys đúng tên mục sổ mơ tiếng Việt trong schema.
         """;
 
     private sealed record RawAnswer(string? Summary, string[]? Keys, string? Explanation);

@@ -1,6 +1,8 @@
 import type { CloudProvider, ScanResponse, ScanTimings } from '../api/client'
 import { provinceName } from '../data/provinces'
+import { useTranslation } from 'react-i18next'
 import Icon from './Icon'
+import i18n, { currentLocale } from '../i18n'
 
 const fmtDate = (iso: string | null) => {
   if (!iso) return null
@@ -8,80 +10,67 @@ const fmtDate = (iso: string | null) => {
   return `${d}/${m}/${y}`
 }
 
-// < 1s giữ nguyên ms (so sánh chặng nhanh cho dễ), từ 1s trở lên đổi ra giây kiểu VN (2,4s).
+// 1 chữ số thập phân theo locale đang dùng (VN: 2,4 · EN: 2.4).
+const fmt1 = (n: number) =>
+  n.toLocaleString(currentLocale(), { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+
+// < 1s giữ nguyên ms (so sánh chặng nhanh cho dễ), từ 1s trở lên đổi ra giây (2,4s).
 const fmtMs = (ms: number) =>
-  ms < 1000 ? `${Math.round(ms)}ms` : `${(ms / 1000).toFixed(1).replace('.', ',')}s`
+  ms < 1000 ? `${Math.round(ms)}ms` : `${fmt1(ms / 1000)}s`
 
 const fmtBytes = (b: number) =>
-  b < 1024 * 1024 ? `${Math.round(b / 1024)}KB` : `${(b / 1024 / 1024).toFixed(1).replace('.', ',')}MB`
+  b < 1024 * 1024 ? `${Math.round(b / 1024)}KB` : `${fmt1(b / 1024 / 1024)}MB`
 
 // Chặng nối tiếp, khớp key backend trả về (ScanController). Cộng lại đúng bằng timings.total.
 // Chặng cloud = null khi OCR cục bộ đã đủ tin → hiện "bỏ qua" cho thấy rõ là KHÔNG gọi cloud.
-const STAGES: { key: Exclude<keyof ScanTimings, 'total'>; label: string }[] = [
-  { key: 'upload',       label: 'Nhận ảnh (upload)' },
-  { key: 'preprocess',   label: 'Tiền xử lý ảnh' },
-  { key: 'localOcr',     label: 'Đọc chữ trên máy chủ' },
-  { key: 'localRetry',   label: 'Đọc lại (ảnh tăng tương phản)' },
-  { key: 'cloudPrepare', label: 'Chuẩn bị ảnh cho AI' },
-  { key: 'cloudOcr',     label: 'AI đọc' },   // thêm tên nguồn (Gemini/OCR.space) lúc hiển thị
-  { key: 'merge',        label: 'Gộp kết quả' },
+// Nhãn: check.json → feedback.stage.<key>; cloudOcr thêm tên nguồn (Gemini/OCR.space) lúc hiển thị.
+const STAGES: Exclude<keyof ScanTimings, 'total' | 'ocrDetect' | 'ocrRecognize' | 'ocrLines'>[] = [
+  'upload', 'preprocess', 'localOcr', 'localRetry', 'cloudPrepare', 'cloudOcr', 'merge',
 ]
 
 const PROVIDER_NAMES: Record<CloudProvider, string> = { gemini: 'Gemini', ocrspace: 'OCR.space' }
 
 // Mã lỗi của một lượt gọi cloud (ScanController.CloudAttempt) → vì sao phải thử nguồn tiếp theo.
-const CLOUD_ERRORS: Record<string, string> = {
-  timeout: 'quá lâu không trả lời',
-  http_429: 'hết lượt miễn phí (429)',
-  rate_limited: 'đang nhiều người dùng, tạm nhường lượt',
-  http_503: 'máy chủ AI đang quá tải (503)',
-  empty: 'không trả nội dung',
-  bad_json: 'trả dữ liệu hỏng',
-  network: 'lỗi mạng',
-  failed: 'không đọc được',
-}
+// Nội dung: check.json → feedback.cloudErr.<mã>.
+const CLOUD_ERRORS = new Set(['timeout', 'http_429', 'rate_limited', 'http_503', 'empty', 'bad_json', 'network', 'failed'])
 const cloudErrorText = (e: string) =>
-  CLOUD_ERRORS[e] ?? (e.startsWith('http_') ? `lỗi HTTP ${e.slice(5)}` : e)
+  CLOUD_ERRORS.has(e) ? i18n.t(`check:feedback.cloudErr.${e as 'timeout'}`)
+    : e.startsWith('http_') ? i18n.t('check:feedback.cloudErr.http', { code: e.slice(5) }) : e
 
 // Mã lý do từ TicketResultValidator → câu dễ hiểu (vì sao phải nhờ AI đọc lại).
-const REASONS: Record<string, string> = {
-  number_missing: 'không thấy số vé',
-  number_ambiguous: 'nhiều số vé khác nhau',
-  number_normalized: 'số vé bị mờ/nhầm ký tự',
-  date_missing: 'không thấy ngày',
-  date_out_of_range: 'ngày bất thường',
-  province_missing: 'không thấy đài',
-  province_fuzzy: 'tên đài chưa rõ',
-  province_ambiguous: 'thấy nhiều tên đài',
-  low_confidence: 'ảnh chưa đủ rõ',
-}
+// Nội dung: check.json → feedback.reason.<mã>.
+const REASONS = new Set(['number_missing', 'number_ambiguous', 'number_normalized', 'date_missing',
+  'date_out_of_range', 'province_missing', 'province_fuzzy', 'province_ambiguous', 'low_confidence'])
+const reasonText = (r: string) =>
+  REASONS.has(r) ? i18n.t(`check:feedback.reason.${r as 'number_missing'}`) : r
 
 // Hiển thị kết quả OCR theo từng trường: đọc được gì (✓ xanh) / chưa đọc được gì (✕ đỏ) + gợi ý chụp lại.
 export default function ScanFeedback({ scanned }: { scanned: ScanResponse }) {
+  const { t: tr } = useTranslation('check')
   const review = new Set(scanned.needsReview ?? [])
   const fields = [
     {
-      label: 'Số vé',
+      label: tr('feedback.fieldNumber'),
       review: review.has('number'),
       ok: !!scanned.ticketNumber,
       value: scanned.ticketNumber,
-      tip: 'chụp rõ dãy 6 chữ số, tránh mờ/lóa',
-      badge: scanned.ticketNumberFromCloud ? 'AI đọc' : null,
+      tip: tr('feedback.tipNumber'),
+      badge: scanned.ticketNumberFromCloud ? tr('feedback.aiRead') : null,
     },
     {
-      label: 'Ngày',
+      label: tr('feedback.fieldDate'),
       review: review.has('date'),
       ok: !!scanned.drawDate,
       value: fmtDate(scanned.drawDate),
-      tip: 'lấy nét vào dòng ngày (vd 16-06-2026)',
+      tip: tr('feedback.tipDate'),
       badge: null,
     },
     {
-      label: 'Đài',
+      label: tr('feedback.fieldProvince'),
       review: review.has('province'),
       ok: !!scanned.province,
       value: scanned.province ? provinceName(scanned.province) : null,
-      tip: 'chụp rõ phần tên tỉnh/đài',
+      tip: tr('feedback.tipProvince'),
       badge: null,
     },
   ]
@@ -98,7 +87,7 @@ export default function ScanFeedback({ scanned }: { scanned: ScanResponse }) {
   return (
     <div className="space-y-3">
       <div className="card p-4 space-y-2">
-        <div className="text-sm font-semibold text-ink">Kết quả đọc tự động</div>
+        <div className="text-sm font-semibold text-ink">{tr('feedback.title')}</div>
         {fields.map(f => (
           <div key={f.label} className="flex items-start gap-2 text-sm">
             {/* 3 mức: ✕ không đọc được · ⚠ đọc được nhưng chưa chắc (kiểm tra ô bên dưới) · ✓ chắc */}
@@ -110,10 +99,10 @@ export default function ScanFeedback({ scanned }: { scanned: ScanResponse }) {
             <div>
               <span className="font-medium">{f.label}:</span>{' '}
               {!f.ok
-                ? <span className="text-bad">chưa rõ — {f.tip}</span>
+                ? <span className="text-bad">{tr('feedback.unclear', { tip: f.tip })}</span>
                 : f.review
                   ? <><span className="text-warn font-semibold">{f.value}</span>
-                      <span className="text-warn"> — chưa chắc, kiểm tra lại bên dưới</span></>
+                      <span className="text-warn">{tr('feedback.unsure')}</span></>
                   : <span className="text-ok font-semibold">{f.value}</span>}
               {f.ok && f.badge && (
                 <span className="ml-2 inline-flex items-center gap-1 align-[1px] text-[11px] font-medium
@@ -127,8 +116,8 @@ export default function ScanFeedback({ scanned }: { scanned: ScanResponse }) {
         {/* null = OCR cục bộ không chạy, AI đọc thẳng — AI không trả điểm tin cậy, trường chưa chắc đã có ⚠️ */}
         {scanned.confidence != null && (
           <div className="text-xs text-ink-faint pt-1">
-            Độ tin cậy OCR: {Math.round(scanned.confidence * 100)}%
-            {scanned.lowConfidence && ' (thấp — nên kiểm tra kỹ)'}
+            {tr('feedback.confidence', { pct: Math.round(scanned.confidence * 100) })}
+            {scanned.lowConfidence && tr('feedback.lowConfidence')}
           </div>
         )}
 
@@ -137,23 +126,24 @@ export default function ScanFeedback({ scanned }: { scanned: ScanResponse }) {
           <details className="text-xs text-ink-faint">
             <summary className="cursor-pointer select-none">
               <Icon name="timer" className="inline-block w-3.5 h-3.5 -mt-0.5 mr-1" />
-              Xử lý hết <b className="text-ink">{fmtMs(totalMs)}</b>
-              {' '}(máy chủ {fmtMs(t.total)}) — xem chi tiết
+              {tr('feedback.totalTime')} <b className="text-ink">{fmtMs(totalMs)}</b>
+              {' '}{tr('feedback.serverTime', { ms: fmtMs(t.total) })}
             </summary>
             <div className="mt-1.5 space-y-0.5">
               <div className="flex justify-between gap-4">
                 <span>
                   {up.compressed
-                    ? `Nén ảnh${up.options ? ` ≤${up.options.maxWidth}px` : ''} (${fmtBytes(up.originalBytes)} → ${fmtBytes(up.sentBytes)})`
-                    : `Gửi ảnh gốc (${fmtBytes(up.sentBytes)})`}
+                    ? tr('feedback.compress', { max: up.options ? ` ≤${up.options.maxWidth}px` : '',
+                                                from: fmtBytes(up.originalBytes), to: fmtBytes(up.sentBytes) })
+                    : tr('feedback.sendOriginal', { size: fmtBytes(up.sentBytes) })}
                 </span>
                 <span className="tabular-nums">{fmtMs(up.compressMs)}</span>
               </div>
               {/* Tách khâu nén ra để biết chậm ở giải mã, thu nhỏ hay mã hoá trên máy thật */}
               {up.stages && ([
-                ['decode', `Giải mã ảnh (${up.stages.decoder})`],
-                ['resize', 'Thu nhỏ'],
-                ['encode', 'Mã hoá JPEG'],
+                ['decode', tr('feedback.decode', { decoder: up.stages.decoder })],
+                ['resize', tr('feedback.resize')],
+                ['encode', tr('feedback.encode')],
               ] as const).map(([k, label]) => (
                 <div key={k} className="flex justify-between gap-4 pl-3 text-ink-faint/70">
                   <span>↳ {label}</span>
@@ -161,8 +151,9 @@ export default function ScanFeedback({ scanned }: { scanned: ScanResponse }) {
                 </div>
               ))}
               {/* undefined = backend cũ không có key này → ẩn; null = có nhưng không chạy → "bỏ qua" */}
-              {STAGES.filter(s => t[s.key] !== undefined).map(s => {
-                const ms = t[s.key]
+              {STAGES.filter(key => t[key] !== undefined).map(key => {
+                const ms = t[key]
+                const s = { key, label: tr(`feedback.stage.${key}`) }
                 return (
                   <div key={s.key}>
                     <div className={`flex justify-between gap-4 ${ms == null ? 'text-ink-faint/70' : ''}`}>
@@ -170,18 +161,18 @@ export default function ScanFeedback({ scanned }: { scanned: ScanResponse }) {
                         {s.label}
                         {s.key === 'cloudOcr' && scanned.cloudProvider && ` (${PROVIDER_NAMES[scanned.cloudProvider]})`}
                       </span>
-                      <span className="tabular-nums">{ms == null ? 'bỏ qua' : fmtMs(ms)}</span>
+                      <span className="tabular-nums">{ms == null ? tr('feedback.skipped') : fmtMs(ms)}</span>
                     </div>
                     {/* Chi tiết bên trong chặng OCR — chậm ở dò vùng chữ hay nhận dạng dòng */}
                     {s.key === 'localOcr' && t.ocrDetect != null && (
                       <>
                         <div className="flex justify-between gap-4 pl-3 text-ink-faint/70">
-                          <span>↳ Dò vùng chữ</span>
+                          <span>↳ {tr('feedback.ocrDetect')}</span>
                           <span className="tabular-nums">{fmtMs(t.ocrDetect)}</span>
                         </div>
                         {t.ocrRecognize != null && (
                           <div className="flex justify-between gap-4 pl-3 text-ink-faint/70">
-                            <span>↳ Nhận dạng {t.ocrLines != null ? `${t.ocrLines} dòng` : 'các dòng'}</span>
+                            <span>↳ {t.ocrLines != null ? tr('feedback.ocrRecognizeN', { n: t.ocrLines }) : tr('feedback.ocrRecognize')}</span>
                             <span className="tabular-nums">{fmtMs(t.ocrRecognize)}</span>
                           </div>
                         )}
@@ -193,7 +184,7 @@ export default function ScanFeedback({ scanned }: { scanned: ScanResponse }) {
                       <div key={i} className="flex justify-between gap-4 pl-3 text-ink-faint/70">
                         <span>
                           ↳ {PROVIDER_NAMES[a.provider] ?? a.provider}
-                          {a.retried && a.retried.length > 0 && ` (gọi lại sau lỗi ${a.retried.map(cloudErrorText).join(', ')})`}
+                          {a.retried && a.retried.length > 0 && tr('feedback.retriedAfter', { errors: a.retried.map(cloudErrorText).join(', ') })}
                           {a.error && <span className="text-warn"> — {cloudErrorText(a.error)}</span>}
                         </span>
                         <span className="tabular-nums">{fmtMs(a.ms)}</span>
@@ -202,37 +193,38 @@ export default function ScanFeedback({ scanned }: { scanned: ScanResponse }) {
                     {s.key === 'localRetry' && ms != null && scanned.localRetry && (
                       <div className="pl-3 text-ink-faint/70">
                         ↳ {scanned.localRetry.filled.length > 0
-                          ? `Lấp được: ${scanned.localRetry.filled.map(f => f === 'date' ? 'ngày' : 'đài').join(', ')}`
-                          : 'Không lấp thêm được trường nào'}
+                          ? tr('feedback.filled', { fields: scanned.localRetry.filled
+                              .map(f => f === 'date' ? tr('feedback.filledDate') : tr('feedback.filledProvince')).join(', ') })
+                          : tr('feedback.filledNone')}
                       </div>
                     )}
                   </div>
                 )
               })}
               {scanned.ocrPath === 'local-review' && (
-                <div className="text-ink-faint/70">↳ Số vé đã chắc — không cần AI đọc lại, chỉ cần kiểm tra trường có dấu cảnh báo</div>
+                <div className="text-ink-faint/70">↳ {tr('feedback.localReview')}</div>
               )}
               {scanned.ocrPath === 'local-expired' && (
-                <div className="text-ink-faint/70">↳ Vé đã hết hạn — không cần AI đọc lại</div>
+                <div className="text-ink-faint/70">↳ {tr('feedback.localExpired')}</div>
               )}
               {scanned.ocrPath?.startsWith('cloud') && scanned.localValidation && !scanned.localValidation.passed && (
                 <div className="text-ink-faint/70">
-                  ↳ Nhờ AI đọc lại vì: {scanned.localValidation.reasons.map(r => REASONS[r] ?? r).join(', ')}
-                  {scanned.ocrPath === 'cloud-failed' && ' (AI không phản hồi kịp — dùng kết quả máy chủ)'}
+                  ↳ {tr('feedback.cloudBecause', { reasons: scanned.localValidation.reasons.map(reasonText).join(', ') })}
+                  {scanned.ocrPath === 'cloud-failed' && tr('feedback.cloudFailed')}
                 </div>
               )}
               {scanned.ocrPath === 'cloud-only' && (
-                <div className="text-ink-faint/70">↳ AI đọc thẳng ảnh (không chạy OCR trên máy chủ)</div>
+                <div className="text-ink-faint/70">↳ {tr('feedback.cloudOnly')}</div>
               )}
               {scanned.ocrPath === 'cloud-only-failed' && (
-                <div className="text-ink-faint/70">↳ AI không phản hồi — vui lòng điền tay bên dưới</div>
+                <div className="text-ink-faint/70">↳ {tr('feedback.cloudOnlyFailed')}</div>
               )}
               <div className="flex justify-between gap-4">
-                <span>Truyền qua mạng</span>
+                <span>{tr('feedback.network')}</span>
                 <span className="tabular-nums">{fmtMs(networkMs)}</span>
               </div>
               <div className="flex justify-between gap-4 border-t border-line pt-0.5 font-semibold text-ink">
-                <span>Tổng</span>
+                <span>{tr('feedback.total')}</span>
                 <span className="tabular-nums">{fmtMs(totalMs)}</span>
               </div>
             </div>
@@ -244,9 +236,8 @@ export default function ScanFeedback({ scanned }: { scanned: ScanResponse }) {
         <div className="alert flex gap-2 bg-warn/10 border-warn/30 text-warn">
           <Icon name="camera" className="w-4 h-4 shrink-0 mt-0.5" />
           <span>
-            Chưa đọc được: <b>{missing.map(f => f.label.toLowerCase()).join(', ')}</b>.
-            Bạn có thể điền tay bên dưới, hoặc <b>chụp lại rõ hơn</b>: đủ sáng, chụp thẳng
-            (không nghiêng), tránh bóng/lóa, lấy nét vào dãy số và chữ.
+            {tr('feedback.missing')} <b>{missing.map(f => f.label.toLowerCase()).join(', ')}</b>.{' '}
+            {tr('feedback.missingTip1')} <b>{tr('feedback.missingTipBold')}</b>{tr('feedback.missingTip2')}
           </span>
         </div>
       )}

@@ -1,18 +1,22 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useTranslation } from 'react-i18next'
 import { interpretDream, searchTail, type DreamResult, type TailHit } from '../api/client'
 import { provinceName } from '../data/provinces'
 import { formatDate } from '../utils/date'
 import type { ResultsFocus } from './AvailableData'
 import Icon from './Icon'
+import { tierShort } from '../i18n/prizes'
 
 const MAX_LEN = 500
-const SUGGESTIONS = ['Tôi mơ thấy con rắn trắng bò vào nhà', 'Mơ thấy mèo đen trước cửa', 'Mơ thấy Thần Tài']
+// Key gợi ý, dịch lúc render.
+const SUGGESTIONS = ['s1', 's2', 's3'] as const
 
 type Turn = { id: number; question: string; answer?: DreamResult; error?: string }
 /** Kết quả dò 1 số: đang tải (undefined), lỗi, hoặc danh sách giải trùng đuôi. */
 type Search = { tail: string; hits?: TailHit[]; error?: string }
 
 export default function DreamChat({ onShowResults }: { onShowResults: (focus: ResultsFocus) => void }) {
+  const { t } = useTranslation('lucky')
   const [text, setText] = useState('')
   const [turns, setTurns] = useState<Turn[]>([])
   const [busy, setBusy] = useState(false)
@@ -55,18 +59,18 @@ export default function DreamChat({ onShowResults }: { onShowResults: (focus: Re
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-xl md:text-3xl font-extrabold tracking-tight">Luận số giấc mơ</h1>
+        <h1 className="text-xl md:text-3xl font-extrabold tracking-tight">{t('dream.title')}</h1>
         <p className="text-sm md:text-base text-ink-soft mt-0.5">
-          Kể lại giấc mơ, máy tra sổ mơ dân gian ra số tham khảo.
+          {t('dream.subtitle')}
         </p>
       </div>
 
       <div className="card p-4 md:p-5 space-y-4">
         {turns.length === 0 && (
           <div className="space-y-2">
-            <div className="text-sm text-ink-faint">Gợi ý:</div>
+            <div className="text-sm text-ink-faint">{t('dream.suggestionsLabel')}</div>
             <div className="flex flex-wrap gap-2">
-              {SUGGESTIONS.map(s => (
+              {SUGGESTIONS.map(k => t(`dream.suggestions.${k}`)).map(s => (
                 <button key={s} onClick={() => ask(s)} disabled={busy}
                         className="btn btn-soft text-sm py-1.5 px-3">{s}</button>
               ))}
@@ -74,15 +78,15 @@ export default function DreamChat({ onShowResults }: { onShowResults: (focus: Re
           </div>
         )}
 
-        {turns.map(t => (
-          <div key={t.id} className="space-y-2">
+        {turns.map(turn => (
+          <div key={turn.id} className="space-y-2">
             <div className="flex justify-end">
-              <div className="max-w-[85%] rounded-2xl rounded-br-md bg-brand-500/15 px-3.5 py-2 text-sm">{t.question}</div>
+              <div className="max-w-[85%] rounded-2xl rounded-br-md bg-brand-500/15 px-3.5 py-2 text-sm">{turn.question}</div>
             </div>
             <div className="flex gap-2 items-start">
               <span className="shrink-0 mt-0.5 text-brand-700 dark:text-brand-400"><Icon name="ai" /></span>
               <div className="flex-1 min-w-0 rounded-2xl rounded-tl-md bg-muted px-3.5 py-3 text-sm space-y-2">
-                {!t.answer && !t.error && (
+                {!turn.answer && !turn.error && (
                   <span className="flex items-center gap-2 text-ink-faint" role="status">
                     <span className="flex items-end gap-1 h-4" aria-hidden>
                       {[0, 1, 2].map(i => (
@@ -90,11 +94,11 @@ export default function DreamChat({ onShowResults }: { onShowResults: (focus: Re
                               style={{ animationDelay: `${i * 0.15}s` }} />
                       ))}
                     </span>
-                    Đang tra sổ mơ
+                    {t('dream.thinking')}
                   </span>
                 )}
-                {t.error && <span className="text-bad">{t.error}</span>}
-                {t.answer && <Answer answer={t.answer} onCheck={check} />}
+                {turn.error && <span className="text-bad">{turn.error}</span>}
+                {turn.answer && <Answer answer={turn.answer} onCheck={check} />}
               </div>
             </div>
           </div>
@@ -105,27 +109,27 @@ export default function DreamChat({ onShowResults }: { onShowResults: (focus: Re
             <button onClick={() => setResultsOpen(o => !o)} aria-expanded={resultsOpen}
                     className="w-full flex items-center justify-between gap-2 text-left font-bold">
               <span>
-                Đuôi {search.tail} trong kết quả gần đây
+                {t('dream.tailTitle', { tail: search.tail })}
                 {search.hits && search.hits.length > 0 && (
                   <span className="ml-1.5 font-semibold text-ink-faint">({search.hits.length})</span>
                 )}
               </span>
               <span className="flex items-center gap-1 text-xs font-semibold text-ink-faint">
-                {resultsOpen ? 'Thu gọn' : 'Xem'}
+                {resultsOpen ? t('dream.collapse') : t('dream.expand')}
                 <Icon name="next" className={`w-4 h-4 transition-transform ${resultsOpen ? '-rotate-90' : 'rotate-90'}`} />
               </span>
             </button>
             {resultsOpen && (<>
-            {!search.hits && !search.error && <div className="text-ink-faint">Đang dò…</div>}
+            {!search.hits && !search.error && <div className="text-ink-faint">{t('dream.searching')}</div>}
             {search.error && <div className="text-bad">{search.error}</div>}
-            {search.hits?.length === 0 && <div className="text-ink-faint">Chưa đài nào về đuôi {search.tail} trong dữ liệu hiện có.</div>}
+            {search.hits?.length === 0 && <div className="text-ink-faint">{t('dream.noHits', { tail: search.tail })}</div>}
             <ul className="divide-y divide-line/70">
               {search.hits?.map((h, i) => (
                 <li key={i}>
                   <button onClick={() => onShowResults({ drawDate: h.drawDate, province: h.province, ticketNumber: search.tail, from: 'lucky' })}
                           className="w-full flex items-center justify-between gap-2 py-2 text-left hover:text-brand-700 dark:hover:text-brand-400">
                     <span>{formatDate(h.drawDate)} · {provinceName(h.province)}</span>
-                    <span className="tabular-nums font-semibold">{h.tier === 'DB' ? 'ĐB' : `G.${h.tier}`} · {h.number}</span>
+                    <span className="tabular-nums font-semibold">{tierShort(h.tier)} · {h.number}</span>
                   </button>
                 </li>
               ))}
@@ -137,23 +141,24 @@ export default function DreamChat({ onShowResults }: { onShowResults: (focus: Re
 
         <form onSubmit={submit} className="flex gap-2">
           <input value={text} onChange={e => setText(e.target.value)} maxLength={MAX_LEN}
-                 placeholder="Tôi mơ thấy…" aria-label="Kể lại giấc mơ"
+                 placeholder={t('dream.placeholder')} aria-label={t('dream.inputAria')}
                  className="flex-1 min-w-0 rounded-xl border border-line bg-surface px-3.5 py-2.5 text-base
                             focus:outline-none focus:ring-2 focus:ring-brand-500/40" />
-          <button type="submit" disabled={busy || !text.trim()} className="btn btn-primary px-4" aria-label="Gửi">
+          <button type="submit" disabled={busy || !text.trim()} className="btn btn-primary px-4" aria-label={t('dream.send')}>
             <Icon name="next" />
           </button>
         </form>
       </div>
 
       <p className="text-xs text-ink-faint text-center px-2">
-        Chỉ để tham khảo cho vui, không có cơ sở khoa học. Đừng nhập thông tin cá nhân — nội dung được gửi tới Google Gemini.
+        {t('dream.disclaimer')}
       </p>
     </div>
   )
 }
 
 function Answer({ answer, onCheck }: { answer: DreamResult; onCheck: (tail: string) => void }) {
+  const { t } = useTranslation('lucky')
   if (!answer.mainNumber) return <p>{answer.explanation}</p>
   return (
     <>
@@ -179,7 +184,7 @@ function Answer({ answer, onCheck }: { answer: DreamResult; onCheck: (tail: stri
       <div className="flex flex-wrap gap-2 pt-1">
         {[answer.mainNumber, ...answer.secondaryNumbers.slice(0, 2)].map(n => (
           <button key={n} onClick={() => onCheck(n)} className="btn btn-secondary text-sm py-1.5 px-3">
-            <Icon name="search" className="w-4 h-4" /> Dò số {n}
+            <Icon name="search" className="w-4 h-4" /> {t('dream.check', { n })}
           </button>
         ))}
       </div>

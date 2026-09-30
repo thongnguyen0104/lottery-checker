@@ -1,9 +1,13 @@
+import { formatDate as fmtDay } from '../utils/date'
 import { useState, type ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 import ScratchCard from './ScratchCard'
 import Confetti from './Confetti'
 import Icon, { IconBadge, type IconName } from './Icon'
 import { provinceName } from '../data/provinces'
 import { CLAIM_DAYS, claimDeadline } from '../utils/claim'
+import i18n, { currentLocale } from '../i18n'
+import { prizeName } from '../i18n/prizes'
 
 type Winning = { tierName: string; amount: number }
 
@@ -32,18 +36,15 @@ type Props = {
 }
 
 const formatVND = (n: number) =>
-  n.toLocaleString('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 })
+  i18n.t('check:money', { amount: n.toLocaleString(currentLocale(), { maximumFractionDigits: 0 }) })
 
-const formatDate = (iso: string | null | undefined) => {
-  if (!iso) return null
-  const [y, m, d] = iso.slice(0, 10).split('-')
-  return `${d}/${m}/${y}`
-}
+const formatDate = (iso: string | null | undefined) => iso ? fmtDay(iso.slice(0, 10)) : null
 
 // Giờ xổ lấy trực tiếp từ chuỗi, KHÔNG qua new Date() — tránh browser lệch múi giờ.
 const formatTime = (iso: string | null | undefined) => iso?.slice(11, 16) ?? null
 
 export default function ResultDisplay({ result, onRescan, rescanLabel, onEdit, onShowTable }: Props) {
+  const { t } = useTranslation('check')
   const { isWinner, winnings, totalPrize, extractedNumber, drawDate, province, drawsAt } = result
   const status: Status = result.status ?? 'Checked'
   const won = status === 'Checked' && isWinner
@@ -64,7 +65,7 @@ export default function ResultDisplay({ result, onRescan, rescanLabel, onEdit, o
           {/* Vân sáng chéo cho tấm vé đỡ phẳng, như ánh kim */}
           <div aria-hidden className="absolute -top-16 -right-10 w-48 h-48 rounded-full bg-white/15" />
           <div className="relative">
-            <div className="text-xs font-bold uppercase tracking-[.25em] opacity-75">Vé số của bạn</div>
+            <div className="text-xs font-bold uppercase tracking-[.25em] opacity-75">{t('result.yourTicket')}</div>
             <div className="flex justify-center gap-1.5 my-3" aria-label={extractedNumber}>
               {extractedNumber.split('').map((d, i) => (
                 <span key={i} aria-hidden
@@ -92,37 +93,37 @@ export default function ResultDisplay({ result, onRescan, rescanLabel, onEdit, o
       <button onClick={onEdit}
               className="mx-auto flex items-center gap-1.5 text-sm font-medium text-ink-faint transition
                          hover:text-brand-700 dark:hover:text-brand-400">
-        <Icon name="edit" className="w-4 h-4" /> Sai số vé, đài hoặc ngày? Sửa lại
+        <Icon name="edit" className="w-4 h-4" /> {t('result.editWrong')}
       </button>
 
       {status === 'Expired' ? (
-        <StatusCard tone="bad" icon="expired" title="Vé hết hạn">
-          Vé mở thưởng ngày <b>{formatDate(drawDate)}</b> — hạn lĩnh thưởng {CLAIM_DAYS} ngày
-          (đến hết ngày <b>{formatDate(result.claimDeadline ?? (drawDate ? claimDeadline(drawDate) : null))}</b>) đã qua.
+        <StatusCard tone="bad" icon="expired" title={t('result.expiredTitle')}>
+          {t('result.expiredBody1')} <b>{formatDate(drawDate)}</b> {t('result.expiredBody2', { days: CLAIM_DAYS })}{' '}
+          <b>{formatDate(result.claimDeadline ?? (drawDate ? claimDeadline(drawDate) : null))}</b>{t('result.expiredBody3')}
         </StatusCard>
       ) : status === 'NotDrawnYet' ? (
-        <StatusCard tone="warn" icon="clock" title="Vé chưa đến giờ xổ">
-          {province ? provinceName(province) : 'Đài này'} xổ lúc{' '}
-          <b>{formatTime(drawsAt) ?? '16:15'}</b> ngày <b>{formatDate(drawDate)}</b>. Quay lại sau nhé!
+        <StatusCard tone="warn" icon="clock" title={t('result.notDrawnTitle')}>
+          {province ? provinceName(province) : t('result.thisProvince')} {t('result.drawsAt')}{' '}
+          <b>{formatTime(drawsAt) ?? '16:15'}</b> {t('result.onDate')} <b>{formatDate(drawDate)}</b>{t('result.comeBack')}
         </StatusCard>
       ) : status === 'NoData' ? (
-        <StatusCard tone="info" icon="empty" title="Chưa có kết quả để dò">
-          Hệ thống chưa tải được kết quả của {province ? provinceName(province) : 'đài này'} ngày{' '}
-          {formatDate(drawDate)}. Kiểm tra lại ngày/đài, hoặc thử lại sau ít phút —
-          <b> chưa kết luận được vé trúng hay không</b>.
+        <StatusCard tone="info" icon="empty" title={t('result.noDataTitle')}>
+          {t('result.noDataBody', { province: province ? provinceName(province) : t('result.thisProvinceLower'),
+                                    date: formatDate(drawDate) })}
+          <b>{t('result.noDataBold')}</b>.
         </StatusCard>
       ) : isWinner ? (
         <>
           <ScratchCard onReveal={onReveal}>
           <div className="space-y-4">
           {/* Trúng: khung xanh ngọc (trạng thái thành công), số tiền màu vàng brand */}
-          <StatusCard tone="ok" icon="trophy" title="Chúc mừng! Vé trúng thưởng">
+          <StatusCard tone="ok" icon="trophy" title={t('result.winTitle')}>
             <div className="text-4xl sm:text-5xl font-extrabold tracking-tight tabular-nums mt-1
                             text-brand-700 dark:text-brand-400">
               {formatVND(totalPrize)}
             </div>
             {winnings.length > 1 && (
-              <div className="text-xs font-medium text-ink-faint mt-2">({winnings.length} giải cộng dồn)</div>
+              <div className="text-xs font-medium text-ink-faint mt-2">{t('result.stacked', { count: winnings.length })}</div>
             )}
           </StatusCard>
 
@@ -130,7 +131,7 @@ export default function ResultDisplay({ result, onRescan, rescanLabel, onEdit, o
             {winnings.map((w, i) => (
               <li key={i} className="flex items-center justify-between gap-3 p-4">
                 <span className="flex items-center gap-2.5 font-medium">
-                  <Icon name="award" className="w-5 h-5 shrink-0 text-ok" /> {w.tierName}
+                  <Icon name="award" className="w-5 h-5 shrink-0 text-ok" /> {prizeName(w.tierName)}
                 </span>
                 <span className="text-brand-700 dark:text-brand-400 font-bold tabular-nums">{formatVND(w.amount)}</span>
               </li>
@@ -147,9 +148,9 @@ export default function ResultDisplay({ result, onRescan, rescanLabel, onEdit, o
                                           bg-red-600/15 text-red-700 dark:text-red-400">
                 <Icon name="warn" className="alarm-blink w-7 h-7 shrink-0" />
                 <div>
-                  <div className="alarm-blink font-extrabold uppercase tracking-wide">⚠️ Cảnh báo!</div>
-                  <div className="font-semibold">Chúng tôi đã biết địa chỉ IP của bạn, chiết khấu cho chúng tôi 5% nhanh! 😏</div>
-                  <div className="text-xs opacity-80 mt-1">(Đùa thôi 😄 Chúc mừng bạn nha!)</div>
+                  <div className="alarm-blink font-extrabold uppercase tracking-wide">{t('result.alarmTitle')}</div>
+                  <div className="font-semibold">{t('result.alarmBody')}</div>
+                  <div className="text-xs opacity-80 mt-1">{t('result.alarmJoke')}</div>
                 </div>
               </div>
             </>
@@ -157,14 +158,14 @@ export default function ResultDisplay({ result, onRescan, rescanLabel, onEdit, o
         </>
       ) : (
         <ScratchCard onReveal={onReveal}>
-          <StatusCard tone="bad" icon="ticketX" title="Tiếc quá, vé không trúng giải nào">
-            Chúc bạn may mắn lần sau!
+          <StatusCard tone="bad" icon="ticketX" title={t('result.loseTitle')}>
+            {t('result.loseBody')}
           </StatusCard>
         </ScratchCard>
       )}
 
       <p className="text-xs text-ink-faint text-center px-2">
-        Kết quả do AI đọc và có thể mắc sai sót, chúng tôi không chịu trách nhiệm nếu bạn hủy vé.
+        {t('result.disclaimer')}
       </p>
 
       <div className="grid sm:grid-flow-col sm:auto-cols-fr gap-3">
@@ -173,11 +174,11 @@ export default function ResultDisplay({ result, onRescan, rescanLabel, onEdit, o
         {status === 'Checked' && drawDate && province && (
           <button onClick={() => onShowTable({ drawDate, province, ticketNumber: extractedNumber })}
                   className="btn btn-secondary">
-            <Icon name="list" /> Xem bảng kết quả đài này
+            <Icon name="list" /> {t('result.showTable')}
           </button>
         )}
         <button onClick={onRescan} className="btn btn-primary">
-          <Icon name={rescanLabel ? 'back' : 'retry'} /> {rescanLabel ?? 'Dò vé khác'}
+          <Icon name={rescanLabel ? 'back' : 'retry'} /> {rescanLabel ?? t('result.checkAnother')}
         </button>
       </div>
     </div>

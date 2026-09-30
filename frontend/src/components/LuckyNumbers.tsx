@@ -1,8 +1,10 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { LUCKY_GAMES, SMS_MAX_SETS, SMS_NUMBER, pickNumbers, smsHref, toSms, type LuckyGame } from '../utils/lucky'
 import Icon from './Icon'
 import DreamChat from './DreamChat'
 import type { ResultsFocus } from './AvailableData'
+import { currentLocale } from '../i18n'
 
 const HISTORY_MAX = 5
 const pad = (n: number) => String(n).padStart(2, '0')
@@ -18,6 +20,7 @@ type Mode = 'vietlott' | 'dream'
 
 /** Nút copy nội dung SMS; đổi thành dấu tích ~1.5s sau khi copy xong. */
 function CopyButton({ text, label }: { text: string; label?: string }) {
+  const { t } = useTranslation('lucky')
   const [copied, setCopied] = useState(false)
   const copy = async () => {
     try {
@@ -27,27 +30,28 @@ function CopyButton({ text, label }: { text: string; label?: string }) {
     } catch { /* trình duyệt chặn clipboard — bỏ qua */ }
   }
   return (
-    <button onClick={copy} title={`Copy: ${text}`} aria-label={`Copy SMS ${text}`}
+    <button onClick={copy} title={t('copy.title', { text })} aria-label={t('copy.aria', { text })}
             className={`shrink-0 inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-semibold transition
                         ${copied ? 'text-ok' : 'text-ink-faint hover:text-ink-soft hover:bg-muted'}`}>
       <Icon name={copied ? 'check' : 'copy'} className="w-4 h-4" />
-      {label && (copied ? 'Đã copy' : label)}
+      {label && (copied ? t('copy.done') : label)}
     </button>
   )
 }
 
 /** Tab Số may mắn: chọn ngẫu nhiên Vietlott, hoặc luận số từ giấc mơ. Cả hai luôn mount để giữ state khi đổi mục. */
 export default function LuckyNumbers({ onShowResults }: { onShowResults: (focus: ResultsFocus) => void }) {
+  const { t } = useTranslation('lucky')
   const [mode, setMode] = useState<Mode>('vietlott')
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-1 bg-muted p-1 rounded-xl border border-line/60" role="tablist">
-        {([['vietlott', 'Vietlott'], ['dream', 'Luận số giấc mơ']] as const).map(([m, label]) => (
+        {(['vietlott', 'dream'] as const).map(m => (
           <button key={m} role="tab" aria-selected={m === mode} onClick={() => setMode(m)}
                   className={`py-2.5 rounded-lg text-sm font-semibold transition active:scale-95 ${m === mode
                     ? 'tab-pop bg-surface dark:bg-brand-500/10 shadow-sm text-brand-700 dark:text-brand-400'
                     : 'text-ink-faint hover:text-ink-soft'}`}>
-            {label}
+            {t(`tabs.${m}`)}
           </button>
         ))}
       </div>
@@ -59,19 +63,21 @@ export default function LuckyNumbers({ onShowResults }: { onShowResults: (focus:
 
 /** Ô SMS: nội dung + nút SMS (mở app nhắn tin tới 9969, điền sẵn nội dung) + nút Copy. */
 function SmsBox({ text }: { text: string }) {
+  const { t } = useTranslation('lucky')
   return (
     <div className="mt-5 max-w-md mx-auto flex items-center gap-2 rounded-xl border border-line/60 bg-muted px-3 py-2">
-      <a href={smsHref(text)} title={`Gửi SMS tới ${SMS_NUMBER}`} aria-label={`Gửi SMS tới ${SMS_NUMBER}`}
+      <a href={smsHref(text)} title={t('sms.sendTo', { number: SMS_NUMBER })} aria-label={t('sms.sendTo', { number: SMS_NUMBER })}
          className="shrink-0 rounded-md bg-brand-500/15 p-1.5 text-brand-700 dark:text-brand-400 hover:bg-brand-500/25">
         <Icon name="sms" className="w-4 h-4" />
       </a>
       <code className="flex-1 text-left text-sm font-mono tabular-nums break-words">{text}</code>
-      <CopyButton text={text} label="Copy" />
+      <CopyButton text={text} label={t('copy.label')} />
     </div>
   )
 }
 
 function VietlottPicker() {
+  const { t } = useTranslation('lucky')
   const [game, setGame] = useState<LuckyGame>('mega')
   const [count, setCount] = useState(1)
   const [current, setCurrent] = useState<number[][] | null>(null)
@@ -100,8 +106,8 @@ function VietlottPicker() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-xl md:text-3xl font-extrabold tracking-tight">6 số may mắn</h1>
-        <p className="text-sm md:text-base text-ink-soft mt-0.5">Bí ý tưởng? Để máy chọn giúp bộ số Vietlott.</p>
+        <h1 className="text-xl md:text-3xl font-extrabold tracking-tight">{t('picker.title')}</h1>
+        <p className="text-sm md:text-base text-ink-soft mt-0.5">{t('picker.subtitle')}</p>
       </div>
 
       <div className="space-y-4 lg:space-y-0 lg:grid lg:grid-cols-[1.4fr_1fr] lg:gap-6 lg:items-start">
@@ -119,10 +125,10 @@ function VietlottPicker() {
 
           <div className="card p-5 md:p-7 text-center">
             <div className="text-sm text-ink-faint mb-3">
-              6 số ngẫu nhiên từ 01 đến {LUCKY_GAMES[game].max}
+              {t('picker.range', { max: LUCKY_GAMES[game].max })}
             </div>
             <div className="flex items-center justify-center gap-1.5 mb-4 md:mb-6">
-              <span className="text-xs font-semibold text-ink-faint mr-1">Số bộ</span>
+              <span className="text-xs font-semibold text-ink-faint mr-1">{t('picker.sets')}</span>
               {Array.from({ length: SMS_MAX_SETS }, (_, i) => i + 1).map(c => (
                 <button key={c} onClick={() => setCount(c)} aria-pressed={c === count}
                         className={`w-8 h-8 rounded-lg text-sm font-bold transition ${c === count
@@ -161,7 +167,7 @@ function VietlottPicker() {
             </div>
             {current && <SmsBox text={toSms(game, current)} />}
             <button onClick={roll} className="btn btn-primary mt-6 w-full max-w-md py-3.5 text-lg">
-              <Icon name="dice" className="w-6 h-6" /> {current ? 'Chọn bộ khác' : 'Chọn số'}
+              <Icon name="dice" className="w-6 h-6" /> {current ? t('picker.pickAgain') : t('picker.pick')}
             </button>
           </div>
         </div>
@@ -170,10 +176,10 @@ function VietlottPicker() {
           {/* Màn rộng luôn có cột lịch sử (kể cả trống) cho bố cục khỏi lệch; điện thoại chỉ hiện khi đã có bộ. */}
           <div className={`card p-4 ${history.length ? '' : 'hidden lg:block'}`}>
             <div className="flex items-center gap-2 text-sm font-bold text-ink-soft mb-3">
-              <Icon name="history" className="w-4 h-4 text-ink-faint" /> Các bộ vừa chọn
+              <Icon name="history" className="w-4 h-4 text-ink-faint" /> {t('picker.history')}
             </div>
             {history.length === 0 && (
-              <div className="text-sm text-ink-faint py-4 text-center">Chưa có bộ nào — bấm Chọn số để bắt đầu.</div>
+              <div className="text-sm text-ink-faint py-4 text-center">{t('picker.historyEmpty')}</div>
             )}
             <ul className="space-y-3">
               {history.map((h, i) => {
@@ -196,7 +202,7 @@ function VietlottPicker() {
                       ))}
                     </span>
                     <span className="shrink-0 flex items-center">
-                      <a href={smsHref(sms)} title={`Gửi SMS tới ${SMS_NUMBER}`} aria-label={`Gửi SMS tới ${SMS_NUMBER}`}
+                      <a href={smsHref(sms)} title={t('sms.sendTo', { number: SMS_NUMBER })} aria-label={t('sms.sendTo', { number: SMS_NUMBER })}
                          className="rounded-lg p-1.5 text-ink-faint hover:text-ink-soft hover:bg-muted">
                         <Icon name="sms" className="w-4 h-4" />
                       </a>
@@ -209,8 +215,8 @@ function VietlottPicker() {
           </div>
 
           <p className="text-xs text-ink-faint text-center lg:text-left px-2">
-            Xác suất trúng Jackpot {LUCKY_GAMES[game].name}: 1/{LUCKY_GAMES[game].jackpotOdds.toLocaleString('vi-VN')}.
-            Bộ số nào cũng có cơ hội như nhau — chọn cho vui thôi nhé!
+            {t('picker.odds', { game: LUCKY_GAMES[game].name, odds: LUCKY_GAMES[game].jackpotOdds.toLocaleString(currentLocale()) })}{' '}
+            {t('picker.oddsNote')}
           </p>
         </div>
       </div>

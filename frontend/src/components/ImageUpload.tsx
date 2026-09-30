@@ -1,9 +1,11 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import Icon from './Icon'
 
 export default function ImageUpload({ onSelect }: { onSelect: (f: File) => void }) {
   // Laptop: kéo thả ảnh vé từ thư mục vào ô này thay vì mở hộp thoại chọn tệp.
   const [dragging, setDragging] = useState(false)
+  const { t } = useTranslation('check')
 
   return (
     <label
@@ -33,10 +35,10 @@ export default function ImageUpload({ onSelect }: { onSelect: (f: File) => void 
                        dark:text-brand-400 transition group-hover:scale-110">
         <Icon name="upload" className="w-6 h-6" />
       </span>
-      <span className="font-semibold">Chọn ảnh vé từ máy</span>
+      <span className="font-semibold">{t('upload.title')}</span>
       <span className="text-xs text-ink-faint">
-        <span className="md:hidden">Thư viện ảnh hoặc chụp bằng camera máy</span>
-        <span className="hidden md:inline">hoặc kéo thả ảnh vào đây</span>
+        <span className="md:hidden">{t('upload.hintMobile')}</span>
+        <span className="hidden md:inline">{t('upload.hintDesktop')}</span>
       </span>
     </label>
   )

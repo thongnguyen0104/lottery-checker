@@ -1,8 +1,10 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import ScanFeedback from './ScanFeedback'
 import Icon from './Icon'
 import type { ScanResponse, TicketQuery } from '../api/client'
 import { CLAIM_DAYS, claimDeadline, isExpired } from '../utils/claim'
+import { provinceName } from '../data/provinces'
 
 const fmtDate = (iso: string) => iso.split('-').reverse().join('/')
 
@@ -26,6 +28,7 @@ type Props = {
 export default function TicketInfoConfirm({
   scanned, initial, imageUrl, allProvinces, onConfirm, onRescan, hideFeedback, rescanLabel,
 }: Props) {
+  const { t } = useTranslation('check')
   const [ticket, setTicket] = useState(initial?.ticketNumber ?? scanned.ticketNumber ?? '')
   const [date, setDate] = useState(initial?.drawDate ?? scanned.drawDate ?? new Date().toISOString().slice(0, 10))
   const [province, setProvince] = useState(initial?.province ?? scanned.province ?? '')
@@ -40,22 +43,22 @@ export default function TicketInfoConfirm({
     `field ${missing ? 'border-bad/60 bg-bad/5' : uncertain ? 'border-warn/70 bg-warn/5' : ''}`
   const reviewHint = (show: boolean) => show && (
     <span className="flex items-center gap-1 text-xs text-warn mt-1">
-      <Icon name="warn" className="w-3.5 h-3.5 shrink-0" /> Máy đọc chưa chắc — kiểm tra lại với vé
+      <Icon name="warn" className="w-3.5 h-3.5 shrink-0" /> {t('confirm.unsure')}
     </span>
   )
 
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-xl md:text-3xl font-extrabold tracking-tight">Kiểm tra lại vé nhé</h1>
-        <p className="text-sm md:text-base text-ink-soft mt-0.5">Máy đọc sai chỗ nào thì sửa, rồi bấm Dò ngay.</p>
+        <h1 className="text-xl md:text-3xl font-extrabold tracking-tight">{t('confirm.heading')}</h1>
+        <p className="text-sm md:text-base text-ink-soft mt-0.5">{t('confirm.subtitle')}</p>
       </div>
 
       <div className="space-y-4 md:space-y-0 md:grid md:grid-cols-2 md:gap-6 md:items-start">
         <div className="space-y-4">
           {imageUrl && !imgFailed && (
             <div className="card p-2">
-              <img src={imageUrl} alt="Ảnh vé vừa quét" decoding="async" onError={() => setImgFailed(true)}
+              <img src={imageUrl} alt={t('confirm.imageAlt')} decoding="async" onError={() => setImgFailed(true)}
                    className="block w-full max-h-48 md:max-h-80 object-contain rounded-xl bg-slate-900" />
             </div>
           )}
@@ -64,7 +67,7 @@ export default function TicketInfoConfirm({
 
         <div className="card p-4 md:p-5 space-y-4">
           <label className="block">
-            <span className="text-sm font-medium text-ink-soft">Số vé (6 chữ số)</span>
+            <span className="text-sm font-medium text-ink-soft">{t('confirm.number')}</span>
             <input value={ticket}
                    onChange={e => setTicket(e.target.value.replace(/\D/g, '').slice(0, 6))}
                    className={`${fieldClass(!scanned.ticketNumber, review.has('number'))} mt-1
@@ -74,7 +77,7 @@ export default function TicketInfoConfirm({
           </label>
 
           <label className="block">
-            <span className="text-sm font-medium text-ink-soft">Ngày mở thưởng</span>
+            <span className="text-sm font-medium text-ink-soft">{t('confirm.drawDate')}</span>
             <input type="date" value={date} onChange={e => setDate(e.target.value)}
                    className={`${fieldClass(!scanned.drawDate, review.has('date'))} mt-1`} />
             {reviewHint(!!scanned.drawDate && review.has('date'))}
@@ -85,19 +88,19 @@ export default function TicketInfoConfirm({
             <div className="alert flex gap-2 bg-bad/10 border-bad/30 text-bad">
               <Icon name="expired" className="w-4 h-4 shrink-0 mt-0.5" />
               <span>
-                <b>Vé hết hạn</b>: đã quá {CLAIM_DAYS} ngày kể từ ngày mở thưởng
-                (hạn lĩnh thưởng đến hết ngày {fmtDate(claimDeadline(date))}).
+                <b>{t('confirm.expiredTitle')}</b>
+                {t('confirm.expiredBody', { days: CLAIM_DAYS, deadline: fmtDate(claimDeadline(date)) })}
               </span>
             </div>
           )}
 
           <label className="block">
-            <span className="text-sm font-medium text-ink-soft">Đài</span>
+            <span className="text-sm font-medium text-ink-soft">{t('confirm.province')}</span>
             <select value={province} onChange={e => setProvince(e.target.value)}
                     className={`${fieldClass(!scanned.province, review.has('province'))} mt-1`}>
-              <option value="">-- Chọn đài --</option>
+              <option value="">{t('confirm.chooseProvince')}</option>
               {allProvinces.map(p => (
-                <option key={p.code} value={p.code}>{p.name}</option>
+                <option key={p.code} value={p.code}>{provinceName(p.code)}</option>
               ))}
             </select>
             {reviewHint(!!scanned.province && review.has('province'))}
@@ -105,13 +108,13 @@ export default function TicketInfoConfirm({
 
           <div className="flex gap-2 sm:gap-3 pt-1">
             <button onClick={onRescan} className="btn btn-secondary flex-1 min-w-0">
-              <Icon name={rescanLabel ? 'back' : 'camera'} /> {rescanLabel ?? 'Chụp lại'}
+              <Icon name={rescanLabel ? 'back' : 'camera'} /> {rescanLabel ?? t('confirm.rescan')}
             </button>
             <button
               onClick={() => onConfirm({ ticketNumber: ticket, drawDate: date, province })}
               disabled={!ticket || ticket.length !== 6 || !province}
               className="btn btn-primary flex-[1.4] min-w-0">
-              <Icon name="search" /> Dò ngay
+              <Icon name="search" /> {t('confirm.checkNow')}
             </button>
           </div>
         </div>

@@ -1,4 +1,5 @@
 import { useLayoutEffect, useRef, useState, type ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 import { isScratchSoundOn, scratchStart, scratchStop, scratchTick, setScratchSoundOn } from '../utils/scratchSound'
 
 type Props = {
@@ -16,6 +17,7 @@ const CHECK_EVERY = 200   // ms — getImageData tốn CPU nên chỉ đo theo n
  * globalCompositeOperation='destination-out' xóa trong suốt để lộ nội dung HTML bên dưới.
  */
 export default function ScratchCard({ children, onReveal }: Props) {
+  const { t } = useTranslation('check')
   const wrapRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [revealed, setRevealed] = useState(false)
@@ -70,7 +72,8 @@ export default function ScratchCard({ children, onReveal }: Props) {
       ctx.translate(w / 2, h / 2)
       ctx.rotate(-Math.PI / 9)
       ctx.font = '800 13px "Be Vietnam Pro", sans-serif'
-      const marks = ['XỔ SỐ', '★', 'MAY MẮN', '♣', 'LỘC', '✦']
+      const [m1, m2, m3] = t('scratch.marks').split('|')
+      const marks = [m1, '★', m2, '♣', m3, '✦']
       const stepX = 92, stepY = 30, span = Math.hypot(w, h)
       for (let y = -span / 2, row = 0; y < span / 2; y += stepY, row++)
         for (let x = -span / 2 + (row % 2) * (stepX / 2), k = row; x < span / 2; x += stepX, k++) {
@@ -88,9 +91,9 @@ export default function ScratchCard({ children, onReveal }: Props) {
       ctx.fill()
       ctx.fillStyle = '#4b5058'
       ctx.font = '700 18px "Be Vietnam Pro", sans-serif'
-      ctx.fillText('🪙 Cào để xem kết quả', w / 2, h / 2 - 10)
+      ctx.fillText(t('scratch.label'), w / 2, h / 2 - 10)
       ctx.font = '500 13px "Be Vietnam Pro", sans-serif'
-      ctx.fillText('Vuốt ngón tay hoặc rê chuột lên đây', w / 2, h / 2 + 14)
+      ctx.fillText(t('scratch.hint'), w / 2, h / 2 + 14)
     }
     paint()
     setPainted(true)
@@ -160,7 +163,7 @@ export default function ScratchCard({ children, onReveal }: Props) {
         <div aria-hidden={!revealed} className={painted ? '' : 'invisible'}>{children}</div>
         {!gone && (
           <canvas ref={canvasRef}
-                  role="img" aria-label="Lớp cào che kết quả"
+                  role="img" aria-label={t('scratch.ariaLabel')}
                   onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}
                   className={`absolute inset-0 w-full h-full rounded-2xl cursor-grab touch-none select-none
                               transition-opacity duration-500 ${revealed ? 'opacity-0 pointer-events-none' : ''}`} />
@@ -169,11 +172,11 @@ export default function ScratchCard({ children, onReveal }: Props) {
       {!revealed && (
         <div className="flex items-center justify-center gap-4 text-sm font-medium text-ink-faint">
           <button onClick={reveal} className="transition hover:text-brand-700 dark:hover:text-brand-400">
-            ⚡ Cào tất cả / Xem ngay
+            {t('scratch.revealAll')}
           </button>
           <button onClick={toggleSound} aria-pressed={soundOn}
                   className="transition hover:text-brand-700 dark:hover:text-brand-400">
-            {soundOn ? '🔊 Tắt âm thanh' : '🔇 Bật âm thanh'}
+            {soundOn ? t('scratch.soundOff') : t('scratch.soundOn')}
           </button>
         </div>
       )}

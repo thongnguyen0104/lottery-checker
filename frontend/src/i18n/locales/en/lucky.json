@@ -1,0 +1,38 @@
+{
+  "tabs": { "vietlott": "Vietlott", "dream": "Dream numbers" },
+  "copy": { "title": "Copy: {{text}}", "aria": "Copy SMS {{text}}", "label": "Copy", "done": "Copied" },
+  "sms": { "sendTo": "Send SMS to {{number}}" },
+  "picker": {
+    "title": "6 lucky numbers",
+    "subtitle": "Out of ideas? Let us pick a Vietlott set for you.",
+    "range": "6 random numbers from 01 to {{max}}",
+    "sets": "Sets",
+    "pick": "Pick numbers",
+    "pickAgain": "Pick another set",
+    "history": "Recent picks",
+    "historyEmpty": "No sets yet — tap Pick numbers to start.",
+    "odds": "Odds of winning the {{game}} Jackpot: 1/{{odds}}.",
+    "oddsNote": "Every set has the same chance — it's just for fun!"
+  },
+  "dream": {
+    "title": "Dream numbers",
+    "subtitle": "Describe your dream and get reference numbers from the folk dream book.",
+    "suggestionsLabel": "Try:",
+    "suggestions": {
+      "s1": "I dreamed a white snake crawled into my house",
+      "s2": "Dreamed of a black cat at the door",
+      "s3": "Dreamed of the God of Wealth"
+    },
+    "thinking": "Looking up the dream book",
+    "tailTitle": "Ending {{tail}} in recent results",
+    "collapse": "Collapse",
+    "expand": "Show",
+    "searching": "Searching…",
+    "noHits": "No province has drawn ending {{tail}} in the current data.",
+    "placeholder": "I dreamed of…",
+    "inputAria": "Describe your dream",
+    "send": "Send",
+    "disclaimer": "For fun only, with no scientific basis. Don't enter personal information — your text is sent to Google Gemini.",
+    "check": "Check {{n}}"
+  }
+}
