@@ -33,5 +33,19 @@
   "deleteConfirmTitle": "Delete this post?",
   "deleteConfirmMessage": "\"{{title}}\" will be deleted permanently.",
   "retry": "Try again",
-  "counter": "{{count}}/{{max}}"
+  "counter": "{{count}}/{{max}}",
+  "comments": {
+    "title": "Comments",
+    "toggle": "Comments ({{count}})",
+    "empty": "No comments yet. Be the first!",
+    "placeholder": "Write a comment...",
+    "replyPlaceholder": "Write a reply...",
+    "send": "Send",
+    "sending": "Sending...",
+    "reply": "Reply",
+    "delete": "Delete",
+    "deleteTitle": "Delete comment?",
+    "deleteThread": "This comment and its replies will be deleted permanently.",
+    "deleteOne": "This reply will be deleted permanently."
+  }
 }

@@ -17,12 +17,20 @@ type Props = {
   account: Account | null
   onOpenAuth: () => void
   onLogout: () => void
+  /** Chỉ dùng khi đã đăng nhập — mở trang Tài khoản. */
+  /** Có tính năng nào của trang Tài khoản đang mở cho người này không — không thì ẩn mục menu. */
+  showProfile: boolean
+  onOpenProfile: () => void
+  /** Chỉ hiện khi account.isAdmin. */
+  onOpenAdmin: () => void
+  onChangePassword: () => void
 }
 
 /** Thanh trên cùng: logo + tên tính năng đang mở; màn rộng có thêm tab chuyển tính năng
- *  (điện thoại dùng BottomNav cho vừa tầm ngón cái). Bấm logo sổ menu: ủng hộ, đăng nhập/xuất,
+ *  (điện thoại dùng BottomNav cho vừa tầm ngón cái). Bấm logo sổ menu: ủng hộ, tài khoản, đăng nhập/xuất,
  *  ngôn ngữ, bảng màu. */
-export default function AppHeader({ view, busy, onChange, onOpenTheme, onOpenDonate, account, onOpenAuth, onLogout }: Props) {
+export default function AppHeader({ view, busy, onChange, onOpenTheme, onOpenDonate, account, showProfile, onOpenAuth, onLogout, onOpenProfile,
+                                    onOpenAdmin, onChangePassword }: Props) {
   const { t, i18n } = useTranslation()
   const lang = currentLang()
   const [confirmLogout, setConfirmLogout] = useState(false)
@@ -70,6 +78,15 @@ export default function AppHeader({ view, busy, onChange, onOpenTheme, onOpenDon
             <div role="menu"
                  className="absolute left-0 top-full mt-3 w-64 p-1.5 rounded-2xl bg-surface border border-line shadow-2xl z-40">
               <MenuItem icon="donate" label={t('app.donate')} onClick={pick(onOpenDonate)} iconClass="text-accent" />
+              {account && showProfile && (
+                <MenuItem icon="wallet" label={t('auth.profile')} onClick={pick(onOpenProfile)}
+                          iconClass="text-brand-700 dark:text-brand-400" />
+              )}
+              {account?.isAdmin && (
+                <MenuItem icon="admin" label={t('auth.admin')} onClick={pick(onOpenAdmin)}
+                          iconClass="text-brand-700 dark:text-brand-400" />
+              )}
+              {account && <MenuItem icon="key" label={t('auth.changePassword')} onClick={pick(onChangePassword)} />}
               <MenuItem icon={account ? 'logout' : 'user'}
                         label={account ? `${t('auth.logout')} (${account.username})` : t('auth.loginTitle')}
                         onClick={pick(account ? () => setConfirmLogout(true) : onOpenAuth)}

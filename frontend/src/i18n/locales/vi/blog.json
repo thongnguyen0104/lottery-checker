@@ -33,5 +33,19 @@
   "deleteConfirmTitle": "Xoá bài viết?",
   "deleteConfirmMessage": "Bài \"{{title}}\" sẽ bị xoá vĩnh viễn.",
   "retry": "Thử lại",
-  "counter": "{{count}}/{{max}}"
+  "counter": "{{count}}/{{max}}",
+  "comments": {
+    "title": "Bình luận",
+    "toggle": "Bình luận ({{count}})",
+    "empty": "Chưa có bình luận nào. Hãy là người đầu tiên!",
+    "placeholder": "Viết bình luận...",
+    "replyPlaceholder": "Viết câu trả lời...",
+    "send": "Gửi",
+    "sending": "Đang gửi...",
+    "reply": "Trả lời",
+    "delete": "Xoá",
+    "deleteTitle": "Xoá bình luận?",
+    "deleteThread": "Bình luận này và các câu trả lời của nó sẽ bị xoá vĩnh viễn.",
+    "deleteOne": "Câu trả lời này sẽ bị xoá vĩnh viễn."
+  }
 }

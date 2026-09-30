@@ -22,6 +22,14 @@
     "login": "Log in",
     "logout": "Log out",
     "loginTitle": "Log in / Sign up",
+    "profile": "My account",
+    "admin": "Admin",
+    "changePassword": "Change password",
+    "currentPassword": "Current password",
+    "newPassword": "New password",
+    "samePassword": "The new password must differ from the current one.",
+    "mustChangePassword": "This account uses a temporary/default password. Set a new one to continue.",
+    "passwordChanged": "Password changed.",
     "logoutTitle": "{{username}} — tap to log out",
     "logoutConfirmTitle": "Log out?",
     "logoutConfirmMessage": "You are logged in as {{username}}.",
@@ -51,6 +59,8 @@
     "trialUsedUp": "You've used your free check. Log in or create an account to keep checking.",
     "luckyTitle": "Log in to use Lucky Numbers",
     "luckyBody": "Without an account you can only view lottery results and check 1 ticket for free.",
+    "profileTitle": "Log in to see your account",
+    "profileBody": "See your tickets, check history and account balance.",
     "loginRequired": "Login required"
   },
   "donate": {
@@ -69,7 +79,9 @@
     "lucky": { "title": "Lucky Numbers", "short": "Lucky", "hint": "Vietlott picks and dream numbers" },
     "predict": { "title": "Predictions", "short": "Predict", "hint": "1-year stats, number tips per province" },
     "results": { "title": "Lottery Results", "short": "Results", "hint": "Full result tables by province" },
-    "blog": { "title": "Blog", "short": "Blog", "hint": "Share your lottery stories" }
+    "blog": { "title": "Blog", "short": "Blog", "hint": "Share your lottery stories" },
+    "profile": { "title": "Account", "short": "Account", "hint": "Your tickets, check history and balance" },
+    "admin": { "title": "Admin", "short": "Admin", "hint": "Manage accounts and balances" }
   },
   "theme": {
     "dialog": "Customize appearance",

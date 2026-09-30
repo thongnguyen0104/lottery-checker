@@ -48,6 +48,7 @@ public class DailyResultFetchWorker : BackgroundService
         // Cào bù ngay khi khởi động: máy dev/server tắt vài ngày là DB thiếu kết quả,
         // mà vòng lặp dưới chỉ chạy từ 16:45 nên có thể phải chờ tới chiều.
         var todayComplete = await FetchMissingAsync("Khởi động", todayOnly: false, ct);
+        await SettleTicketsAsync(ct);
         await BackfillHistoryAsync(ct);
 
         while (!ct.IsCancellationRequested)
@@ -66,7 +67,19 @@ public class DailyResultFetchWorker : BackgroundService
 
             todayComplete = await FetchMissingAsync(isRetry ? "Worker (thử lại)" : "Worker",
                                                     todayOnly: isRetry, ct);
+            await SettleTicketsAsync(ct);
         }
+    }
+
+    /// <summary>
+    /// Có kết quả mới → chốt vé cào đang chờ và cộng tiền trúng, không đợi user mở "Vé của tôi".
+    /// Lỗi đã được ScratchTicketService ghi log.
+    /// </summary>
+    private async Task SettleTicketsAsync(CancellationToken ct)
+    {
+        using var scope = _scopeFactory.CreateScope();
+        try { await scope.ServiceProvider.GetRequiredService<ScratchTicketService>().SettleAsync(null, ct); }
+        catch (OperationCanceledException) { }   // app đang tắt
     }
 
     /// <summary>

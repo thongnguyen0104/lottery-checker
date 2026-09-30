@@ -8,7 +8,7 @@ import { formatDate, todayIso, weekday } from '../utils/date'
 
 /** Mở thẳng bảng của 1 đài từ màn kết quả dò vé — tô các số trùng với vé đó. */
 /** from = màn đã mở bảng này (mặc định Dò vé), để nút quay lại đưa về đúng chỗ. */
-export type ResultsFocus = { drawDate: string; province: string; ticketNumber: string; from?: 'check' | 'lucky' }
+export type ResultsFocus = { drawDate: string; province: string; ticketNumber: string; from?: 'check' | 'lucky' | 'profile' }
 
 type Props = {
   /** Có = mở từ vé vừa dò: vào thẳng bảng đài đó, nút quay lại đưa về vé (onBack). */
@@ -66,7 +66,7 @@ export default function AvailableData({ focus, onBack }: Props) {
         sameDay={data?.find(d => d.drawDate === selected.drawDate)?.provinces ?? []}
         ticketNumber={ofTicket ? focus.ticketNumber : undefined}
         onSelectProvince={province => setSelected({ ...selected, province })}
-        backLabel={focus ? (focus.from === 'lucky' ? t('backLabel.lucky') : t('backLabel.ticket')) : t('backLabel.list')}
+        backLabel={focus ? t(`backLabel.${focus.from === 'lucky' || focus.from === 'profile' ? focus.from : 'ticket'}`) : t('backLabel.list')}
         onBack={focus ? onBack : closeDetail}
       />
     )

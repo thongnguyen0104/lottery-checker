@@ -1,0 +1,52 @@
+{
+  "title": "My account",
+  "memberSince": "Member since {{date}}",
+  "balance": "Account balance",
+  "balanceNote": "In-app credit for scratch tickets — no real-money deposits or withdrawals.",
+  "money": "{{amount}} VND",
+  "tabs": { "tickets": "My tickets", "history": "Check history" },
+  "summary": { "checks": "Checks", "winners": "Winning tickets", "prize": "Winnings", "billion": "{{n}}B VND", "million": "{{n}}M VND" },
+  "historyEmpty": "You haven't checked any tickets yet. Tickets you check while logged in are saved here.",
+  "goCheck": "Check a ticket",
+  "status": {
+    "win": "Won {{amount}} VND",
+    "lose": "No win",
+    "NotDrawnYet": "Not drawn yet",
+    "NoData": "No results yet",
+    "Expired": "Claim expired"
+  },
+  "unknownDraw": "Missing province/date",
+  "viewResults": "View {{province}} results for {{date}}",
+  "loadMore": "Load more",
+  "loading": "Loading...",
+  "retry": "Try again",
+  "previewOnly": "Off — visible to admins only",
+  "nothingYet": "Nothing is available for accounts yet.",
+  "shop": {
+    "title": "Buy 2-digit scratch tickets",
+    "rule": "Random number 00–99. Match the 8th prize of your chosen province to win {{prize}} VND (pays {{multiplier}} to 1).",
+    "draw": "Draw {{day}}",
+    "closes": "Sales close {{time}}",
+    "province": "Province",
+    "quantity": "Tickets",
+    "less": "One fewer ticket",
+    "more": "One more ticket",
+    "total": "{{count}} × {{price}} VND",
+    "buy": "Buy {{count}} · {{total}} VND",
+    "buying": "Buying...",
+    "insufficient": "Not enough balance. Contact the admin to get credit.",
+    "bought_one": "Bought {{count}} ticket — results at {{time}}.",
+    "bought_other": "Bought {{count}} tickets — results at {{time}}."
+  },
+  "ticket": {
+    "empty": "You don't have any tickets yet. Pick a province and buy one above!",
+    "number": "Your number",
+    "waiting": "Draws {{time}} · {{date}}",
+    "waitingResult": "Drawn — waiting for results",
+    "eighth": "8th prize",
+    "won": "Won {{amount}} VND",
+    "lost": "No win",
+    "refunded": "No result for this province — refunded {{amount}} VND",
+    "credited": "Added to your balance"
+  }
+}

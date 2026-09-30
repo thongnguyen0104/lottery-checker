@@ -1,0 +1,85 @@
+{
+  "title": "Quản trị",
+  "hint": "Quản lý tài khoản, cộng/trừ số dư, xem sổ giao dịch.",
+  "money": "{{amount}} ₫",
+  "overview": {
+    "users": "Tài khoản",
+    "admins": "{{count}} admin",
+    "balance": "Tổng số dư",
+    "topUp": "Đã cộng {{amount}} ₫",
+    "tickets": "Vé đã bán",
+    "won": "{{count}} vé trúng",
+    "paidOut": "Đã trả thưởng"
+  },
+  "search": "Tìm theo tên đăng nhập",
+  "sort": { "new": "Mới nhất", "balance": "Số dư cao" },
+  "total": "{{count}} tài khoản",
+  "empty": "Không có tài khoản nào khớp.",
+  "joined": "Tham gia {{date}}",
+  "ticketsCount": "{{count}} vé",
+  "badge": { "admin": "Admin", "mustChange": "Chờ đổi mật khẩu", "you": "Bạn" },
+  "back": "Danh sách",
+  "pick": "Chọn một tài khoản để xem chi tiết.",
+  "sections": { "users": "Người dùng", "features": "Tính năng" },
+  "features": {
+    "hint": "Tính năng đang tắt bị ẩn với user thường và máy chủ chặn luôn API. Admin vẫn thấy để kiểm tra trước khi bật.",
+    "on": "Đang bật",
+    "off": "Đang tắt",
+    "updated": "Đổi bởi {{by}} lúc {{at}}"
+  },
+  "balanceLabel": "Số dư",
+  "stats": {
+    "bought": "Vé đã mua",
+    "won": "Vé trúng",
+    "pending": "Vé chờ xổ",
+    "checks": "Lượt dò vé",
+    "spent": "Đã chi",
+    "winnings": "Đã thắng"
+  },
+  "balance": {
+    "title": "Cộng / trừ số dư",
+    "add": "Cộng tiền",
+    "subtract": "Trừ tiền",
+    "amount": "Số tiền (₫)",
+    "note": "Ghi chú (hiện trong sổ giao dịch)",
+    "notePlaceholder": "Vd: tặng thành viên mới",
+    "submitAdd": "Cộng {{amount}} ₫",
+    "submitSubtract": "Trừ {{amount}} ₫",
+    "confirmAdd": "Cộng {{amount}} ₫ cho {{username}}?",
+    "confirmSubtract": "Trừ {{amount}} ₫ của {{username}}?",
+    "confirmBody": "Số dư sau thay đổi: {{after}} ₫.",
+    "tooMuch": "Số dư chỉ còn {{balance}} ₫ — không trừ được chừng này.",
+    "done": "Đã cập nhật. Số dư mới: {{balance}} ₫."
+  },
+  "account": {
+    "title": "Tài khoản",
+    "resetPassword": "Đặt lại mật khẩu",
+    "tempPassword": "Mật khẩu tạm",
+    "resetHint": "User đăng nhập bằng mật khẩu tạm này rồi phải đổi mật khẩu mới ngay.",
+    "resetDone": "Đã đặt mật khẩu tạm. Gửi cho user để đăng nhập.",
+    "grantAdmin": "Cấp quyền admin",
+    "revokeAdmin": "Thu quyền admin",
+    "grantConfirm": "Cấp quyền admin cho {{username}}?",
+    "revokeConfirm": "Thu quyền admin của {{username}}?",
+    "roleBody": "Admin xem được mọi tài khoản và cộng/trừ tiền.",
+    "selfRole": "Không thể tự đổi quyền của chính mình."
+  },
+  "tx": {
+    "title": "Sổ giao dịch",
+    "empty": "Chưa có giao dịch nào.",
+    "after": "Số dư sau: {{amount}} ₫",
+    "kind": {
+      "TopUp": "Cộng tiền",
+      "Adjust": "Trừ tiền",
+      "Purchase": "Mua vé",
+      "Win": "Trúng thưởng",
+      "Refund": "Hoàn vé"
+    }
+  },
+  "confirm": "Xác nhận",
+  "loadMore": "Tải thêm",
+  "loading": "Đang tải...",
+  "retry": "Thử lại",
+  "noAccess": "Trang này chỉ dành cho admin.",
+  "loginTitle": "Đăng nhập tài khoản admin để vào trang quản trị."
+}

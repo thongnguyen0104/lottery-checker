@@ -7,21 +7,26 @@ import viLucky from './locales/vi/lucky.json'
 import viResults from './locales/vi/results.json'
 import viPredict from './locales/vi/predict.json'
 import viBlog from './locales/vi/blog.json'
+import viProfile from './locales/vi/profile.json'
+import viAdmin from './locales/vi/admin.json'
 import enCommon from './locales/en/common.json'
 import enCheck from './locales/en/check.json'
 import enLucky from './locales/en/lucky.json'
 import enResults from './locales/en/results.json'
 import enPredict from './locales/en/predict.json'
 import enBlog from './locales/en/blog.json'
+import enProfile from './locales/en/profile.json'
+import enAdmin from './locales/en/admin.json'
 
 export const LANGS = ['vi', 'en'] as const
 export type Lang = typeof LANGS[number]
 
 // Namespace theo khu vực: common (khung app, header, popup chung, tên đài/giải), check (Dò vé),
-// lucky (6 số may mắn + luận giấc mơ), results (Kết quả xổ số), predict (Dự đoán), blog (Blog).
+// lucky (6 số may mắn + luận giấc mơ), results (Kết quả xổ số), predict (Dự đoán), blog (Blog),
+// profile (Tài khoản), admin (Quản trị).
 export const resources = {
-  vi: { common: viCommon, check: viCheck, lucky: viLucky, results: viResults, predict: viPredict, blog: viBlog },
-  en: { common: enCommon, check: enCheck, lucky: enLucky, results: enResults, predict: enPredict, blog: enBlog },
+  vi: { common: viCommon, check: viCheck, lucky: viLucky, results: viResults, predict: viPredict, blog: viBlog, profile: viProfile, admin: viAdmin },
+  en: { common: enCommon, check: enCheck, lucky: enLucky, results: enResults, predict: enPredict, blog: enBlog, profile: enProfile, admin: enAdmin },
 } as const
 
 i18n
@@ -33,10 +38,11 @@ i18n
     supportedLngs: LANGS,
     nonExplicitSupportedLngs: true, // en-US → en
     defaultNS: 'common',
-    ns: ['common', 'check', 'lucky', 'results', 'predict', 'blog'],
+    ns: ['common', 'check', 'lucky', 'results', 'predict', 'blog', 'profile', 'admin'],
     interpolation: { escapeValue: false }, // React đã tự escape
-    // Lần đầu theo ngôn ngữ trình duyệt; đã chọn thì nhớ trong localStorage.
-    detection: { order: ['localStorage', 'navigator'], lookupLocalStorage: 'dvs.lang', caches: ['localStorage'] },
+    // Mặc định tiếng Việt (fallbackLng), KHÔNG theo ngôn ngữ trình duyệt; đã chọn thì nhớ trong localStorage.
+    // Key v2: bản cũ dò theo trình duyệt rồi lưu luôn (máy tiếng Anh bị lưu 'en') — đổi key để về tiếng Việt.
+    detection: { order: ['localStorage'], lookupLocalStorage: 'dvs.lang.v2', caches: ['localStorage'] },
   })
 
 const syncHtmlLang = (lng: string) => { document.documentElement.lang = lng.startsWith('en') ? 'en' : 'vi' }

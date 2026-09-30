@@ -8,4 +8,14 @@ public class User
     public string Username { get; set; } = "";
     public string PasswordHash { get; set; } = "";
     public DateTime CreatedAt { get; set; }
+    /// <summary>
+    /// Số dư ví (VNĐ ảo — không nạp/rút tiền thật): admin cộng tay, mua vé cào trừ, trúng thì cộng.
+    /// Là concurrency token: 2 request cùng trừ tiền thì request sau lỗi thay vì âm số dư.
+    /// Mọi thay đổi phải qua <see cref="Services.Wallet"/> để có dòng trong sổ giao dịch.
+    /// </summary>
+    public long Balance { get; set; }
+    /// <summary>Vào được trang quản trị (quản lý user, cộng tiền). Kiểm tra lại DB mỗi request — xem AdminOnlyAttribute.</summary>
+    public bool IsAdmin { get; set; }
+    /// <summary>Phải đổi mật khẩu trước khi dùng quyền admin — bật cho tài khoản tạo sẵn (mật khẩu mặc định) và khi admin đặt lại mật khẩu.</summary>
+    public bool MustChangePassword { get; set; }
 }

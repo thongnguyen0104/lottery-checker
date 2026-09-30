@@ -4,7 +4,9 @@ import { useEffect, useState } from 'react'
 // Script đầu index.html đọc CÙNG key + mặc định này để đặt theme trước khi React chạy
 // (khỏi nháy nền sáng/màu đỏ rồi mới đổi) — sửa ở đây thì sửa cả bên đó.
 // v2: đổi mặc định sang Hoàng kim + nền tối — key mới để lựa chọn cũ (đỏ / theo máy) không che mất.
-const STORAGE_KEY = 'dvs-theme-v2'
+// v3: đổi mặc định sang Xanh bạc hà (mint) — app lưu theme ngay lần mở đầu nên phải đổi key thì
+//     người chưa từng tự chọn mới về mặc định mới.
+const STORAGE_KEY = 'dvs-theme-v3'
 
 // Tên hiển thị ở common.json → theme.accents/modes/backgrounds.<id>.
 // ink = màu dấu ✓ trên ô màu trong bảng chọn (mặc định trắng); vàng sáng cần chữ tối.
@@ -36,8 +38,8 @@ export type Mode = (typeof MODES)[number]['id']
 export type Background = (typeof BACKGROUNDS)[number]['id']
 export type Theme = { accent: Accent; mode: Mode; bg: Background }
 
-// Thiết kế Hoàng kim dựng trên nền navy tối nên mặc định là Tối, không theo máy.
-const DEFAULT_THEME: Theme = { accent: 'gold', mode: 'dark', bg: 'aurora' }
+// Mặc định xanh bạc hà trên nền navy tối (thiết kế dựng trên nền tối nên mặc định là Tối, không theo máy).
+const DEFAULT_THEME: Theme = { accent: 'mint', mode: 'dark', bg: 'aurora' }
 
 // Màu thanh trạng thái / thanh địa chỉ trên điện thoại = màu nền trang (--canvas trong index.css).
 const CANVAS_HEX = { light: '#F8FAFC', dark: '#0F172A' }

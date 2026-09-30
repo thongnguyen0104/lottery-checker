@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="vi" data-mode="dark" data-accent="gold" data-bg="aurora">
+<html lang="vi" data-mode="dark" data-accent="mint" data-bg="aurora">
   <head>
     <meta charset="UTF-8" />
     <!-- SVG nét ở mọi mật độ điểm ảnh (Chrome/Edge/Firefox); .ico 16/32/48 cho Safari + trình duyệt cũ -->
@@ -14,7 +14,7 @@
     <script>
       (function () {
         var d = document.documentElement, t = {}
-        try { t = JSON.parse(localStorage.getItem('dvs-theme-v2') || '{}') || {} } catch (e) {}
+        try { t = JSON.parse(localStorage.getItem('dvs-theme-v3') || '{}') || {} } catch (e) {}
         // Mặc định Tối; chỉ sáng khi chọn Sáng, hoặc Theo máy mà máy đang sáng.
         var dark = t.mode === 'light' ? false
           : t.mode === 'system' ? window.matchMedia('(prefers-color-scheme: dark)').matches

@@ -1,8 +1,8 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
-  createBlogPost, deleteBlogPost, getBlogPosts, voteBlogPost,
-  type Account, type BlogAuthorMode, type BlogPost,
+  createBlogComment, createBlogPost, deleteBlogComment, deleteBlogPost, getBlogComments, getBlogPosts, voteBlogPost,
+  type Account, type BlogAuthorMode, type BlogComment, type BlogPost,
 } from '../api/client'
 import { currentLocale } from '../i18n'
 import ConfirmDialog from './ConfirmDialog'
@@ -12,6 +12,7 @@ import Icon, { IconBadge } from './Icon'
 const TITLE = { min: 3, max: 120 }
 const CONTENT = { min: 10, max: 5000 }
 const NAME = { min: 2, max: 30 }
+const COMMENT = { min: 2, max: 1000 }
 /** Nội dung dài hơn chừng này thì thu gọn, bấm "Xem thêm" mới hiện đủ. */
 const CLAMP_CHARS = 280
 
@@ -112,7 +113,8 @@ export default function Blog({ account, onRequireLogin }: Props) {
       )}
 
       <div className="space-y-3">
-        {posts.map(p => <PostCard key={p.id} post={p} onChange={patch => update(p.id, patch)} />)}
+        {posts.map(p => <PostCard key={p.id} post={p} account={account} onRequireLogin={onRequireLogin}
+                                 onChange={patch => update(p.id, patch)} />)}
         {loading && page === 1 && Array.from({ length: 3 }, (_, i) => (
           <div key={i} className="card p-4 motion-safe:animate-pulse space-y-3">
             <div className="h-5 w-2/3 rounded-full bg-muted" />
@@ -185,38 +187,8 @@ function Composer({ account, onRequireLogin, onCancel, onPosted }: {
                   placeholder={t('contentPlaceholder')} className="field mt-1 resize-y min-h-28" />
       </label>
 
-      <fieldset>
-        <legend className="text-sm font-semibold mb-1.5">{t('signAs')}</legend>
-        <div role="radiogroup" className="grid grid-cols-3 gap-1 p-1 rounded-xl bg-muted border border-line/60">
-          {(['Account', 'Anonymous', 'Custom'] as const).map(m => {
-            const active = effectiveMode === m
-            const locked = m === 'Account' && !account
-            return (
-              <button key={m} type="button" role="radio" aria-checked={active}
-                      onClick={() => locked ? onRequireLogin() : setMode(m)}
-                      title={locked ? t('accountHint') : undefined}
-                      className={`flex items-center justify-center gap-1 py-2 rounded-lg text-sm font-semibold transition
-                                  ${active ? 'bg-surface dark:bg-brand-500/10 shadow-sm text-brand-700 dark:text-brand-400'
-                                           : locked ? 'text-ink-faint/70' : 'text-ink-faint hover:text-ink-soft'}`}>
-                {m === 'Account' && <Icon name="user" className="w-4 h-4 shrink-0" />}
-                <span className="truncate">{m === 'Account' && account ? account.username : t(`modes.${m}`)}</span>
-              </button>
-            )
-          })}
-        </div>
-        {!account && (
-          <p className="mt-1.5 text-xs text-ink-faint">
-            {t('accountHint')} —{' '}
-            <button type="button" onClick={onRequireLogin} className="font-semibold text-brand-700 dark:text-brand-400 underline">
-              {t('loginToUse')}
-            </button>
-          </p>
-        )}
-        {effectiveMode === 'Custom' && (
-          <input value={name} onChange={e => setName(e.target.value)} maxLength={NAME.max}
-                 placeholder={t('namePlaceholder', { min: NAME.min, max: NAME.max })} className="field mt-2" />
-        )}
-      </fieldset>
+      <SignAsPicker account={account} mode={effectiveMode} onMode={setMode} name={name} onName={setName}
+                    onRequireLogin={onRequireLogin} />
 
       {error && <div className="alert border-bad/30 bg-bad/10 text-bad">{error}</div>}
 
@@ -230,9 +202,64 @@ function Composer({ account, onRequireLogin, onCancel, onPosted }: {
   )
 }
 
-function PostCard({ post, onChange }: { post: BlogPost; onChange: (patch: Partial<BlogPost> | null) => void }) {
+/** Chọn cách ký tên — dùng chung cho form đăng bài và form bình luận. compact: bỏ nhãn + dòng gợi ý đăng nhập. */
+function SignAsPicker({ account, mode, onMode, name, onName, onRequireLogin, compact }: {
+  account: Account | null
+  mode: BlogAuthorMode
+  onMode: (m: BlogAuthorMode) => void
+  name: string
+  onName: (n: string) => void
+  onRequireLogin: () => void
+  compact?: boolean
+}) {
+  const { t } = useTranslation('blog')
+  return (
+    <fieldset>
+      <legend className={compact ? 'sr-only' : 'text-sm font-semibold mb-1.5'}>{t('signAs')}</legend>
+      <div role="radiogroup" className="grid grid-cols-3 gap-1 p-1 rounded-xl bg-muted border border-line/60">
+        {(['Account', 'Anonymous', 'Custom'] as const).map(m => {
+          const active = mode === m
+          const locked = m === 'Account' && !account
+          return (
+            <button key={m} type="button" role="radio" aria-checked={active}
+                    onClick={() => locked ? onRequireLogin() : onMode(m)}
+                    title={locked ? t('accountHint') : undefined}
+                    className={`flex items-center justify-center gap-1 rounded-lg font-semibold transition
+                                ${compact ? 'py-1.5 text-xs' : 'py-2 text-sm'}
+                                ${active ? 'bg-surface dark:bg-brand-500/10 shadow-sm text-brand-700 dark:text-brand-400'
+                                         : locked ? 'text-ink-faint/70' : 'text-ink-faint hover:text-ink-soft'}`}>
+              {m === 'Account' && <Icon name="user" className={`${compact ? 'w-3.5 h-3.5' : 'w-4 h-4'} shrink-0`} />}
+              <span className="truncate">{m === 'Account' && account ? account.username : t(`modes.${m}`)}</span>
+            </button>
+          )
+        })}
+      </div>
+      {!account && !compact && (
+        <p className="mt-1.5 text-xs text-ink-faint">
+          {t('accountHint')} —{' '}
+          <button type="button" onClick={onRequireLogin} className="font-semibold text-brand-700 dark:text-brand-400 underline">
+            {t('loginToUse')}
+          </button>
+        </p>
+      )}
+      {mode === 'Custom' && (
+        <input value={name} onChange={e => onName(e.target.value)} maxLength={NAME.max}
+               placeholder={t('namePlaceholder', { min: NAME.min, max: NAME.max })}
+               className={`field mt-2 ${compact ? 'py-2 text-sm' : ''}`} />
+      )}
+    </fieldset>
+  )
+}
+
+function PostCard({ post, account, onRequireLogin, onChange }: {
+  post: BlogPost
+  account: Account | null
+  onRequireLogin: () => void
+  onChange: (patch: Partial<BlogPost> | null) => void
+}) {
   const { t } = useTranslation('blog')
   const [expanded, setExpanded] = useState(false)
+  const [showComments, setShowComments] = useState(false)
   const [voting, setVoting] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -293,6 +320,14 @@ function PostCard({ post, onChange }: { post: BlogPost; onChange: (patch: Partia
                     disabled={voting} onClick={() => vote(1)} />
         <VoteButton icon="dislike" label={t('dislike')} count={post.dislikes} active={post.myVote === -1} tone="bad"
                     disabled={voting} onClick={() => vote(-1)} />
+        <button onClick={() => setShowComments(v => !v)} aria-expanded={showComments}
+                aria-label={t('comments.toggle', { count: post.commentCount })} title={t('comments.title')}
+                className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-semibold tabular-nums
+                            transition active:scale-95
+                            ${showComments ? 'border-brand-500/40 bg-brand-500/10 text-brand-700 dark:text-brand-400'
+                                           : 'border-line text-ink-soft hover:bg-muted'}`}>
+          <Icon name="comment" className="w-4 h-4" /> {post.commentCount}
+        </button>
         {post.mine && (
           <button onClick={() => setConfirmDelete(true)} title={t('delete')} aria-label={t('delete')}
                   className="ml-auto w-9 h-9 rounded-lg flex items-center justify-center text-ink-faint hover:text-bad hover:bg-bad/10 transition">
@@ -302,11 +337,194 @@ function PostCard({ post, onChange }: { post: BlogPost; onChange: (patch: Partia
       </div>
       {error && <p className="mt-2 text-xs text-bad">{error}</p>}
 
+      {showComments && (
+        <Comments postId={post.id} account={account} onRequireLogin={onRequireLogin}
+                  onCount={commentCount => onChange({ commentCount })} />
+      )}
+
       {confirmDelete && (
         <ConfirmDialog title={t('deleteConfirmTitle')} message={t('deleteConfirmMessage', { title: post.title })}
                        confirmLabel={t('delete')} onClose={() => setConfirmDelete(false)} onConfirm={remove} />
       )}
     </article>
+  )
+}
+
+/**
+ * Bình luận của 1 bài: luồng 1 cấp (bình luận gốc + các trả lời thụt vào). Trả lời một câu trả lời →
+ * vẫn vào luồng đó, điền sẵn "@tên" để biết đang trả lời ai. Tải khi mở, không tải sẵn cho mọi bài.
+ */
+function Comments({ postId, account, onRequireLogin, onCount }: {
+  postId: number
+  account: Account | null
+  onRequireLogin: () => void
+  onCount: (count: number) => void
+}) {
+  const { t } = useTranslation('blog')
+  const [comments, setComments] = useState<BlogComment[] | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  // Đang trả lời luồng nào (id bình luận gốc) + "@tên" điền sẵn khi trả lời một câu trả lời.
+  const [replyTo, setReplyTo] = useState<{ rootId: number; mention: string } | null>(null)
+  const [deleting, setDeleting] = useState<BlogComment | null>(null)
+
+  useEffect(() => {
+    let alive = true
+    getBlogComments(postId).then(c => alive && setComments(c)).catch(e => alive && setError(e?.message ?? ''))
+    return () => { alive = false }
+  }, [postId])
+
+  const added = (c: BlogComment, count: number) => {
+    setComments(cs => [...(cs ?? []), c])
+    setReplyTo(null)
+    onCount(count)
+  }
+
+  const remove = async () => {
+    const c = deleting!
+    setDeleting(null)
+    try {
+      const r = await deleteBlogComment(c.id)
+      // Xoá gốc thì máy chủ xoá luôn các trả lời của nó.
+      setComments(cs => (cs ?? []).filter(x => x.id !== c.id && x.parentId !== c.id))
+      onCount(r.commentCount)
+    } catch (e) {
+      setError((e as Error).message)
+    }
+  }
+
+  const roots = comments?.filter(c => c.parentId == null) ?? []
+  const reply = (rootId: number, c: BlogComment) =>
+    setReplyTo({ rootId, mention: c.parentId != null && c.authorName ? `@${c.authorName} ` : '' })
+
+  return (
+    <section className="mt-3 pt-3 border-t border-line/60 space-y-3" aria-label={t('comments.title')}>
+      {error && <p className="text-xs text-bad">{error}</p>}
+      {!comments && !error && <div className="h-12 rounded-xl bg-muted motion-safe:animate-pulse" />}
+      {comments && roots.length === 0 && <p className="text-sm text-ink-faint">{t('comments.empty')}</p>}
+
+      {roots.map(root => {
+        const replies = comments!.filter(c => c.parentId === root.id)
+        return (
+          <div key={root.id} className="space-y-2">
+            <CommentItem c={root} onReply={() => reply(root.id, root)} onDelete={() => setDeleting(root)} />
+            {(replies.length > 0 || replyTo?.rootId === root.id) && (
+              <div className="ml-4 pl-3 border-l-2 border-line/70 space-y-2">
+                {replies.map(r => (
+                  <CommentItem key={r.id} c={r} onReply={() => reply(root.id, r)} onDelete={() => setDeleting(r)} />
+                ))}
+                {replyTo?.rootId === root.id && (
+                  <CommentForm key={`${root.id}:${replyTo.mention}`} postId={postId} parentId={root.id}
+                               initial={replyTo.mention} account={account} onRequireLogin={onRequireLogin}
+                               onCancel={() => setReplyTo(null)} onPosted={added} />
+                )}
+              </div>
+            )}
+          </div>
+        )
+      })}
+
+      {comments && (
+        <CommentForm postId={postId} account={account} onRequireLogin={onRequireLogin} onPosted={added} />
+      )}
+
+      {deleting && (
+        <ConfirmDialog title={t('comments.deleteTitle')}
+                       message={t(deleting.parentId == null ? 'comments.deleteThread' : 'comments.deleteOne')}
+                       confirmLabel={t('comments.delete')} onClose={() => setDeleting(null)} onConfirm={remove} />
+      )}
+    </section>
+  )
+}
+
+function CommentItem({ c, onReply, onDelete }: { c: BlogComment; onReply: () => void; onDelete: () => void }) {
+  const { t } = useTranslation('blog')
+  const account = c.authorMode === 'Account'
+  return (
+    <div className="group">
+      <div className="flex items-center gap-1 text-xs text-ink-faint">
+        {account && <Icon name="user" className="w-3.5 h-3.5 text-brand-700 dark:text-brand-400" />}
+        <span className={`font-semibold ${account ? 'text-brand-700 dark:text-brand-400' : 'text-ink-soft'}`}
+              title={account ? t('accountBadge') : undefined}>
+          {c.authorName ?? t('anonymous')}
+        </span>
+        <span aria-hidden>·</span>
+        <time dateTime={c.createdAt} title={new Date(c.createdAt).toLocaleString(currentLocale())}>{timeAgo(c.createdAt)}</time>
+      </div>
+      <p className="mt-0.5 text-sm leading-relaxed whitespace-pre-wrap break-words">{c.content}</p>
+      <div className="mt-0.5 flex items-center gap-3 text-xs font-semibold">
+        <button onClick={onReply} className="inline-flex items-center gap-1 text-ink-faint hover:text-brand-700 dark:hover:text-brand-400">
+          <Icon name="reply" className="w-3.5 h-3.5" /> {t('comments.reply')}
+        </button>
+        {c.canDelete && (
+          <button onClick={onDelete} className="inline-flex items-center gap-1 text-ink-faint hover:text-bad">
+            <Icon name="trash" className="w-3.5 h-3.5" /> {t('comments.delete')}
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function CommentForm({ postId, parentId, initial = '', account, onRequireLogin, onCancel, onPosted }: {
+  postId: number
+  parentId?: number
+  initial?: string
+  account: Account | null
+  onRequireLogin: () => void
+  onCancel?: () => void
+  onPosted: (c: BlogComment, count: number) => void
+}) {
+  const { t } = useTranslation('blog')
+  const [content, setContent] = useState(initial)
+  const [mode, setMode] = useState<BlogAuthorMode>(account ? 'Account' : 'Anonymous')
+  const [name, setName] = useState('')
+  // Chỉ hiện phần ký tên khi bắt đầu gõ — form gọn khi chỉ đọc bình luận.
+  const [focused, setFocused] = useState(!!parentId)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const effectiveMode = mode === 'Account' && !account ? 'Anonymous' : mode
+  const valid = content.trim().length >= COMMENT.min && (effectiveMode !== 'Custom' || name.trim().length >= NAME.min)
+
+  const submit = async (e: FormEvent) => {
+    e.preventDefault()
+    if (!valid || busy) return
+    setBusy(true)
+    setError(null)
+    try {
+      const r = await createBlogComment(postId, {
+        content: content.trim(), authorMode: effectiveMode, parentId,
+        authorName: effectiveMode === 'Custom' ? name.trim() : undefined,
+      })
+      setContent('')
+      onPosted(r.comment, r.commentCount)
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <form onSubmit={submit} className="space-y-2">
+      <textarea value={content} onChange={e => setContent(e.target.value)} onFocus={() => setFocused(true)}
+                maxLength={COMMENT.max} rows={focused ? 3 : 1} autoFocus={!!parentId}
+                placeholder={t(parentId ? 'comments.replyPlaceholder' : 'comments.placeholder')}
+                aria-label={t(parentId ? 'comments.replyPlaceholder' : 'comments.placeholder')}
+                className="field resize-y text-sm py-2" />
+      {focused && (
+        <>
+          <SignAsPicker compact account={account} mode={effectiveMode} onMode={setMode} name={name} onName={setName}
+                        onRequireLogin={onRequireLogin} />
+          {error && <p className="text-xs text-bad">{error}</p>}
+          <div className="flex gap-2 justify-end">
+            {onCancel && <button type="button" onClick={onCancel} className="btn btn-soft py-1.5 text-sm">{t('cancel')}</button>}
+            <button type="submit" disabled={!valid || busy} className="btn btn-primary py-1.5 text-sm">
+              <Icon name="send" className="w-4 h-4" /> {busy ? t('comments.sending') : t(parentId ? 'comments.reply' : 'comments.send')}
+            </button>
+          </div>
+        </>
+      )}
+    </form>
   )
 }
 
