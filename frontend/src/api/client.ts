@@ -750,3 +750,49 @@ export async function deleteBlogPost(id: number) {
     throw toFriendlyError(e)
   }
 }
+
+/** 1 bài — mở thẳng từ chuông thông báo. */
+export async function getBlogPost(id: number) {
+  try {
+    const { data } = await api.get(`/api/blog/posts/${id}`)
+    return data as BlogPost
+  } catch (e) {
+    throw toFriendlyError(e)
+  }
+}
+
+// ── Chuông thông báo (cần đăng nhập); thông báo mới đẩy realtime qua SignalR — xem NotificationBell ──
+export type AppNotification = {
+  id: number
+  kind: 'PostComment' | 'CommentReply'
+  postId: number
+  commentId: number
+  postTitle: string
+  /** null = người viết ký Ẩn danh. */
+  actorName: string | null
+  snippet: string
+  createdAt: string
+  isRead: boolean
+}
+
+/** Địa chỉ hub SignalR — cùng tiền tố /api nên đi chung proxy (Vite / Caddy) với API. */
+export const NOTIFICATION_HUB_URL = `${API_BASE}/api/hubs/notifications`
+
+export async function getNotifications() {
+  try {
+    const { data } = await api.get('/api/notifications')
+    return data as { items: AppNotification[]; unread: number }
+  } catch (e) {
+    throw toFriendlyError(e)
+  }
+}
+
+/** ids bỏ trống = đánh dấu đọc hết. Trả số chưa đọc còn lại. */
+export async function markNotificationsRead(ids?: number[]) {
+  try {
+    const { data } = await api.post('/api/notifications/read', { ids: ids ?? null })
+    return (data as { unread: number }).unread
+  } catch (e) {
+    throw toFriendlyError(e)
+  }
+}

@@ -13,7 +13,7 @@ namespace LotteryChecker.Api.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/blog")]
-public class BlogController(BlogService blog, AppDbContext db) : ControllerBase
+public class BlogController(BlogService blog, NotificationService notifications, AppDbContext db) : ControllerBase
 {
     public const string PostRateLimitPolicy = "blog-post";
     public const string VoteRateLimitPolicy = "blog-vote";
@@ -24,6 +24,11 @@ public class BlogController(BlogService blog, AppDbContext db) : ControllerBase
     [HttpGet("posts")]
     public Task<BlogService.PageDto> List([FromQuery] string? sort, [FromQuery] int page = 1, CancellationToken ct = default) =>
         blog.ListAsync(sort, page, VoterKey(), CurrentUserId(), ct);
+
+    /// <summary>1 bài — để mở thẳng bài từ chuông thông báo (bài có thể không nằm ở trang đầu).</summary>
+    [HttpGet("posts/{id:int}")]
+    public async Task<IActionResult> Get(int id, CancellationToken ct) =>
+        await blog.GetAsync(id, VoterKey(), CurrentUserId(), ct) is { } post ? Ok(post) : NotFound(new { error = NotFoundError });
 
     [HttpPost("posts")]
     [EnableRateLimiting(PostRateLimitPolicy)]
@@ -64,6 +69,8 @@ public class BlogController(BlogService blog, AppDbContext db) : ControllerBase
         var error = BlogService.ValidateComment(body, username, Lang.IsEn(Request));
         if (error != null) return BadRequest(new { error });
         var (comment, count, err) = await blog.CreateCommentAsync(id, body, CurrentUserId(), username, ct);
+        if (err == BlogService.CommentError.None)
+            await notifications.OnCommentAsync(comment!.Id, body.ParentId, ct);
         return err switch
         {
             BlogService.CommentError.None => Ok(new { comment, commentCount = count }),

@@ -74,6 +74,19 @@
   "confirmDialog": {
     "cancel": "Cancel"
   },
+  "notifications": {
+    "title": "Notifications",
+    "open": "Notifications ({{count}} unread)",
+    "readAll": "Mark all read",
+    "empty": "No notifications yet. When someone comments on your post or replies to your comment, it shows up here.",
+    "someone": "Anonymous",
+    "PostComment": "<b>{{name}}</b> commented on your post <b>{{title}}</b>",
+    "CommentReply": "<b>{{name}}</b> replied to your comment on <b>{{title}}</b>",
+    "loadError": "Couldn't load notifications.",
+    "focusedPost": "Post from notification",
+    "showAll": "See all posts",
+    "postGone": "This post no longer exists (it may have been deleted)."
+  },
   "views": {
     "check": { "title": "Check Ticket", "short": "Check", "hint": "Snap a ticket to read and check it" },
     "lucky": { "title": "Lucky Numbers", "short": "Lucky", "hint": "Vietlott picks and dream numbers" },

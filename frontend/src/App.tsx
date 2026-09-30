@@ -10,7 +10,7 @@ import { FEATURES_OFF, getFeatures, getMe, logout, type Account, type Features }
 import AvailableData, { type ResultsFocus } from './components/AvailableData'
 import LuckyNumbers from './components/LuckyNumbers'
 import Predictions from './components/Predictions'
-import Blog from './components/Blog'
+import Blog, { type BlogFocus } from './components/Blog'
 import Profile from './components/Profile'
 import AdminPanel from './components/AdminPanel'
 import ChangePasswordDialog from './components/ChangePasswordDialog'
@@ -30,6 +30,8 @@ export default function App() {
     return v
   })
   const [resultsFocus, setResultsFocus] = useState<ResultsFocus | null>(null)
+  // Bài mở từ chuông thông báo — Blog hiện bài đó trên cùng, mở sẵn bình luận.
+  const [blogFocus, setBlogFocus] = useState<BlogFocus | null>(null)
   // Các màn đã mở ít nhất 1 lần — màn nặng (Dự đoán) chỉ mount khi cần rồi giữ lại.
   const [seen, setSeen] = useState<ReadonlySet<View>>(() => new Set([view]))
   if (!seen.has(view)) setSeen(new Set(seen).add(view))
@@ -95,7 +97,8 @@ export default function App() {
                  onOpenDonate={() => setDonateOpen(true)}
                  account={account ?? null} showProfile={hasProfile} onOpenAuth={() => setAuthReason(null)} onLogout={onLogout}
                  onOpenProfile={() => go('profile')} onOpenAdmin={() => go('admin')}
-                 onChangePassword={() => setPwOpen(true)} />
+                 onChangePassword={() => setPwOpen(true)}
+                 onOpenNotification={n => { setBlogFocus({ postId: n.postId, commentId: n.commentId, at: Date.now() }); go('blog') }} />
 
       {/* Điện thoại: 1 cột + chừa chỗ cho BottomNav (và vạch home của iPhone). Màn rộng: khung
           rộng hơn, từng màn tự chia cột. */}
@@ -131,7 +134,8 @@ export default function App() {
         {/* Blog: key theo tài khoản — đăng nhập/xuất thì tải lại (lượt like, bài "của mình" đổi theo). */}
         {seen.has('blog') && (
           <div hidden={view !== 'blog'} className="fade-up">
-            <Blog key={sessionKey} account={account ?? null} onRequireLogin={() => setAuthReason(null)} />
+            <Blog key={sessionKey} account={account ?? null} onRequireLogin={() => setAuthReason(null)}
+                  focus={blogFocus} onClearFocus={() => setBlogFocus(null)} />
           </div>
         )}
         {/* Tài khoản: mount lại mỗi lần mở để lịch sử dò vé có luôn các vé vừa dò. */}

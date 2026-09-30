@@ -18,6 +18,7 @@ public class AppDbContext : DbContext
     public DbSet<ScratchTicket> ScratchTickets => Set<ScratchTicket>();
     public DbSet<WalletTransaction> WalletTransactions => Set<WalletTransaction>();
     public DbSet<FeatureFlag> FeatureFlags => Set<FeatureFlag>();
+    public DbSet<Notification> Notifications => Set<Notification>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -104,6 +105,16 @@ public class AppDbContext : DbContext
             e.HasKey(x => x.Key);
             e.Property(x => x.Key).HasMaxLength(40);
             e.Property(x => x.UpdatedBy).HasMaxLength(20);
+        });
+
+        b.Entity<Notification>(e =>
+        {
+            e.HasIndex(x => new { x.UserId, x.Id });
+            e.Property(x => x.Kind).HasConversion<string>().HasMaxLength(16);
+            // Xoá tài khoản / bài / bình luận → thông báo liên quan đi theo.
+            e.HasOne<User>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne<BlogPost>().WithMany().HasForeignKey(x => x.PostId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne<BlogComment>().WithMany().HasForeignKey(x => x.CommentId).OnDelete(DeleteBehavior.Cascade);
         });
 
         b.Entity<WalletTransaction>(e =>

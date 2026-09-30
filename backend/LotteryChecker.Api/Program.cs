@@ -84,6 +84,10 @@ builder.Services.AddScoped<AdminUsers>();           // trang quản trị
 builder.Services.AddScoped<FeatureFlags>();         // bật/tắt tính năng (trang quản trị)
 builder.Services.AddScoped<ScratchTicketService>(); // vé cào 2 số theo giải tám
 builder.Services.AddScoped<BlogService>();
+// Chuông thông báo: lưu DB + đẩy realtime qua SignalR (hub map ở dưới, cùng tiền tố /api để đi chung proxy).
+builder.Services.AddSignalR();
+builder.Services.AddSingleton<INotificationPusher, SignalRNotificationPusher>();
+builder.Services.AddScoped<NotificationService>();
 
 // Hai engine OCR cục bộ — đăng ký CẢ HAI (endpoint debug /api/admin/ocr-debug luôn cần
 // Tesseract để so sánh), còn engine thực sự dùng khi quét thì chọn bằng Ocr:Engine.
@@ -303,6 +307,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.UseRateLimiter();
 app.MapControllers();
+app.MapHub<LotteryChecker.Api.Hubs.NotificationHub>(LotteryChecker.Api.Hubs.NotificationHub.Path);
 
 // Endpoint test nhanh
 app.MapGet("/", () => "Lottery Checker API is running. Try /scalar/v1");

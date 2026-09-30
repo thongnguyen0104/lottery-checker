@@ -32,7 +32,7 @@ export default defineConfig({
     proxy: {
       // FE gọi /api/* (cùng origin) → Vite chuyển tiếp sang backend localhost:5177.
       // Nhờ vậy điện thoại chỉ cần tới được cổng 5173; KHÔNG cần CORS, KHÔNG cần lộ 5177.
-      '/api': { target: 'http://localhost:5177', changeOrigin: true },
+      '/api': { target: 'http://localhost:5177', changeOrigin: true, ws: true }, // ws: SignalR (chuông thông báo)
     },
   },
   // `vite preview` = serve bản BUILD thật (bundle production + service worker PWA hoạt động
@@ -43,7 +43,7 @@ export default defineConfig({
     host: true,
     allowedHosts: true,
     proxy: {
-      '/api': { target: 'http://localhost:5177', changeOrigin: true },
+      '/api': { target: 'http://localhost:5177', changeOrigin: true, ws: true }, // ws: SignalR (chuông thông báo)
     },
   }
 })

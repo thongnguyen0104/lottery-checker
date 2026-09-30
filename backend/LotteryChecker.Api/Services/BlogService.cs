@@ -91,6 +91,14 @@ public class BlogService(AppDbContext db, TimeProvider clock)
         return new PageDto(posts.Select(x => ToDto(x, mine.GetValueOrDefault(x.Id), userId)).ToArray(), hasMore);
     }
 
+    public async Task<PostDto?> GetAsync(int postId, string voterKey, int? userId, CancellationToken ct)
+    {
+        var post = await db.BlogPosts.AsNoTracking().FirstOrDefaultAsync(x => x.Id == postId, ct);
+        if (post == null) return null;
+        var vote = await db.BlogVotes.AsNoTracking().FirstOrDefaultAsync(v => v.PostId == postId && v.VoterKey == voterKey, ct);
+        return ToDto(post, vote?.Value ?? 0, userId);
+    }
+
     /// <summary>Đặt lượt của người này: 1 = thích, −1 = không thích, 0 = bỏ. null = không có bài.</summary>
     public async Task<VoteDto?> VoteAsync(int postId, string voterKey, int value, CancellationToken ct)
     {

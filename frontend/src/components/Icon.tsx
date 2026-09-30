@@ -3,7 +3,7 @@ import {
   CircleX, Clock, Copy, Dices, Focus, History, Hourglass, ImageUp, Inbox, Layers, Lightbulb, ListOrdered, MapPin, MessageSquareText,
   Monitor, Moon, Palette, PencilLine, RotateCcw, Scan, ScanSearch, Sparkles, Sun, Ticket, TicketX, Timer,
   TrendingUp, Flame, Snowflake, Newspaper, ThumbsUp, ThumbsDown, Send, Trash2, TriangleAlert, Trophy, Wallet, X,
-  KeyRound, ShieldCheck, Users, Search, MessageCircle, Reply,
+  KeyRound, ShieldCheck, Users, Search, MessageCircle, Reply, Bell, CheckCheck,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -69,6 +69,8 @@ const ICONS = {
   find: Search,
   comment: MessageCircle,
   reply: Reply,
+  bell: Bell,
+  readAll: CheckCheck,
 } satisfies Record<string, LucideIcon>
 
 export type IconName = keyof typeof ICONS

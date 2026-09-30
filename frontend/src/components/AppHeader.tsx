@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import Icon, { type IconName } from './Icon'
 import ConfirmDialog from './ConfirmDialog'
+import NotificationBell from './NotificationBell'
 import { useTranslation } from 'react-i18next'
 import { currentLang } from '../i18n'
 import { VIEWS, type View } from '../views'
-import type { Account } from '../api/client'
+import type { Account, AppNotification } from '../api/client'
 
 type Props = {
   view: View
@@ -24,13 +25,15 @@ type Props = {
   /** Chỉ hiện khi account.isAdmin. */
   onOpenAdmin: () => void
   onChangePassword: () => void
+  /** Bấm 1 thông báo trong chuông (chỉ hiện khi đã đăng nhập) — mở bài đó. */
+  onOpenNotification: (n: AppNotification) => void
 }
 
 /** Thanh trên cùng: logo + tên tính năng đang mở; màn rộng có thêm tab chuyển tính năng
  *  (điện thoại dùng BottomNav cho vừa tầm ngón cái). Bấm logo sổ menu: ủng hộ, tài khoản, đăng nhập/xuất,
  *  ngôn ngữ, bảng màu. */
 export default function AppHeader({ view, busy, onChange, onOpenTheme, onOpenDonate, account, showProfile, onOpenAuth, onLogout, onOpenProfile,
-                                    onOpenAdmin, onChangePassword }: Props) {
+                                    onOpenAdmin, onChangePassword, onOpenNotification }: Props) {
   const { t, i18n } = useTranslation()
   const lang = currentLang()
   const [confirmLogout, setConfirmLogout] = useState(false)
@@ -135,6 +138,12 @@ export default function AppHeader({ view, busy, onChange, onOpenTheme, onOpenDon
             )
           })}
         </nav>
+        {/* key: đổi tài khoản thì nối lại hub + tải lại danh sách của người mới */}
+        {account && (
+          <div className="ml-auto md:ml-0 shrink-0">
+            <NotificationBell key={account.username} onOpen={onOpenNotification} />
+          </div>
+        )}
       </div>
       {confirmLogout && account && (
         <ConfirmDialog title={t('auth.logoutConfirmTitle')}

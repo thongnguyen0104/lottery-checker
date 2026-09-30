@@ -1,10 +1,11 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
-  createBlogComment, createBlogPost, deleteBlogComment, deleteBlogPost, getBlogComments, getBlogPosts, voteBlogPost,
+  createBlogComment, createBlogPost, deleteBlogComment, deleteBlogPost, getBlogComments, getBlogPost, getBlogPosts, voteBlogPost,
   type Account, type BlogAuthorMode, type BlogComment, type BlogPost,
 } from '../api/client'
 import { currentLocale } from '../i18n'
+import { timeAgo } from '../utils/date'
 import ConfirmDialog from './ConfirmDialog'
 import Icon, { IconBadge } from './Icon'
 
@@ -18,13 +19,18 @@ const CLAMP_CHARS = 280
 
 type Sort = 'new' | 'top'
 
+/** Bài mở từ chuông thông báo; at đổi mỗi lần bấm để bấm lại cùng thông báo vẫn cuộn tới. */
+export type BlogFocus = { postId: number; commentId: number; at: number }
+
 type Props = {
   account: Account | null
   onRequireLogin: () => void
+  focus?: BlogFocus | null
+  onClearFocus?: () => void
 }
 
 /** Blog cho mọi người: đọc, viết (ký tên tài khoản / ẩn danh / tự đặt), like/dislike, xoá bài của mình. */
-export default function Blog({ account, onRequireLogin }: Props) {
+export default function Blog({ account, onRequireLogin, focus, onClearFocus }: Props) {
   const { t } = useTranslation('blog')
   const [sort, setSort] = useState<Sort>('new')
   const [posts, setPosts] = useState<BlogPost[]>([])
@@ -84,6 +90,12 @@ export default function Blog({ account, onRequireLogin }: Props) {
                   }} />
       )}
 
+      {focus && (
+        <FocusedPost key={focus.at} focus={focus} account={account} onRequireLogin={onRequireLogin}
+                     onClose={() => onClearFocus?.()}
+                     onChange={(id, patch) => update(id, patch)} />
+      )}
+
       <div className="grid grid-cols-2 gap-1 p-1 rounded-xl bg-muted border border-line/60 max-w-xs" role="tablist">
         {(['new', 'top'] as const).map(s => (
           <button key={s} role="tab" aria-selected={s === sort} onClick={() => s !== sort && load(s, 1)}
@@ -113,7 +125,7 @@ export default function Blog({ account, onRequireLogin }: Props) {
       )}
 
       <div className="space-y-3">
-        {posts.map(p => <PostCard key={p.id} post={p} account={account} onRequireLogin={onRequireLogin}
+        {posts.filter(p => p.id !== focus?.postId).map(p => <PostCard key={p.id} post={p} account={account} onRequireLogin={onRequireLogin}
                                  onChange={patch => update(p.id, patch)} />)}
         {loading && page === 1 && Array.from({ length: 3 }, (_, i) => (
           <div key={i} className="card p-4 motion-safe:animate-pulse space-y-3">
@@ -131,6 +143,48 @@ export default function Blog({ account, onRequireLogin }: Props) {
         </button>
       )}
     </div>
+  )
+}
+
+/** Bài mở từ chuông thông báo: tải riêng bài đó (có thể không nằm ở trang đầu), mở sẵn bình luận. */
+function FocusedPost({ focus, account, onRequireLogin, onClose, onChange }: {
+  focus: BlogFocus
+  account: Account | null
+  onRequireLogin: () => void
+  onClose: () => void
+  onChange: (id: number, patch: Partial<BlogPost> | null) => void
+}) {
+  const { t } = useTranslation()
+  const [post, setPost] = useState<BlogPost | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let alive = true
+    getBlogPost(focus.postId).then(p => alive && setPost(p)).catch(e => alive && setError(e?.message ?? t('notifications.postGone')))
+    return () => { alive = false }
+  }, [focus.postId, t])
+
+  return (
+    <section className="space-y-2 fade-up" aria-label={t('notifications.focusedPost')}>
+      <div className="flex items-center justify-between gap-2 text-sm">
+        <span className="inline-flex items-center gap-1.5 font-semibold text-brand-700 dark:text-brand-400">
+          <Icon name="bell" className="w-4 h-4" /> {t('notifications.focusedPost')}
+        </span>
+        <button onClick={onClose} className="font-semibold text-ink-faint hover:text-ink">{t('notifications.showAll')}</button>
+      </div>
+      {error && <div className="card p-4 text-sm text-ink-soft">{error}</div>}
+      {!post && !error && <div className="card h-40 motion-safe:animate-pulse" />}
+      {post && (
+        <div className="rounded-2xl ring-2 ring-brand-500/40">
+          <PostCard post={post} account={account} onRequireLogin={onRequireLogin} highlightCommentId={focus.commentId}
+                    onChange={patch => {
+                      onChange(post.id, patch)
+                      if (patch) setPost({ ...post, ...patch })
+                      else onClose()
+                    }} />
+        </div>
+      )}
+    </section>
   )
 }
 
@@ -251,15 +305,17 @@ function SignAsPicker({ account, mode, onMode, name, onName, onRequireLogin, com
   )
 }
 
-function PostCard({ post, account, onRequireLogin, onChange }: {
+function PostCard({ post, account, onRequireLogin, onChange, highlightCommentId }: {
   post: BlogPost
   account: Account | null
   onRequireLogin: () => void
   onChange: (patch: Partial<BlogPost> | null) => void
+  /** Có = mở sẵn bình luận và cuộn tới bình luận này (từ chuông thông báo). */
+  highlightCommentId?: number
 }) {
   const { t } = useTranslation('blog')
   const [expanded, setExpanded] = useState(false)
-  const [showComments, setShowComments] = useState(false)
+  const [showComments, setShowComments] = useState(highlightCommentId != null)
   const [voting, setVoting] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -338,7 +394,7 @@ function PostCard({ post, account, onRequireLogin, onChange }: {
       {error && <p className="mt-2 text-xs text-bad">{error}</p>}
 
       {showComments && (
-        <Comments postId={post.id} account={account} onRequireLogin={onRequireLogin}
+        <Comments postId={post.id} account={account} onRequireLogin={onRequireLogin} highlightId={highlightCommentId}
                   onCount={commentCount => onChange({ commentCount })} />
       )}
 
@@ -354,8 +410,9 @@ function PostCard({ post, account, onRequireLogin, onChange }: {
  * Bình luận của 1 bài: luồng 1 cấp (bình luận gốc + các trả lời thụt vào). Trả lời một câu trả lời →
  * vẫn vào luồng đó, điền sẵn "@tên" để biết đang trả lời ai. Tải khi mở, không tải sẵn cho mọi bài.
  */
-function Comments({ postId, account, onRequireLogin, onCount }: {
+function Comments({ postId, account, onRequireLogin, onCount, highlightId }: {
   postId: number
+  highlightId?: number
   account: Account | null
   onRequireLogin: () => void
   onCount: (count: number) => void
@@ -406,11 +463,11 @@ function Comments({ postId, account, onRequireLogin, onCount }: {
         const replies = comments!.filter(c => c.parentId === root.id)
         return (
           <div key={root.id} className="space-y-2">
-            <CommentItem c={root} onReply={() => reply(root.id, root)} onDelete={() => setDeleting(root)} />
+            <CommentItem c={root} highlight={root.id === highlightId} onReply={() => reply(root.id, root)} onDelete={() => setDeleting(root)} />
             {(replies.length > 0 || replyTo?.rootId === root.id) && (
               <div className="ml-4 pl-3 border-l-2 border-line/70 space-y-2">
                 {replies.map(r => (
-                  <CommentItem key={r.id} c={r} onReply={() => reply(root.id, r)} onDelete={() => setDeleting(r)} />
+                  <CommentItem key={r.id} c={r} highlight={r.id === highlightId} onReply={() => reply(root.id, r)} onDelete={() => setDeleting(r)} />
                 ))}
                 {replyTo?.rootId === root.id && (
                   <CommentForm key={`${root.id}:${replyTo.mention}`} postId={postId} parentId={root.id}
@@ -436,11 +493,15 @@ function Comments({ postId, account, onRequireLogin, onCount }: {
   )
 }
 
-function CommentItem({ c, onReply, onDelete }: { c: BlogComment; onReply: () => void; onDelete: () => void }) {
+function CommentItem({ c, highlight, onReply, onDelete }: {
+  c: BlogComment; highlight?: boolean; onReply: () => void; onDelete: () => void
+}) {
   const { t } = useTranslation('blog')
   const account = c.authorMode === 'Account'
+  const ref = useRef<HTMLDivElement>(null)
+  useEffect(() => { if (highlight) ref.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }) }, [highlight])
   return (
-    <div className="group">
+    <div ref={ref} className={`group ${highlight ? '-mx-2 px-2 py-1 rounded-lg bg-brand-500/10 ring-1 ring-brand-500/30' : ''}`}>
       <div className="flex items-center gap-1 text-xs text-ink-faint">
         {account && <Icon name="user" className="w-3.5 h-3.5 text-brand-700 dark:text-brand-400" />}
         <span className={`font-semibold ${account ? 'text-brand-700 dark:text-brand-400' : 'text-ink-soft'}`}
@@ -541,15 +602,4 @@ function VoteButton({ icon, label, count, active, tone, disabled, onClick }: {
       <Icon name={icon} className="w-4 h-4" /> {count}
     </button>
   )
-}
-
-/** "5 phút trước" / "5 minutes ago" — quá 30 ngày thì ghi ngày. */
-function timeAgo(iso: string) {
-  const sec = (Date.now() - new Date(iso).getTime()) / 1000
-  const rtf = new Intl.RelativeTimeFormat(currentLocale(), { numeric: 'auto' })
-  if (sec < 60) return rtf.format(0, 'second')
-  if (sec < 3600) return rtf.format(-Math.floor(sec / 60), 'minute')
-  if (sec < 86400) return rtf.format(-Math.floor(sec / 3600), 'hour')
-  if (sec < 30 * 86400) return rtf.format(-Math.floor(sec / 86400), 'day')
-  return new Date(iso).toLocaleDateString(currentLocale())
 }

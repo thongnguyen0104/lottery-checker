@@ -74,6 +74,19 @@
   "confirmDialog": {
     "cancel": "Huỷ"
   },
+  "notifications": {
+    "title": "Thông báo",
+    "open": "Thông báo ({{count}} chưa đọc)",
+    "readAll": "Đọc hết",
+    "empty": "Chưa có thông báo nào. Khi có người bình luận bài hoặc trả lời bình luận của bạn, chuông sẽ báo ở đây.",
+    "someone": "Ẩn danh",
+    "PostComment": "<b>{{name}}</b> đã bình luận bài <b>{{title}}</b>",
+    "CommentReply": "<b>{{name}}</b> đã trả lời bình luận của bạn trong <b>{{title}}</b>",
+    "loadError": "Không tải được thông báo.",
+    "focusedPost": "Bài viết từ thông báo",
+    "showAll": "Xem tất cả bài",
+    "postGone": "Bài viết này không còn nữa (có thể đã bị xoá)."
+  },
   "views": {
     "check": { "title": "Dò Vé Số", "short": "Dò vé", "hint": "Chụp vé, tự đọc số và dò giải" },
     "lucky": { "title": "6 Số May Mắn", "short": "Số may mắn", "hint": "Chọn số Vietlott, luận số giấc mơ" },
