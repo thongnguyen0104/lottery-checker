@@ -40,7 +40,7 @@ export function scratchStart() { if (isScratchSoundOn()) ensure() }
 export function scratchTick(speed: number) {
   if (!ctx || !gain || !filter || !isScratchSoundOn()) return
   const t = ctx.currentTime
-  const vol = Math.min(0.35, 0.06 + speed / 120)
+  const vol = Math.min(0.15, 0.025 + speed / 300)
   gain.gain.cancelScheduledValues(t)
   gain.gain.setTargetAtTime(vol, t, 0.01)
   gain.gain.setTargetAtTime(0, t + 0.06, 0.04)   // tự tắt dần nếu ngừng vuốt
