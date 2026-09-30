@@ -8,8 +8,11 @@ Bản đang chạy: **https://dove-so.duckdns.org**
 
 - **Dò vé bằng ảnh**: chụp bằng camera hoặc chọn ảnh có sẵn. Vé đọc chắc chắn cả số, đài và ngày thì dò luôn, còn nghi ngờ trường nào thì hỏi lại người dùng trên form (trường nghi ngờ được đánh dấu).
 - **Kết quả dò**: trúng giải nào, tổng tiền. Có trạng thái riêng cho vé hết hạn lĩnh thưởng (30 ngày), vé chưa tới giờ xổ và đài chưa có kết quả.
+- **Thống kê cộng đồng**: màn Dò vé hiện tổng số vé cả hệ thống đã dò, số vé trúng và tổng tiền thưởng (mỗi vé tính 1 lần).
 - **Bảng kết quả từng đài**: đủ giải ĐB → G.8. Mở từ vé vừa dò thì các chữ số cuối trùng với vé được tô xanh.
 - **6 số may mắn**: chọn ngẫu nhiên kiểu Vietlott Mega 6/45 và Power 6/55.
+- **Dự đoán**: thống kê 2 số cuối của 18 giải trong 1 năm từng đài → số nóng, lô gan, gợi ý giải ĐB, bảng xác suất 00–99 cho mỗi ngày xổ. Xem lại ngày đã xổ để đối chiếu gợi ý với kết quả thật. Chỉ là thống kê cho vui.
+- **Blog**: ai cũng đọc, viết và like/dislike được; ký tên bằng tài khoản (cần đăng nhập), ẩn danh hoặc tự đặt tên. Người đăng (đã đăng nhập) xoá được bài của mình. Chống spam bằng rate limit theo IP.
 - **Giao diện**: mặc định Gold & Navy, đổi được chế độ sáng/tối, bảng màu và hình nền. Responsive, cài được như app (PWA).
 - **Kết quả tự cập nhật**: backend tự cào kết quả XSMN mỗi ngày sau giờ xổ.
 
@@ -35,8 +38,8 @@ flowchart TD
 - **`autoCheck`** chặt hơn "không trường nào cần kiểm tra". Số vé phải đến từ cloud hoặc từ OCR cục bộ đạt ngưỡng tin cậy. Nếu ngày đã quá cũ thì phải đọc khớp ở ít nhất 2 chỗ trên vé.
 - **Kết quả xổ số** do `DailyResultFetchWorker` cào từ xosodaiphat.com:
   - Bắt đầu lúc 16:45 giờ VN. Hôm nay còn thiếu đài nào thì cứ 10 phút thử lại, tới 20:00 thì dừng.
-  - Khi khởi động, worker cào bù những ngày còn thiếu.
-  - SQLite chỉ là bộ đệm khoảng 30 ngày: mất file DB thì lần khởi động sau tự cào lại.
+  - Khi khởi động, worker cào bù những ngày còn thiếu trong 30 ngày, rồi cào bù dần kết quả 1 năm (cho màn Dự đoán).
+  - SQLite chỉ là bộ đệm khoảng 1 năm (dò vé / bảng kết quả chỉ dùng 30 ngày gần nhất): mất file DB thì lần khởi động sau tự cào lại.
 
 ## Tech stack
 

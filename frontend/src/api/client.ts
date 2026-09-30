@@ -386,3 +386,107 @@ export async function logout() {
     throw toFriendlyError(e)
   }
 }
+
+// ── Dự đoán: thống kê 2 số cuối trong 1 năm, gợi ý số cho từng đài của một ngày ──
+export type NumberStat = {
+  number: string
+  hits: number
+  /** Số kỳ có số này (xuất hiện ≥ 1 lần trong 18 giải). */
+  draws: number
+  probability: number
+  recentProbability: number
+  /** Đã bao nhiêu kỳ liền chưa về. */
+  gap: number
+  score: number
+}
+
+export type ProvincePrediction = {
+  province: string
+  draws: number
+  from: string | null
+  to: string | null
+  top: NumberStat[]
+  overdue: NumberStat[]
+  special: string | null
+  all: NumberStat[]
+  /** 2 số cuối của 18 giải nếu ngày đó đã có kết quả — để đối chiếu gợi ý. */
+  actual: string[] | null
+}
+
+export type Prediction = { date: string; baseline: number; provinces: ProvincePrediction[] }
+
+/** date bỏ trống = kỳ xổ kế tiếp (máy chủ tự chọn hôm nay/ngày mai). */
+export async function getPrediction(date?: string) {
+  try {
+    const { data } = await api.get('/api/predict', { params: date ? { date } : undefined })
+    return data as Prediction
+  } catch (e) {
+    throw toFriendlyError(e)
+  }
+}
+
+/** Thống kê vé đã dò của cả hệ thống (mỗi vé tính 1 lần). */
+export type CheckSummary = { tickets: number; winners: number; totalPrize: number }
+
+export async function getCheckStats() {
+  try {
+    const { data } = await api.get('/api/stats', { timeout: 5_000 })
+    return data as CheckSummary
+  } catch (e) {
+    throw toFriendlyError(e)
+  }
+}
+
+// ── Blog ──
+export type BlogAuthorMode = 'Account' | 'Anonymous' | 'Custom'
+
+export type BlogPost = {
+  id: number
+  title: string
+  content: string
+  authorMode: BlogAuthorMode
+  /** Username (Account), tên tự đặt (Custom), null khi Ẩn danh. */
+  authorName: string | null
+  createdAt: string
+  likes: number
+  dislikes: number
+  /** Lượt của mình: 1 thích, −1 không thích, 0 chưa bấm. */
+  myVote: number
+  /** Bài mình đăng (lúc đăng đã đăng nhập) → được xoá. */
+  mine: boolean
+}
+
+export async function getBlogPosts(sort: 'new' | 'top', page: number) {
+  try {
+    const { data } = await api.get('/api/blog/posts', { params: { sort, page } })
+    return data as { items: BlogPost[]; hasMore: boolean }
+  } catch (e) {
+    throw toFriendlyError(e)
+  }
+}
+
+export async function createBlogPost(post: { title: string; content: string; authorMode: BlogAuthorMode; authorName?: string }) {
+  try {
+    const { data } = await api.post('/api/blog/posts', post)
+    return data as BlogPost
+  } catch (e) {
+    throw toFriendlyError(e)
+  }
+}
+
+export async function voteBlogPost(id: number, value: number) {
+  try {
+    const { data } = await api.post(`/api/blog/posts/${id}/vote`, { value })
+    return data as { likes: number; dislikes: number; myVote: number }
+  } catch (e) {
+    throw toFriendlyError(e)
+  }
+}
+
+export async function deleteBlogPost(id: number) {
+  try {
+    await api.delete(`/api/blog/posts/${id}`)
+  } catch (e) {
+    throw toFriendlyError(e)
+  }
+}

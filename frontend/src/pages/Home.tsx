@@ -14,6 +14,7 @@ import {
   type CheckResult, type MultiTicket, type ScanResponse, type TicketQuery,
 } from '../api/client'
 import { ALL_PROVINCES, provinceName } from '../data/provinces'
+import SystemStats from '../components/SystemStats'
 import i18n from '../i18n'
 
 type Stage = 'capture' | 'confirm' | 'result' | 'multi'
@@ -362,6 +363,8 @@ export default function Home({ active, onShowResults, onBusyChange, onRequireLog
                       ))}
                     </ul>
                   </div>
+                  {/* Mount lại mỗi lần về màn chụp → số liệu mới sau vé vừa dò */}
+                  <SystemStats />
                 </div>
               </div>
             </div>

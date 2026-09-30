@@ -16,7 +16,10 @@ public class ResultsController : ControllerBase
     [HttpGet("/api/results/available")]
     public async Task<IActionResult> Available(CancellationToken ct)
     {
+        // DB giữ tới 1 năm (cho Dự đoán) nhưng màn Kết quả chỉ liệt kê 30 ngày còn lĩnh thưởng.
+        var cutoff = ResultScraper.RecentCutoff();
         var pairs = await _db.LotteryResults
+            .Where(r => r.DrawDate >= cutoff)
             .Select(r => new { r.DrawDate, r.Province })
             .Distinct()
             .ToListAsync(ct);
@@ -68,8 +71,10 @@ public class ResultsController : ControllerBase
         if (tail is not { Length: 2 } || !tail.All(char.IsAsciiDigit))
             return BadRequest(new { error = Lang.T(Request, "Cần đúng 2 chữ số, vd ?tail=32.", "Exactly 2 digits required, e.g. ?tail=32.") });
 
+        var cutoff = ResultScraper.RecentCutoff();
+
         var rows = await _db.LotteryResults
-            .Where(r => r.Number.EndsWith(tail))
+            .Where(r => r.DrawDate >= cutoff && r.Number.EndsWith(tail))
             .Select(r => new { r.DrawDate, r.Province, r.PrizeTier, r.Number, r.Id })
             .ToListAsync(ct);
 

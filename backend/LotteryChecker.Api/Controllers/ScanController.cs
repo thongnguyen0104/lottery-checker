@@ -264,7 +264,7 @@ public class ScanController : ControllerBase
     [GuestQuota(GuestAction.Check)] // dò luôn trong request → tính lượt dò
     [EnableRateLimiting(RateLimitPolicy)]
     [RequestSizeLimit(10_000_000)]
-    public async Task<IActionResult> ScanMulti(IFormFile image, CancellationToken ct)
+    public async Task<IActionResult> ScanMulti(IFormFile image, [FromServices] CheckStats stats, CancellationToken ct)
     {
         var timer = new StageTimer(HttpContext.RequestStartTicks());
 
@@ -334,6 +334,7 @@ public class ScanController : ControllerBase
             if (_validator.CanAutoCheck(info, null))
             {
                 result = await _matcher.Match(info.TicketNumber!, info.DrawDate!.Value, info.Province!, ct);
+                await stats.RecordAsync(result, ct);
                 autoChecked++;
             }
             tickets.Add(new
@@ -420,7 +421,7 @@ public class ScanController : ControllerBase
     /// <summary>Bước 2: user bấm "Dò" với info đã xác nhận/chỉnh sửa.</summary>
     [HttpPost("/api/check")]
     [GuestQuota(GuestAction.Check)]
-    public async Task<IActionResult> Check([FromBody] CheckRequest req, CancellationToken ct)
+    public async Task<IActionResult> Check([FromBody] CheckRequest req, [FromServices] CheckStats stats, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(req.TicketNumber)
             || req.TicketNumber.Length != 6
@@ -428,6 +429,7 @@ public class ScanController : ControllerBase
             return BadRequest(new { error = Lang.T(Request, "Số vé phải là 6 chữ số", "Ticket number must be 6 digits") });
 
         var result = await _matcher.Match(req.TicketNumber, req.DrawDate, req.Province, ct);
+        await stats.RecordAsync(result, ct);
         return Ok(result);
     }
 

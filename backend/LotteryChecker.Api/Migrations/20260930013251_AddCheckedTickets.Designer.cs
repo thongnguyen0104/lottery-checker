@@ -3,6 +3,7 @@ using System;
 using LotteryChecker.Api.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,73 +11,14 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace LotteryChecker.Api.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260930013251_AddCheckedTickets")]
+    partial class AddCheckedTickets
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.8");
-
-            modelBuilder.Entity("LotteryChecker.Api.Models.BlogPost", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("AuthorMode")
-                        .IsRequired()
-                        .HasMaxLength(10)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("AuthorName")
-                        .HasMaxLength(30)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Content")
-                        .IsRequired()
-                        .HasMaxLength(5000)
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("TEXT");
-
-                    b.Property<int>("Dislikes")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<int>("Likes")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .HasMaxLength(120)
-                        .HasColumnType("TEXT");
-
-                    b.Property<int?>("UserId")
-                        .HasColumnType("INTEGER");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CreatedAt");
-
-                    b.ToTable("BlogPosts");
-                });
-
-            modelBuilder.Entity("LotteryChecker.Api.Models.BlogVote", b =>
-                {
-                    b.Property<int>("PostId")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("VoterKey")
-                        .HasMaxLength(40)
-                        .HasColumnType("TEXT");
-
-                    b.Property<int>("Value")
-                        .HasColumnType("INTEGER");
-
-                    b.HasKey("PostId", "VoterKey");
-
-                    b.ToTable("BlogVotes");
-                });
 
             modelBuilder.Entity("LotteryChecker.Api.Models.CheckedTicket", b =>
                 {
@@ -116,8 +58,8 @@ namespace LotteryChecker.Api.Migrations
 
             modelBuilder.Entity("LotteryChecker.Api.Models.GuestUsage", b =>
                 {
-                    b.Property<string>("Key")
-                        .HasMaxLength(64)
+                    b.Property<string>("Ip")
+                        .HasMaxLength(45)
                         .HasColumnType("TEXT");
 
                     b.Property<int>("Checks")
@@ -129,7 +71,7 @@ namespace LotteryChecker.Api.Migrations
                     b.Property<int>("Scans")
                         .HasColumnType("INTEGER");
 
-                    b.HasKey("Key");
+                    b.HasKey("Ip");
 
                     b.ToTable("GuestUsages");
                 });
@@ -199,15 +141,6 @@ namespace LotteryChecker.Api.Migrations
                         .IsUnique();
 
                     b.ToTable("Users");
-                });
-
-            modelBuilder.Entity("LotteryChecker.Api.Models.BlogVote", b =>
-                {
-                    b.HasOne("LotteryChecker.Api.Models.BlogPost", null)
-                        .WithMany()
-                        .HasForeignKey("PostId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
                 });
 #pragma warning restore 612, 618
         }

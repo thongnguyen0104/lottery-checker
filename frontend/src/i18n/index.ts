@@ -5,19 +5,23 @@ import viCommon from './locales/vi/common.json'
 import viCheck from './locales/vi/check.json'
 import viLucky from './locales/vi/lucky.json'
 import viResults from './locales/vi/results.json'
+import viPredict from './locales/vi/predict.json'
+import viBlog from './locales/vi/blog.json'
 import enCommon from './locales/en/common.json'
 import enCheck from './locales/en/check.json'
 import enLucky from './locales/en/lucky.json'
 import enResults from './locales/en/results.json'
+import enPredict from './locales/en/predict.json'
+import enBlog from './locales/en/blog.json'
 
 export const LANGS = ['vi', 'en'] as const
 export type Lang = typeof LANGS[number]
 
 // Namespace theo khu vực: common (khung app, header, popup chung, tên đài/giải), check (Dò vé),
-// lucky (6 số may mắn + luận giấc mơ), results (Kết quả xổ số).
+// lucky (6 số may mắn + luận giấc mơ), results (Kết quả xổ số), predict (Dự đoán), blog (Blog).
 export const resources = {
-  vi: { common: viCommon, check: viCheck, lucky: viLucky, results: viResults },
-  en: { common: enCommon, check: enCheck, lucky: enLucky, results: enResults },
+  vi: { common: viCommon, check: viCheck, lucky: viLucky, results: viResults, predict: viPredict, blog: viBlog },
+  en: { common: enCommon, check: enCheck, lucky: enLucky, results: enResults, predict: enPredict, blog: enBlog },
 } as const
 
 i18n
@@ -29,7 +33,7 @@ i18n
     supportedLngs: LANGS,
     nonExplicitSupportedLngs: true, // en-US → en
     defaultNS: 'common',
-    ns: ['common', 'check', 'lucky', 'results'],
+    ns: ['common', 'check', 'lucky', 'results', 'predict', 'blog'],
     interpolation: { escapeValue: false }, // React đã tự escape
     // Lần đầu theo ngôn ngữ trình duyệt; đã chọn thì nhớ trong localStorage.
     detection: { order: ['localStorage', 'navigator'], lookupLocalStorage: 'dvs.lang', caches: ['localStorage'] },
