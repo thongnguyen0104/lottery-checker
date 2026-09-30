@@ -10,6 +10,7 @@ import { getMe, logout, type Account } from './api/client'
 import AvailableData, { type ResultsFocus } from './components/AvailableData'
 import LuckyNumbers from './components/LuckyNumbers'
 import Predictions from './components/Predictions'
+import Blog from './components/Blog'
 import Home from './pages/Home'
 import { useTheme } from './theme'
 import { viewFromPath, viewPath, type View } from './views'
@@ -110,6 +111,12 @@ export default function App() {
         {seen.has('predict') && (
           <div hidden={view !== 'predict'} className="fade-up">
             <Predictions />
+          </div>
+        )}
+        {/* Blog: key theo tài khoản — đăng nhập/xuất thì tải lại (lượt like, bài "của mình" đổi theo). */}
+        {seen.has('blog') && (
+          <div hidden={view !== 'blog'} className="fade-up">
+            <Blog key={sessionKey} account={account ?? null} onRequireLogin={() => setAuthReason(null)} />
           </div>
         )}
         {/* Kết quả thì mount lại mỗi lần mở để lấy danh sách mới nhất. */}

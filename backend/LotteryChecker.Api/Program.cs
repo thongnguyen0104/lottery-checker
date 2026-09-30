@@ -78,6 +78,7 @@ builder.Services.AddScoped<ImagePreprocessor>();
 builder.Services.AddScoped<LotteryMatcher>();        // phụ thuộc AppDbContext (Scoped)
 builder.Services.AddScoped<PredictionService>();     // thống kê 1 năm cho màn Dự đoán
 builder.Services.AddScoped<CheckStats>();           // đếm vé đã dò toàn hệ thống
+builder.Services.AddScoped<BlogService>();
 
 // Hai engine OCR cục bộ — đăng ký CẢ HAI (endpoint debug /api/admin/ocr-debug luôn cần
 // Tesseract để so sánh), còn engine thực sự dùng khi quét thì chọn bằng Ocr:Engine.
@@ -145,6 +146,21 @@ builder.Services.AddRateLimiter(o =>
             new FixedWindowRateLimiterOptions
             {
                 PermitLimit = builder.Configuration.GetValue("Auth:PermitPerIpPerMinute", 20),
+                Window = TimeSpan.FromMinutes(1),
+            }));
+    // Blog: khách cũng đăng được → chặn đăng bài hàng loạt / bấm like liên tục theo IP.
+    o.AddPolicy(LotteryChecker.Api.Controllers.BlogController.PostRateLimitPolicy, ctx =>
+        RateLimitPartition.GetFixedWindowLimiter(ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown", _ =>
+            new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = builder.Configuration.GetValue("Blog:PostsPerIpPer10Minutes", 3),
+                Window = TimeSpan.FromMinutes(10),
+            }));
+    o.AddPolicy(LotteryChecker.Api.Controllers.BlogController.VoteRateLimitPolicy, ctx =>
+        RateLimitPartition.GetFixedWindowLimiter(ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown", _ =>
+            new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = builder.Configuration.GetValue("Blog:VotesPerIpPerMinute", 30),
                 Window = TimeSpan.FromMinutes(1),
             }));
     o.OnRejected = (ctx, ct) => new ValueTask(ctx.HttpContext.Response.WriteAsJsonAsync(

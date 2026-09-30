@@ -436,3 +436,57 @@ export async function getCheckStats() {
     throw toFriendlyError(e)
   }
 }
+
+// ── Blog ──
+export type BlogAuthorMode = 'Account' | 'Anonymous' | 'Custom'
+
+export type BlogPost = {
+  id: number
+  title: string
+  content: string
+  authorMode: BlogAuthorMode
+  /** Username (Account), tên tự đặt (Custom), null khi Ẩn danh. */
+  authorName: string | null
+  createdAt: string
+  likes: number
+  dislikes: number
+  /** Lượt của mình: 1 thích, −1 không thích, 0 chưa bấm. */
+  myVote: number
+  /** Bài mình đăng (lúc đăng đã đăng nhập) → được xoá. */
+  mine: boolean
+}
+
+export async function getBlogPosts(sort: 'new' | 'top', page: number) {
+  try {
+    const { data } = await api.get('/api/blog/posts', { params: { sort, page } })
+    return data as { items: BlogPost[]; hasMore: boolean }
+  } catch (e) {
+    throw toFriendlyError(e)
+  }
+}
+
+export async function createBlogPost(post: { title: string; content: string; authorMode: BlogAuthorMode; authorName?: string }) {
+  try {
+    const { data } = await api.post('/api/blog/posts', post)
+    return data as BlogPost
+  } catch (e) {
+    throw toFriendlyError(e)
+  }
+}
+
+export async function voteBlogPost(id: number, value: number) {
+  try {
+    const { data } = await api.post(`/api/blog/posts/${id}/vote`, { value })
+    return data as { likes: number; dislikes: number; myVote: number }
+  } catch (e) {
+    throw toFriendlyError(e)
+  }
+}
+
+export async function deleteBlogPost(id: number) {
+  try {
+    await api.delete(`/api/blog/posts/${id}`)
+  } catch (e) {
+    throw toFriendlyError(e)
+  }
+}

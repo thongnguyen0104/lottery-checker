@@ -12,6 +12,7 @@ Bản đang chạy: **https://dove-so.duckdns.org**
 - **Bảng kết quả từng đài**: đủ giải ĐB → G.8. Mở từ vé vừa dò thì các chữ số cuối trùng với vé được tô xanh.
 - **6 số may mắn**: chọn ngẫu nhiên kiểu Vietlott Mega 6/45 và Power 6/55.
 - **Dự đoán**: thống kê 2 số cuối của 18 giải trong 1 năm từng đài → số nóng, lô gan, gợi ý giải ĐB, bảng xác suất 00–99 cho mỗi ngày xổ. Xem lại ngày đã xổ để đối chiếu gợi ý với kết quả thật. Chỉ là thống kê cho vui.
+- **Blog**: ai cũng đọc, viết và like/dislike được; ký tên bằng tài khoản (cần đăng nhập), ẩn danh hoặc tự đặt tên. Người đăng (đã đăng nhập) xoá được bài của mình. Chống spam bằng rate limit theo IP.
 - **Giao diện**: mặc định Gold & Navy, đổi được chế độ sáng/tối, bảng màu và hình nền. Responsive, cài được như app (PWA).
 - **Kết quả tự cập nhật**: backend tự cào kết quả XSMN mỗi ngày sau giờ xổ.
 

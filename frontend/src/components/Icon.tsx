@@ -2,7 +2,8 @@ import {
   Award, Bot, CircleUserRound, LogOut, Download, HandHeart, CalendarDays, Camera, Check, ChevronDown, ChevronLeft, ChevronRight, CircleAlert, Globe, CircleCheck,
   CircleX, Clock, Copy, Dices, Focus, History, Hourglass, ImageUp, Inbox, Layers, Lightbulb, ListOrdered, MapPin, MessageSquareText,
   Monitor, Moon, Palette, PencilLine, RotateCcw, Scan, ScanSearch, Sparkles, Sun, Ticket, TicketX, Timer,
-  TrendingUp, Flame, Snowflake, TriangleAlert, Trophy, X, type LucideIcon,
+  TrendingUp, Flame, Snowflake, Newspaper, ThumbsUp, ThumbsDown, Send, Trash2, TriangleAlert, Trophy, X,
+  type LucideIcon,
 } from 'lucide-react'
 
 // Icon Lucide nét mảnh dùng chung toàn app — thay cho emoji (mỗi hệ điều hành vẽ một kiểu, không
@@ -55,6 +56,11 @@ const ICONS = {
   predict: TrendingUp,
   hot: Flame,
   cold: Snowflake,
+  blog: Newspaper,
+  like: ThumbsUp,
+  dislike: ThumbsDown,
+  send: Send,
+  trash: Trash2,
 } satisfies Record<string, LucideIcon>
 
 export type IconName = keyof typeof ICONS
