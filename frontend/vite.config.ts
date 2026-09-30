@@ -3,6 +3,16 @@ import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig({
+  build: {
+    rolldownOptions: {
+      // @microsoft/signalr đặt /*#__PURE__*/ trước khai báo hàm — Rolldown bỏ qua và in cảnh báo đỏ
+      // mỗi lần build dù vô hại. Chỉ tắt đúng loại này của đúng thư viện đó.
+      onwarn(warning, warn) {
+        if (warning.code === 'INVALID_ANNOTATION' && warning.message.includes('@microsoft/signalr')) return
+        warn(warning)
+      },
+    },
+  },
   plugins: [
     react(),
     VitePWA({
