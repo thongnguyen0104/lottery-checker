@@ -12,6 +12,10 @@ export const VIEWS: { id: View; path: string; icon: IconName }[] = [
   { id: 'blog', path: '/blog', icon: 'blog' },
 ]
 
+/** Thứ tự tab BottomNav (điện thoại): Dò vé — tính năng chính — nằm giữa, vẽ thành nút tròn nổi lên.
+ *  Màn rộng thì Dò vé là nút primary riêng ở góc phải AppHeader, không nằm trong dãy tab. */
+export const BOTTOM_NAV: View[] = ['lucky', 'predict', 'check', 'results', 'blog']
+
 /** Màn có đường dẫn riêng nhưng không nằm trên thanh tab — mở từ menu logo. */
 const EXTRA_VIEWS: { id: View; path: string }[] = [
   { id: 'profile', path: '/tai-khoan' },
