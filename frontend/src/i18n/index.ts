@@ -40,8 +40,9 @@ i18n
     defaultNS: 'common',
     ns: ['common', 'check', 'lucky', 'results', 'predict', 'blog', 'profile', 'admin'],
     interpolation: { escapeValue: false }, // React đã tự escape
-    // Lần đầu theo ngôn ngữ trình duyệt; đã chọn thì nhớ trong localStorage.
-    detection: { order: ['localStorage', 'navigator'], lookupLocalStorage: 'dvs.lang', caches: ['localStorage'] },
+    // Mặc định tiếng Việt (fallbackLng), KHÔNG theo ngôn ngữ trình duyệt; đã chọn thì nhớ trong localStorage.
+    // Key v2: bản cũ dò theo trình duyệt rồi lưu luôn (máy tiếng Anh bị lưu 'en') — đổi key để về tiếng Việt.
+    detection: { order: ['localStorage'], lookupLocalStorage: 'dvs.lang.v2', caches: ['localStorage'] },
   })
 
 const syncHtmlLang = (lng: string) => { document.documentElement.lang = lng.startsWith('en') ? 'en' : 'vi' }
