@@ -84,6 +84,10 @@ builder.Services.AddScoped<AdminUsers>();           // trang quản trị
 builder.Services.AddScoped<FeatureFlags>();         // bật/tắt tính năng (trang quản trị)
 builder.Services.AddScoped<ScratchTicketService>(); // vé cào 2 số theo giải tám
 builder.Services.AddScoped<BlogService>();
+// Ảnh Blog nằm trên object storage (Oracle, API S3) — mục "Storage"; thiếu cấu hình thì tắt đăng ảnh.
+builder.Services.AddSingleton<BlogImageStorage>();
+builder.Services.AddScoped<BlogImageService>();
+builder.Services.AddHostedService<BlogImageCleanupWorker>();
 // Chuông thông báo: lưu DB + đẩy realtime qua SignalR (hub map ở dưới, cùng tiền tố /api để đi chung proxy).
 builder.Services.AddSignalR();
 builder.Services.AddSingleton<INotificationPusher, SignalRNotificationPusher>();
@@ -177,6 +181,14 @@ builder.Services.AddRateLimiter(o =>
             new FixedWindowRateLimiterOptions
             {
                 PermitLimit = builder.Configuration.GetValue("Blog:CommentsPerIpPer10Minutes", 40),
+                Window = TimeSpan.FromMinutes(10),
+            }));
+    // Ảnh: mỗi lượt tốn CPU mã hoá WebP + 1 request lên bucket (gói free có hạn mức/tháng).
+    o.AddPolicy(LotteryChecker.Api.Controllers.BlogController.ImageRateLimitPolicy, ctx =>
+        RateLimitPartition.GetFixedWindowLimiter(ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown", _ =>
+            new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = builder.Configuration.GetValue("Blog:ImagesPerIpPer10Minutes", 20),
                 Window = TimeSpan.FromMinutes(10),
             }));
     // Mua vé cào: theo tài khoản — chặn script bấm mua liên tục.

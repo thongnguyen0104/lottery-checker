@@ -14,6 +14,7 @@ public class AppDbContext : DbContext
     public DbSet<BlogPost> BlogPosts => Set<BlogPost>();
     public DbSet<BlogVote> BlogVotes => Set<BlogVote>();
     public DbSet<BlogComment> BlogComments => Set<BlogComment>();
+    public DbSet<BlogImage> BlogImages => Set<BlogImage>();
     public DbSet<CheckHistoryEntry> CheckHistory => Set<CheckHistoryEntry>();
     public DbSet<ScratchTicket> ScratchTickets => Set<ScratchTicket>();
     public DbSet<WalletTransaction> WalletTransactions => Set<WalletTransaction>();
@@ -78,6 +79,17 @@ public class AppDbContext : DbContext
             // Xoá bài → xoá hết bình luận; xoá bình luận gốc → xoá các trả lời của nó.
             e.HasOne<BlogPost>().WithMany().HasForeignKey(x => x.PostId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne<BlogComment>().WithMany().HasForeignKey(x => x.ParentId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<BlogImage>(e =>
+        {
+            e.HasIndex(x => x.Key).IsUnique();
+            e.HasIndex(x => new { x.PostId, x.SortOrder });
+            e.HasIndex(x => new { x.OwnerKey, x.CreatedAt });
+            e.Property(x => x.Key).HasMaxLength(80);
+            e.Property(x => x.OwnerKey).HasMaxLength(40);
+            // Xoá bài → ảnh thành mồ côi (không xoá dòng) để worker còn key mà xoá trên bucket.
+            e.HasOne<BlogPost>().WithMany().HasForeignKey(x => x.PostId).OnDelete(DeleteBehavior.SetNull);
         });
 
         b.Entity<CheckHistoryEntry>(e =>

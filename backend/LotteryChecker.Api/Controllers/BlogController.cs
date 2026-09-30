@@ -4,6 +4,7 @@ using LotteryChecker.Api.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
+using System.Text.RegularExpressions;
 
 namespace LotteryChecker.Api.Controllers;
 
@@ -13,13 +14,87 @@ namespace LotteryChecker.Api.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/blog")]
-public class BlogController(BlogService blog, NotificationService notifications, AppDbContext db) : ControllerBase
+public partial class BlogController(BlogService blog, BlogImageService images, BlogImageStorage storage,
+                                    NotificationService notifications, AppDbContext db, ILogger<BlogController> log) : ControllerBase
 {
     public const string PostRateLimitPolicy = "blog-post";
     public const string VoteRateLimitPolicy = "blog-vote";
     public const string CommentRateLimitPolicy = "blog-comment";
+    public const string ImageRateLimitPolicy = "blog-image";
+
+    /// <summary>Ảnh gốc tối đa 5MB (FE nén trước khi gửi nên thường chỉ vài trăm KB).</summary>
+    public const int MaxImageBytes = 5 * 1024 * 1024;
+    // Chừa chỗ cho phần khung multipart quanh file.
+    private const int MaxImageRequestBytes = MaxImageBytes + 64 * 1024;
 
     public record VoteRequest(int Value);
+
+    /// <summary>FE hỏi để biết có hiện nút thêm ảnh không (máy chủ chưa cấu hình bucket thì ẩn).</summary>
+    [HttpGet("options")]
+    public object Options() => new
+    {
+        imagesEnabled = images.Enabled,
+        maxImages = BlogService.MaxImagesPerPost,
+        maxImageBytes = MaxImageBytes,
+    };
+
+    /// <summary>Upload 1 ảnh (chưa gắn bài) → { id, url }. Gửi id kèm lúc đăng bài.</summary>
+    [HttpPost("images")]
+    [EnableRateLimiting(ImageRateLimitPolicy)]
+    [RequestSizeLimit(MaxImageRequestBytes)]
+    [RequestFormLimits(MultipartBodyLengthLimit = MaxImageRequestBytes)]
+    public async Task<IActionResult> UploadImage(IFormFile? image, CancellationToken ct)
+    {
+        if (!images.Enabled)
+            return StatusCode(StatusCodes.Status503ServiceUnavailable, new { error = Lang.T(Request,
+                "Máy chủ chưa bật đăng ảnh.", "Image uploads are not enabled on this server.") });
+        if (image is not { Length: > 0 })
+            return BadRequest(new { error = Lang.T(Request, "Chưa chọn ảnh.", "No image selected.") });
+        if (image.Length > MaxImageBytes)
+            return StatusCode(StatusCodes.Status413PayloadTooLarge, new { error = ImageTooLargeError });
+
+        var owner = VoterKey();
+        if (await blog.PendingImageCountAsync(owner, ct) >= BlogService.MaxPendingImagesPerOwner)
+            return BadRequest(new { error = Lang.T(Request,
+                "Bạn có nhiều ảnh chưa đăng quá — đăng bài hoặc chờ một lát rồi thử lại.",
+                "Too many images waiting to be posted — post them or try again later.") });
+
+        using var ms = new MemoryStream((int)image.Length);
+        await image.CopyToAsync(ms, ct);
+        try
+        {
+            return Ok(await images.UploadAsync(ms.ToArray(), owner, ct));
+        }
+        catch (InvalidBlogImageException)
+        {
+            return UnprocessableEntity(new { error = Lang.T(Request,
+                "File này không đọc được như ảnh — thử ảnh JPG/PNG/WebP khác nhé.",
+                "This file can't be read as an image — try another JPG/PNG/WebP.") });
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            log.LogWarning(e, "Upload ảnh blog lên bucket lỗi");
+            return StatusCode(StatusCodes.Status502BadGateway, new { error = Lang.T(Request,
+                "Chưa lưu được ảnh, thử lại sau nhé.", "Couldn't save the image — please try again.") });
+        }
+    }
+
+    /// <summary>Ảnh của bài — đi qua máy chủ (có cache RAM) thay vì tải thẳng từ bucket, xem BlogImageStorage.</summary>
+    [HttpGet("images/{**key}")]
+    public async Task<IActionResult> GetImage(string key, CancellationToken ct)
+    {
+        if (!storage.Enabled || !ImageKeyPattern().IsMatch(key) || !await blog.IsPublishedImageAsync(key, ct))
+            return NotFound();
+        var bytes = await storage.GetAsync(key, ct);
+        if (bytes == null) return NotFound();
+        Response.Headers.CacheControl = BlogImageStorage.CacheControl;
+        return File(bytes, "image/webp");
+    }
+
+    [GeneratedRegex(@"^blog/\d{4}/\d{2}/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.webp$")]
+    private static partial Regex ImageKeyPattern();
+
+    private string ImageTooLargeError => Lang.T(Request, "Ảnh tối đa 5MB.", "Images must be 5MB or smaller.");
 
     [HttpGet("posts")]
     public Task<BlogService.PageDto> List([FromQuery] string? sort, [FromQuery] int page = 1, CancellationToken ct = default) =>
@@ -40,7 +115,8 @@ public class BlogController(BlogService blog, NotificationService notifications,
     public async Task<IActionResult> Create(BlogService.NewPost body, CancellationToken ct)
     {
         var username = User.Identity?.IsAuthenticated == true ? User.Identity.Name : null;
-        var error = BlogService.Validate(body, username, Lang.IsEn(Request));
+        var error = BlogService.Validate(body, username, Lang.IsEn(Request))
+                    ?? await blog.ImageErrorAsync(body.ImageIds, VoterKey(), Lang.IsEn(Request), ct);
         if (error != null) return BadRequest(new { error });
         return Ok(await blog.CreateAsync(body, CurrentUserId(), username, ct));
     }
@@ -57,7 +133,11 @@ public class BlogController(BlogService blog, NotificationService notifications,
     public async Task<IActionResult> Delete(int id, CancellationToken ct)
     {
         if (CurrentUserId() is not { } uid) return Unauthorized();
-        return await blog.DeleteAsync(id, uid, ct) ? NoContent() : NotFound(new { error = NotFoundError });
+        var postImages = await blog.ImagesOfPostAsync(id, ct);
+        if (!await blog.DeleteAsync(id, uid, ct)) return NotFound(new { error = NotFoundError });
+        // Xoá luôn trên bucket; lỗi thì ảnh còn mồ côi trong DB, worker dọn sau.
+        if (postImages.Count > 0 && images.Enabled) await images.PurgeAsync(postImages, ct);
+        return NoContent();
     }
 
     [HttpGet("posts/{id:int}/comments")]

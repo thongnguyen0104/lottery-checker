@@ -38,6 +38,18 @@
   "copyLink": "Sao chép link bài viết",
   "linkCopied": "Đã sao chép link",
   "sharedPost": "Bài viết được chia sẻ",
+  "images": {
+    "add": "Thêm ảnh",
+    "count": "{{count}}/{{max}} ảnh",
+    "tooLarge": "Ảnh \"{{name}}\" lớn quá {{max}}MB.",
+    "tooMany": "Mỗi bài tối đa {{max}} ảnh.",
+    "uploading": "Đang tải ảnh lên...",
+    "remove": "Bỏ ảnh này",
+    "open": "Xem ảnh {{n}}/{{total}}",
+    "close": "Đóng",
+    "prev": "Ảnh trước",
+    "next": "Ảnh sau"
+  },
   "comments": {
     "title": "Bình luận",
     "toggle": "Bình luận ({{count}})",

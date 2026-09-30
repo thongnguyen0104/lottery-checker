@@ -688,6 +688,36 @@ export type BlogPost = {
   mine: boolean
   /** Số bình luận, tính cả trả lời. */
   commentCount: number
+  /** Đường dẫn ảnh đính kèm (tương đối, /api/blog/images/...) — ghép API_BASE bằng blogImageUrl. */
+  images: string[]
+}
+
+/** Ảnh blog đi qua backend (cache RAM + cache trình duyệt 1 năm) — cần API_BASE khi FE ở host khác. */
+export const blogImageUrl = (path: string) => `${API_BASE}${path}`
+
+export type BlogOptions = { imagesEnabled: boolean; maxImages: number; maxImageBytes: number }
+
+let blogOptions: Promise<BlogOptions> | null = null
+
+/** Máy chủ có bật đăng ảnh không (chưa cấu hình bucket thì ẩn nút). Hỏi 1 lần mỗi phiên. */
+export function getBlogOptions(): Promise<BlogOptions> {
+  blogOptions ??= api.get('/api/blog/options').then(r => r.data as BlogOptions)
+    .catch(() => { blogOptions = null; return { imagesEnabled: false, maxImages: 0, maxImageBytes: 0 } })
+  return blogOptions
+}
+
+/** Nén rồi upload 1 ảnh chờ đăng → id gửi kèm lúc đăng bài. */
+export async function uploadBlogImage(file: Blob, signal?: AbortSignal) {
+  try {
+    // Nén về 1600px như ảnh vé: ảnh 12MP từ điện thoại còn vài trăm KB, gửi nhanh trên 4G.
+    const c = await compressImage(file, DEFAULT_COMPRESS)
+    const fd = new FormData()
+    fd.append('image', c.blob, 'image.jpg')
+    const { data } = await api.post('/api/blog/images', fd, { timeout: 60_000, signal })
+    return data as { id: number; url: string }
+  } catch (e) {
+    throw toFriendlyError(e)
+  }
 }
 
 /** parentId null = bình luận gốc; có = trả lời (luôn trỏ về bình luận gốc — luồng 1 cấp). */
@@ -739,7 +769,9 @@ export async function getBlogPosts(sort: 'new' | 'top', page: number) {
   }
 }
 
-export async function createBlogPost(post: { title: string; content: string; authorMode: BlogAuthorMode; authorName?: string }) {
+export async function createBlogPost(post: {
+  title: string; content: string; authorMode: BlogAuthorMode; authorName?: string; imageIds?: number[]
+}) {
   try {
     const { data } = await api.post('/api/blog/posts', post)
     return data as BlogPost

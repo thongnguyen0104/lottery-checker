@@ -271,6 +271,33 @@ Rồi mở `https://dove-so.duckdns.org` **trên điện thoại** → quét th�
 
 Các lần sau chỉ cần: `.\deploy\publish.ps1 -Server ubuntu@<IP> -Key D:\Projects\lottery.key`.
 
+## Bước 9 (tuỳ chọn) — Bucket chứa ảnh Blog (Object Storage, Always Free 20 GB)
+
+Ảnh đính kèm bài Blog **không lưu trên VM**: backend nhận ảnh, đổi sang WebP (bỏ EXIF/GPS) rồi đẩy
+lên Object Storage qua API tương thích S3. Không cấu hình bước này thì nút "Thêm ảnh" tự ẩn.
+
+1. **Tạo bucket**: Console → *Storage → Buckets* → **Create Bucket**
+   - Compartment: cùng compartment với VM. Region: **home region** (Always Free chỉ tính ở home region).
+   - Tên: `lottery-blog`, Default Storage Tier: **Standard**, Visibility: **Private** (chỉ backend đọc/ghi).
+2. **Lấy namespace**: Console → avatar góc phải → *Tenancy* → dòng **Object storage namespace**.
+3. **Tạo key S3**: avatar → *My profile* → *Customer secret keys* → **Generate secret key**.
+   Chép **Secret** ngay (chỉ hiện 1 lần); **Access key** là cột bên cạnh trong danh sách.
+4. Thêm vào `/etc/lottery-api.env` rồi `sudo systemctl restart lottery-api`:
+
+   ```bash
+   Storage__Namespace=<namespace>
+   Storage__Region=<home region, vd. ap-singapore-1>
+   Storage__Bucket=lottery-blog
+   Storage__AccessKey=<access key>
+   Storage__SecretKey=<secret>
+   ```
+
+5. Kiểm tra: `curl https://dove-so.duckdns.org/api/blog/options` → `"imagesEnabled":true`.
+
+> Hạn mức free của Object Storage có tính **số request API/tháng** (xem *Governance → Limits,
+> Quotas and Usage* → Object Storage). Vì vậy ảnh được đọc qua backend (cache RAM + trình duyệt giữ
+> 1 năm) thay vì cho tải thẳng từ bucket. Dev: đặt các khoá trên bằng `dotnet user-secrets set "Storage:SecretKey" ...`.
+
 ---
 
 ## Lưu ý để không mất VM

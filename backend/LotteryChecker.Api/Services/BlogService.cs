@@ -11,11 +11,22 @@ public class BlogService(AppDbContext db, TimeProvider clock)
     public const int TitleMin = 3, TitleMax = 120;
     public const int ContentMin = 10, ContentMax = 5000;
     public const int NameMin = 2, NameMax = 30;
+    public const int MaxImagesPerPost = 4;
+    /// <summary>Ảnh upload rồi mà chưa đăng bài quá chừng này thì không gắn được nữa (worker sẽ dọn).</summary>
+    public static readonly TimeSpan PendingImageTtl = TimeSpan.FromHours(24);
+    /// <summary>Tối đa ảnh "chờ đăng" mỗi người — chặn upload hàng loạt không đăng bài để làm đầy bucket.</summary>
+    public const int MaxPendingImagesPerOwner = 12;
 
-    public record NewPost(string? Title, string? Content, BlogAuthorMode AuthorMode, string? AuthorName);
+    /// <summary>ImageIds: id từ POST /api/blog/images, theo thứ tự hiển thị.</summary>
+    public record NewPost(string? Title, string? Content, BlogAuthorMode AuthorMode, string? AuthorName, int[]? ImageIds = null);
 
+    /// <summary>Images: đường dẫn tương đối /api/blog/images/{key} (FE tự ghép API_BASE).</summary>
     public record PostDto(int Id, Guid PublicId, string Title, string Content, BlogAuthorMode AuthorMode, string? AuthorName,
-                          DateTime CreatedAt, int Likes, int Dislikes, int MyVote, bool Mine, int CommentCount);
+                          DateTime CreatedAt, int Likes, int Dislikes, int MyVote, bool Mine, int CommentCount, string[] Images);
+
+    public record ImageDto(int Id, string Url);
+
+    public static string ImageUrl(string key) => $"/api/blog/images/{key}";
 
     public record PageDto(PostDto[] Items, bool HasMore);
 
@@ -30,7 +41,23 @@ public class BlogService(AppDbContext db, TimeProvider clock)
             return en ? $"Title must be {TitleMin}–{TitleMax} characters." : $"Tiêu đề cần {TitleMin}–{TitleMax} ký tự.";
         if (content.Length is < ContentMin or > ContentMax)
             return en ? $"Content must be {ContentMin}–{ContentMax} characters." : $"Nội dung cần {ContentMin}–{ContentMax} ký tự.";
+        if (p.ImageIds is { } ids && (ids.Length > MaxImagesPerPost || ids.Distinct().Count() != ids.Length))
+            return en ? $"Up to {MaxImagesPerPost} images per post." : $"Mỗi bài tối đa {MaxImagesPerPost} ảnh.";
         return SignatureError(p.AuthorMode, p.AuthorName, username, en);
+    }
+
+    /// <summary>
+    /// Ảnh gắn vào bài phải do chính người đăng upload, chưa gắn bài nào và chưa quá hạn chờ.
+    /// null = hợp lệ (hoặc không có ảnh).
+    /// </summary>
+    public async Task<string?> ImageErrorAsync(int[]? imageIds, string ownerKey, bool en, CancellationToken ct)
+    {
+        if (imageIds is not { Length: > 0 }) return null;
+        var since = clock.GetUtcNow().UtcDateTime - PendingImageTtl;
+        var ok = await db.BlogImages.CountAsync(x => imageIds.Contains(x.Id) && x.OwnerKey == ownerKey
+                                                     && x.PostId == null && x.CreatedAt > since, ct);
+        return ok == imageIds.Length ? null
+            : en ? "Some images expired — please add them again." : "Có ảnh đã hết hạn, bạn thêm lại ảnh nhé.";
     }
 
     /// <summary>Cách ký tên (dùng chung cho bài và bình luận); null = hợp lệ.</summary>
@@ -53,9 +80,15 @@ public class BlogService(AppDbContext db, TimeProvider clock)
         _ => null,
     };
 
-    /// <summary>Đăng bài đã qua <see cref="Validate"/>. userId/username: null khi là khách.</summary>
+    /// <summary>
+    /// Đăng bài đã qua <see cref="Validate"/> (và <see cref="ImageErrorAsync"/> nếu có ảnh).
+    /// userId/username: null khi là khách.
+    /// </summary>
     public async Task<PostDto> CreateAsync(NewPost p, int? userId, string? username, CancellationToken ct)
     {
+        var imageIds = p.ImageIds ?? [];
+        var images = imageIds.Length == 0 ? []
+            : await db.BlogImages.Where(x => imageIds.Contains(x.Id) && x.PostId == null).ToListAsync(ct);
         var post = new BlogPost
         {
             Title = p.Title!.Trim(),
@@ -67,8 +100,58 @@ public class BlogService(AppDbContext db, TimeProvider clock)
         };
         db.BlogPosts.Add(post);
         await db.SaveChangesAsync(ct);
-        return ToDto(post, 0, userId);
+
+        var ordered = images.OrderBy(x => Array.IndexOf(imageIds, x.Id)).ToList();
+        for (var i = 0; i < ordered.Count; i++)
+        {
+            ordered[i].PostId = post.Id;
+            ordered[i].SortOrder = i;
+        }
+        if (ordered.Count > 0) await db.SaveChangesAsync(ct);
+        return ToDto(post, 0, userId, ordered.Select(x => ImageUrl(x.Key)).ToArray());
     }
+
+    /// <summary>Ghi nhận ảnh vừa upload lên bucket (chưa gắn bài).</summary>
+    public async Task<ImageDto> AddImageAsync(string key, string ownerKey, int sizeBytes, CancellationToken ct)
+    {
+        var image = new BlogImage { Key = key, OwnerKey = ownerKey, SizeBytes = sizeBytes, CreatedAt = clock.GetUtcNow().UtcDateTime };
+        db.BlogImages.Add(image);
+        await db.SaveChangesAsync(ct);
+        return new ImageDto(image.Id, ImageUrl(key));
+    }
+
+    /// <summary>Số ảnh người này upload mà chưa đăng bài (còn hạn chờ).</summary>
+    public Task<int> PendingImageCountAsync(string ownerKey, CancellationToken ct)
+    {
+        var since = clock.GetUtcNow().UtcDateTime - PendingImageTtl;
+        return db.BlogImages.CountAsync(x => x.OwnerKey == ownerKey && x.PostId == null && x.CreatedAt > since, ct);
+    }
+
+    /// <summary>
+    /// Chỉ phục vụ ảnh đã gắn vào bài. Ảnh chờ đăng thì form xem trước bằng file trên máy; ảnh của bài
+    /// đã xoá thì thôi dù bucket chưa kịp xoá.
+    /// </summary>
+    public Task<bool> IsPublishedImageAsync(string key, CancellationToken ct) =>
+        db.BlogImages.AnyAsync(x => x.Key == key && x.PostId != null, ct);
+
+    /// <summary>Ảnh mồ côi cần xoá: chưa gắn bài và tạo trước <paramref name="before"/>.</summary>
+    public Task<List<BlogImage>> OrphanImagesAsync(DateTime before, int take, CancellationToken ct) =>
+        db.BlogImages.Where(x => x.PostId == null && x.CreatedAt < before).OrderBy(x => x.Id).Take(take).ToListAsync(ct);
+
+    public async Task RemoveImageRowsAsync(IEnumerable<BlogImage> images, CancellationToken ct)
+    {
+        db.BlogImages.RemoveRange(images);
+        await db.SaveChangesAsync(ct);
+    }
+
+    private async Task<Dictionary<int, string[]>> ImagesOfAsync(IReadOnlyCollection<int> postIds, CancellationToken ct) =>
+        (await db.BlogImages.AsNoTracking()
+            .Where(x => x.PostId != null && postIds.Contains(x.PostId.Value))
+            .OrderBy(x => x.SortOrder)
+            .Select(x => new { PostId = x.PostId!.Value, x.Key })
+            .ToListAsync(ct))
+        .GroupBy(x => x.PostId)
+        .ToDictionary(g => g.Key, g => g.Select(x => ImageUrl(x.Key)).ToArray());
 
     /// <summary>Trang <paramref name="page"/> (từ 1). sort "top" = nhiều (like − dislike) nhất trước, còn lại mới nhất trước.</summary>
     public async Task<PageDto> ListAsync(string? sort, int page, string voterKey, int? userId, CancellationToken ct)
@@ -88,7 +171,8 @@ public class BlogService(AppDbContext db, TimeProvider clock)
             .Where(v => v.VoterKey == voterKey && ids.Contains(v.PostId))
             .ToDictionaryAsync(v => v.PostId, v => v.Value, ct);
 
-        return new PageDto(posts.Select(x => ToDto(x, mine.GetValueOrDefault(x.Id), userId)).ToArray(), hasMore);
+        var images = await ImagesOfAsync(ids, ct);
+        return new PageDto(posts.Select(x => ToDto(x, mine.GetValueOrDefault(x.Id), userId, images.GetValueOrDefault(x.Id) ?? [])).ToArray(), hasMore);
     }
 
     public Task<PostDto?> GetAsync(int postId, string voterKey, int? userId, CancellationToken ct) =>
@@ -103,7 +187,8 @@ public class BlogService(AppDbContext db, TimeProvider clock)
         var post = await query.AsNoTracking().FirstOrDefaultAsync(ct);
         if (post == null) return null;
         var vote = await db.BlogVotes.AsNoTracking().FirstOrDefaultAsync(v => v.PostId == post.Id && v.VoterKey == voterKey, ct);
-        return ToDto(post, vote?.Value ?? 0, userId);
+        var images = await ImagesOfAsync([post.Id], ct);
+        return ToDto(post, vote?.Value ?? 0, userId, images.GetValueOrDefault(post.Id) ?? []);
     }
 
     /// <summary>Đặt lượt của người này: 1 = thích, −1 = không thích, 0 = bỏ. null = không có bài.</summary>
@@ -136,10 +221,16 @@ public class BlogService(AppDbContext db, TimeProvider clock)
     {
         var post = await db.BlogPosts.FirstOrDefaultAsync(x => x.Id == postId && x.UserId == userId, ct);
         if (post == null) return false;
+        // Ảnh thành mồ côi (không xoá dòng) — BlogImageService xoá trên bucket rồi mới xoá dòng. Tự tách
+        // chứ không trông vào SetNull của DB (provider InMemory khi test không có).
+        foreach (var img in await db.BlogImages.Where(x => x.PostId == postId).ToListAsync(ct)) img.PostId = null;
         db.BlogPosts.Remove(post);   // vote xoá theo (cascade)
         await db.SaveChangesAsync(ct);
         return true;
     }
+
+    public Task<List<BlogImage>> ImagesOfPostAsync(int postId, CancellationToken ct) =>
+        db.BlogImages.Where(x => x.PostId == postId).ToListAsync(ct);
 
     // ── Bình luận ──
     public const int CommentMin = 2, CommentMax = 1000;
@@ -234,8 +325,8 @@ public class BlogService(AppDbContext db, TimeProvider clock)
         x.Id, x.ParentId, x.Content, x.AuthorMode, x.AuthorName, DateTime.SpecifyKind(x.CreatedAt, DateTimeKind.Utc),
         isAdmin || (userId != null && x.UserId == userId));
 
-    private static PostDto ToDto(BlogPost x, int myVote, int? userId) => new(
+    private static PostDto ToDto(BlogPost x, int myVote, int? userId, string[] images) => new(
         x.Id, x.PublicId, x.Title, x.Content, x.AuthorMode, x.AuthorName,
         DateTime.SpecifyKind(x.CreatedAt, DateTimeKind.Utc), x.Likes, x.Dislikes, myVote,
-        userId != null && x.UserId == userId, x.CommentCount);
+        userId != null && x.UserId == userId, x.CommentCount, images);
 }

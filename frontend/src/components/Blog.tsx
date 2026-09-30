@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
+import { createPortal } from 'react-dom'
 import {
-  createBlogComment, createBlogPost, deleteBlogComment, deleteBlogPost, getBlogComments, getBlogPost, getBlogPosts, voteBlogPost,
-  type Account, type BlogAuthorMode, type BlogComment, type BlogPost,
+  blogImageUrl, createBlogComment, createBlogPost, deleteBlogComment, deleteBlogPost, getBlogComments, getBlogOptions, getBlogPost,
+  getBlogPosts, uploadBlogImage, voteBlogPost,
+  type Account, type BlogAuthorMode, type BlogComment, type BlogOptions, type BlogPost,
 } from '../api/client'
 import { currentLocale } from '../i18n'
 import { timeAgo } from '../utils/date'
@@ -19,6 +21,9 @@ const COMMENT = { min: 2, max: 1000 }
 const CLAMP_CHARS = 280
 
 type Sort = 'new' | 'top'
+
+/** Ảnh trong form đăng bài: xem trước bằng file trên máy; id có khi upload xong. */
+type PendingImage = { preview: string; id?: number }
 
 /**
  * Bài mở riêng trên cùng: từ chuông thông báo (postId + commentId) hoặc link chia sẻ /blog/{guid}
@@ -219,21 +224,63 @@ function Composer({ account, onRequireLogin, onCancel, onPosted }: {
   const [name, setName] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [options, setOptions] = useState<BlogOptions | null>(null)
+  const [images, setImages] = useState<PendingImage[]>([])
+  const fileInput = useRef<HTMLInputElement>(null)
   // Đăng xuất giữa chừng → không còn ký tên tài khoản được nữa.
   const effectiveMode = mode === 'Account' && !account ? 'Anonymous' : mode
+  const uploading = images.some(i => i.id == null)
+
+  useEffect(() => { getBlogOptions().then(setOptions) }, [])
+
+  // Đóng form → thu hồi các URL xem trước (giữ file ảnh trong RAM tới khi revoke).
+  const previews = useRef<string[]>([])
+  useEffect(() => { previews.current = images.map(i => i.preview) }, [images])
+  useEffect(() => () => previews.current.forEach(URL.revokeObjectURL), [])
 
   const valid = title.trim().length >= TITLE.min && content.trim().length >= CONTENT.min
     && (effectiveMode !== 'Custom' || name.trim().length >= NAME.min)
 
+  const addImages = (files: FileList | null) => {
+    if (!files || !options) return
+    setError(null)
+    const room = options.maxImages - images.length
+    const picked = Array.from(files)
+    if (picked.length > room) setError(t('images.tooMany', { max: options.maxImages }))
+    for (const file of picked.slice(0, Math.max(0, room))) {
+      // Chặn ảnh gốc > 5MB ngay trên máy — khỏi nén + gửi rồi mới bị máy chủ từ chối.
+      if (file.size > options.maxImageBytes) {
+        setError(t('images.tooLarge', { name: file.name, max: Math.round(options.maxImageBytes / 1024 / 1024) }))
+        continue
+      }
+      const preview = URL.createObjectURL(file)
+      setImages(xs => [...xs, { preview }])
+      uploadBlogImage(file)
+        .then(r => setImages(xs => xs.map(x => x.preview === preview ? { ...x, id: r.id } : x)))
+        .catch(err => {
+          URL.revokeObjectURL(preview)
+          setImages(xs => xs.filter(x => x.preview !== preview))
+          setError((err as Error).message)
+        })
+    }
+  }
+
+  // Ảnh bỏ ra đã nằm trên máy chủ thì thành mồ côi, máy chủ tự dọn sau 24h.
+  const removeImage = (preview: string) => {
+    URL.revokeObjectURL(preview)
+    setImages(xs => xs.filter(x => x.preview !== preview))
+  }
+
   const submit = async (e: FormEvent) => {
     e.preventDefault()
-    if (!valid || busy) return
+    if (!valid || busy || uploading) return
     setBusy(true)
     setError(null)
     try {
       onPosted(await createBlogPost({
         title: title.trim(), content: content.trim(), authorMode: effectiveMode,
         authorName: effectiveMode === 'Custom' ? name.trim() : undefined,
+        imageIds: images.map(i => i.id!),
       }))
     } catch (err) {
       setError((err as Error).message)
@@ -259,6 +306,43 @@ function Composer({ account, onRequireLogin, onCancel, onPosted }: {
                   placeholder={t('contentPlaceholder')} className="field mt-1 resize-y min-h-28" />
       </label>
 
+      {options?.imagesEnabled && (
+        <div className="space-y-2">
+          {images.length > 0 && (
+            <ul className="grid grid-cols-4 gap-2">
+              {images.map(img => (
+                <li key={img.preview} className="relative aspect-square rounded-xl overflow-hidden bg-muted border border-line/60">
+                  <img src={img.preview} alt="" className={`w-full h-full object-cover ${img.id == null ? 'opacity-50' : ''}`} />
+                  {img.id == null && (
+                    <span className="absolute inset-0 flex items-center justify-center" aria-label={t('images.uploading')}>
+                      <span className="w-6 h-6 rounded-full border-2 border-white/70 border-t-transparent motion-safe:animate-spin" />
+                    </span>
+                  )}
+                  <button type="button" onClick={() => removeImage(img.preview)}
+                          title={t('images.remove')} aria-label={t('images.remove')}
+                          className="absolute top-1 right-1 w-7 h-7 rounded-full bg-black/60 text-white flex items-center justify-center
+                                     hover:bg-black/80 transition">
+                    <Icon name="close" className="w-4 h-4" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          {images.length < options.maxImages && (
+            <button type="button" onClick={() => fileInput.current?.click()} className="btn btn-soft py-1.5 text-sm">
+              <Icon name="addImage" className="w-4 h-4" /> {t('images.add')}
+              {images.length > 0 && (
+                <span className="font-normal text-xs text-ink-faint tabular-nums">
+                  {t('images.count', { count: images.length, max: options.maxImages })}
+                </span>
+              )}
+            </button>
+          )}
+          <input ref={fileInput} type="file" accept="image/*" multiple hidden
+                 onChange={e => { addImages(e.target.files); e.target.value = '' }} />
+        </div>
+      )}
+
       <SignAsPicker account={account} mode={effectiveMode} onMode={setMode} name={name} onName={setName}
                     onRequireLogin={onRequireLogin} />
 
@@ -266,8 +350,8 @@ function Composer({ account, onRequireLogin, onCancel, onPosted }: {
 
       <div className="flex gap-2 justify-end">
         <button type="button" onClick={onCancel} className="btn btn-soft">{t('cancel')}</button>
-        <button type="submit" disabled={!valid || busy} className="btn btn-primary">
-          <Icon name="send" className="w-4 h-4" /> {busy ? t('posting') : t('post')}
+        <button type="submit" disabled={!valid || busy || uploading} className="btn btn-primary">
+          <Icon name="send" className="w-4 h-4" /> {busy ? t('posting') : uploading ? t('images.uploading') : t('post')}
         </button>
       </div>
     </form>
@@ -388,6 +472,7 @@ function PostCard({ post, account, onRequireLogin, onChange, highlightCommentId 
           {expanded ? t('less') : t('more')}
         </button>
       )}
+      {post.images?.length ? <ImageGrid images={post.images} /> : null}
 
       <div className="mt-3 pt-3 border-t border-line/60 flex items-center gap-2">
         <VoteButton icon="like" label={t('like')} count={post.likes} active={post.myVote === 1} tone="ok"
@@ -422,6 +507,76 @@ function PostCard({ post, account, onRequireLogin, onChange, highlightCommentId 
                        confirmLabel={t('delete')} onClose={() => setConfirmDelete(false)} onConfirm={remove} />
       )}
     </article>
+  )
+}
+
+/** Ảnh của bài: 1 ảnh thì to hết khung, 2–4 ảnh xếp lưới 2 cột (3 ảnh: ảnh đầu nằm ngang cả hàng). */
+function ImageGrid({ images }: { images: string[] }) {
+  const { t } = useTranslation('blog')
+  const [open, setOpen] = useState<number | null>(null)
+  const single = images.length === 1
+  return (
+    <>
+      <div className={`mt-3 grid gap-1.5 rounded-xl overflow-hidden ${single ? '' : 'grid-cols-2'}`}>
+        {images.map((src, i) => (
+          <button key={src} type="button" onClick={() => setOpen(i)}
+                  aria-label={t('images.open', { n: i + 1, total: images.length })}
+                  className={`block bg-muted overflow-hidden ${single ? ''
+                              : images.length === 3 && i === 0 ? 'col-span-2 aspect-[2/1]' : 'aspect-[4/3]'}`}>
+            <img src={blogImageUrl(src)} alt="" loading="lazy" decoding="async"
+                 className={`w-full object-cover hover:opacity-90 transition ${single ? 'max-h-[28rem]' : 'h-full'}`} />
+          </button>
+        ))}
+      </div>
+      {open != null && <ImageViewer images={images} index={open} onIndex={setOpen} onClose={() => setOpen(null)} />}
+    </>
+  )
+}
+
+/** Xem ảnh to: bấm nền / Esc để đóng, mũi tên trái/phải để chuyển ảnh. */
+function ImageViewer({ images, index, onIndex, onClose }: {
+  images: string[]; index: number; onIndex: (i: number) => void; onClose: () => void
+}) {
+  const { t } = useTranslation('blog')
+  const many = images.length > 1
+  const go = (d: number) => onIndex((index + d + images.length) % images.length)
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+      else if (many && e.key === 'ArrowLeft') onIndex((index - 1 + images.length) % images.length)
+      else if (many && e.key === 'ArrowRight') onIndex((index + 1) % images.length)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [index, images.length, many, onClose, onIndex])
+
+  const navBtn = 'absolute top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/15 text-white flex items-center justify-center hover:bg-white/25 transition'
+  // Portal ra body như ConfirmDialog — khung cha có thể nhốt position:fixed.
+  return createPortal(
+    <div role="dialog" aria-modal="true" aria-label={t('images.open', { n: index + 1, total: images.length })}
+         className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4" onClick={onClose}>
+      <img src={blogImageUrl(images[index])} alt="" className="max-w-full max-h-full object-contain"
+           onClick={e => e.stopPropagation()} />
+      <button onClick={onClose} title={t('images.close')} aria-label={t('images.close')}
+              className="absolute top-3 right-3 w-10 h-10 rounded-full bg-white/15 text-white flex items-center justify-center hover:bg-white/25 transition">
+        <Icon name="close" className="w-5 h-5" />
+      </button>
+      {many && (
+        <>
+          <button onClick={e => { e.stopPropagation(); go(-1) }} aria-label={t('images.prev')} className={`${navBtn} left-3`}>
+            <Icon name="back" className="w-5 h-5" />
+          </button>
+          <button onClick={e => { e.stopPropagation(); go(1) }} aria-label={t('images.next')} className={`${navBtn} right-3`}>
+            <Icon name="next" className="w-5 h-5" />
+          </button>
+          <span className="absolute bottom-4 left-1/2 -translate-x-1/2 text-sm text-white/80 tabular-nums">
+            {index + 1}/{images.length}
+          </span>
+        </>
+      )}
+    </div>,
+    document.body,
   )
 }
 

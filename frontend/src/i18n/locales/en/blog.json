@@ -38,6 +38,18 @@
   "copyLink": "Copy link to this post",
   "linkCopied": "Link copied",
   "sharedPost": "Shared post",
+  "images": {
+    "add": "Add photos",
+    "count": "{{count}}/{{max}} photos",
+    "tooLarge": "\"{{name}}\" is larger than {{max}}MB.",
+    "tooMany": "Up to {{max}} photos per post.",
+    "uploading": "Uploading photos...",
+    "remove": "Remove this photo",
+    "open": "View photo {{n}}/{{total}}",
+    "close": "Close",
+    "prev": "Previous photo",
+    "next": "Next photo"
+  },
   "comments": {
     "title": "Comments",
     "toggle": "Comments ({{count}})",

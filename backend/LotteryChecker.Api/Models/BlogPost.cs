@@ -58,3 +58,21 @@ public class BlogComment
     public int? UserId { get; set; }
     public DateTime CreatedAt { get; set; }
 }
+
+/// <summary>
+/// Ảnh đính kèm bài Blog. File nằm trên object storage (Oracle, API chuẩn S3 — xem BlogImageStorage),
+/// DB chỉ giữ key. Upload trước khi đăng bài nên lúc đầu PostId = null ("mồ côi"); đăng bài thì gắn vào,
+/// không đăng / xoá bài thì BlogImageCleanupWorker dọn.
+/// </summary>
+public class BlogImage
+{
+    public int Id { get; set; }
+    /// <summary>Key trên bucket: blog/{yyyy}/{MM}/{guid}.webp</summary>
+    public string Key { get; set; } = "";
+    public int? PostId { get; set; }
+    public int SortOrder { get; set; }
+    /// <summary>Người upload, cùng dạng VoterKey ("u:{id}" / "g:{guid}") — chỉ người đó gắn được ảnh vào bài.</summary>
+    public string OwnerKey { get; set; } = "";
+    public int SizeBytes { get; set; }
+    public DateTime CreatedAt { get; set; }
+}
