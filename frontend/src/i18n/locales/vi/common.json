@@ -14,7 +14,9 @@
     "openThemeTitle": "Đổi màu & hình nền",
     "switchLang": "Chuyển sang tiếng Anh",
     "donate": "Ủng hộ",
-    "donateLabel": "Ủng hộ Dò Vé Số"
+    "donateLabel": "Ủng hộ Dò Vé Số",
+    "menu": "Menu",
+    "language": "Ngôn ngữ"
   },
   "auth": {
     "login": "Đăng nhập",

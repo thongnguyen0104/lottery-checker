@@ -14,7 +14,9 @@
     "openThemeTitle": "Colors & background",
     "switchLang": "Switch to Vietnamese",
     "donate": "Support us",
-    "donateLabel": "Support Lottery Checker"
+    "donateLabel": "Support Lottery Checker",
+    "menu": "Menu",
+    "language": "Language"
   },
   "auth": {
     "login": "Log in",

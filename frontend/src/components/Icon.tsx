@@ -1,5 +1,5 @@
 import {
-  Award, Bot, CircleUserRound, LogOut, Download, HandHeart, CalendarDays, Camera, Check, ChevronLeft, ChevronRight, CircleAlert, CircleCheck,
+  Award, Bot, CircleUserRound, LogOut, Download, HandHeart, CalendarDays, Camera, Check, ChevronDown, ChevronLeft, ChevronRight, CircleAlert, Globe, CircleCheck,
   CircleX, Clock, Copy, Dices, Focus, History, Hourglass, ImageUp, Inbox, Layers, Lightbulb, ListOrdered, MapPin, MessageSquareText,
   Monitor, Moon, Palette, PencilLine, RotateCcw, Scan, ScanSearch, Sparkles, Sun, Ticket, TicketX, Timer,
   TriangleAlert, Trophy, X, type LucideIcon,
@@ -24,6 +24,8 @@ const ICONS = {
   camera: Camera,
   back: ChevronLeft,
   next: ChevronRight,
+  down: ChevronDown,
+  globe: Globe,
   retry: RotateCcw,
   edit: PencilLine,
   search: ScanSearch,
