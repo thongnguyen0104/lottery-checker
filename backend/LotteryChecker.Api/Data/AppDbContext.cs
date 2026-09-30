@@ -34,8 +34,8 @@ public class AppDbContext : DbContext
 
         b.Entity<GuestUsage>(e =>
         {
-            e.HasKey(x => x.Ip);
-            e.Property(x => x.Ip).HasMaxLength(45); // đủ cho IPv6
+            e.HasKey(x => x.Key);
+            e.Property(x => x.Key).HasMaxLength(64); // "ip:" + IPv6 / "v:" + 32 hex
         });
 
         b.Entity<CheckedTicket>(e =>

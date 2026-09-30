@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using LotteryChecker.Api.Middleware;
 using LotteryChecker.Api.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -15,9 +16,6 @@ public class BlogController(BlogService blog) : ControllerBase
 {
     public const string PostRateLimitPolicy = "blog-post";
     public const string VoteRateLimitPolicy = "blog-vote";
-
-    /// <summary>Cookie định danh khách để mỗi máy chỉ like/dislike 1 lần mỗi bài.</summary>
-    private const string VisitorCookie = "dvs.vid";
 
     public record VoteRequest(int Value);
 
@@ -55,19 +53,7 @@ public class BlogController(BlogService blog) : ControllerBase
     private int? CurrentUserId() =>
         int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var id) ? id : null;
 
-    // Đăng nhập: theo tài khoản (đổi máy vẫn giữ lượt). Khách: theo cookie ngẫu nhiên, chưa có thì cấp.
-    private string VoterKey()
-    {
-        if (CurrentUserId() is { } uid) return $"u:{uid}";
-        if (!Request.Cookies.TryGetValue(VisitorCookie, out var vid) || vid.Length != 32 || !vid.All(char.IsAsciiHexDigit))
-        {
-            vid = Guid.NewGuid().ToString("N");
-            Response.Cookies.Append(VisitorCookie, vid, new CookieOptions
-            {
-                HttpOnly = true, SameSite = SameSiteMode.Lax, Secure = Request.IsHttps,
-                MaxAge = TimeSpan.FromDays(365), IsEssential = true,
-            });
-        }
-        return $"g:{vid}";
-    }
+    // Đăng nhập: theo tài khoản (đổi máy vẫn giữ lượt). Khách: theo cookie của máy (VisitorId).
+    private string VoterKey() =>
+        CurrentUserId() is { } uid ? $"u:{uid}" : $"g:{VisitorId.Get(HttpContext)}";
 }
