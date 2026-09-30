@@ -672,6 +672,48 @@ export type BlogPost = {
   myVote: number
   /** Bài mình đăng (lúc đăng đã đăng nhập) → được xoá. */
   mine: boolean
+  /** Số bình luận, tính cả trả lời. */
+  commentCount: number
+}
+
+/** parentId null = bình luận gốc; có = trả lời (luôn trỏ về bình luận gốc — luồng 1 cấp). */
+export type BlogComment = {
+  id: number
+  parentId: number | null
+  content: string
+  authorMode: BlogAuthorMode
+  authorName: string | null
+  createdAt: string
+  /** Người viết (đã đăng nhập lúc viết) hoặc admin. */
+  canDelete: boolean
+}
+
+export async function getBlogComments(postId: number) {
+  try {
+    const { data } = await api.get(`/api/blog/posts/${postId}/comments`)
+    return data as BlogComment[]
+  } catch (e) {
+    throw toFriendlyError(e)
+  }
+}
+
+export async function createBlogComment(postId: number,
+  body: { content: string; authorMode: BlogAuthorMode; authorName?: string; parentId?: number }) {
+  try {
+    const { data } = await api.post(`/api/blog/posts/${postId}/comments`, body)
+    return data as { comment: BlogComment; commentCount: number }
+  } catch (e) {
+    throw toFriendlyError(e)
+  }
+}
+
+export async function deleteBlogComment(id: number) {
+  try {
+    const { data } = await api.delete(`/api/blog/comments/${id}`)
+    return data as { postId: number; commentCount: number }
+  } catch (e) {
+    throw toFriendlyError(e)
+  }
 }
 
 export async function getBlogPosts(sort: 'new' | 'top', page: number) {

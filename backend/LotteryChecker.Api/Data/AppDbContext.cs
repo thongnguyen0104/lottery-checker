@@ -13,6 +13,7 @@ public class AppDbContext : DbContext
     public DbSet<CheckedTicket> CheckedTickets => Set<CheckedTicket>();
     public DbSet<BlogPost> BlogPosts => Set<BlogPost>();
     public DbSet<BlogVote> BlogVotes => Set<BlogVote>();
+    public DbSet<BlogComment> BlogComments => Set<BlogComment>();
     public DbSet<CheckHistoryEntry> CheckHistory => Set<CheckHistoryEntry>();
     public DbSet<ScratchTicket> ScratchTickets => Set<ScratchTicket>();
     public DbSet<WalletTransaction> WalletTransactions => Set<WalletTransaction>();
@@ -64,6 +65,17 @@ public class AppDbContext : DbContext
             e.HasKey(x => new { x.PostId, x.VoterKey });
             e.Property(x => x.VoterKey).HasMaxLength(40);
             e.HasOne<BlogPost>().WithMany().HasForeignKey(x => x.PostId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<BlogComment>(e =>
+        {
+            e.HasIndex(x => new { x.PostId, x.Id });
+            e.Property(x => x.Content).HasMaxLength(1000);
+            e.Property(x => x.AuthorName).HasMaxLength(30);
+            e.Property(x => x.AuthorMode).HasConversion<string>().HasMaxLength(10);
+            // Xoá bài → xoá hết bình luận; xoá bình luận gốc → xoá các trả lời của nó.
+            e.HasOne<BlogPost>().WithMany().HasForeignKey(x => x.PostId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne<BlogComment>().WithMany().HasForeignKey(x => x.ParentId).OnDelete(DeleteBehavior.Cascade);
         });
 
         b.Entity<CheckHistoryEntry>(e =>

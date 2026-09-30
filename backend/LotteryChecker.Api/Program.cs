@@ -168,6 +168,13 @@ builder.Services.AddRateLimiter(o =>
                 PermitLimit = builder.Configuration.GetValue("Blog:VotesPerIpPerMinute", 30),
                 Window = TimeSpan.FromMinutes(1),
             }));
+    o.AddPolicy(LotteryChecker.Api.Controllers.BlogController.CommentRateLimitPolicy, ctx =>
+        RateLimitPartition.GetFixedWindowLimiter(ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown", _ =>
+            new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = builder.Configuration.GetValue("Blog:CommentsPerIpPer10Minutes", 15),
+                Window = TimeSpan.FromMinutes(10),
+            }));
     // Mua vé cào: theo tài khoản — chặn script bấm mua liên tục.
     o.AddPolicy(LotteryChecker.Api.Controllers.TicketsController.BuyRateLimitPolicy, ctx =>
         RateLimitPartition.GetFixedWindowLimiter(

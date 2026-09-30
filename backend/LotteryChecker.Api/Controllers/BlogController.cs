@@ -1,7 +1,9 @@
+using LotteryChecker.Api.Data;
 using LotteryChecker.Api.Middleware;
 using LotteryChecker.Api.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.EntityFrameworkCore;
 
 namespace LotteryChecker.Api.Controllers;
 
@@ -11,10 +13,11 @@ namespace LotteryChecker.Api.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/blog")]
-public class BlogController(BlogService blog) : ControllerBase
+public class BlogController(BlogService blog, AppDbContext db) : ControllerBase
 {
     public const string PostRateLimitPolicy = "blog-post";
     public const string VoteRateLimitPolicy = "blog-vote";
+    public const string CommentRateLimitPolicy = "blog-comment";
 
     public record VoteRequest(int Value);
 
@@ -46,6 +49,42 @@ public class BlogController(BlogService blog) : ControllerBase
         if (CurrentUserId() is not { } uid) return Unauthorized();
         return await blog.DeleteAsync(id, uid, ct) ? NoContent() : NotFound(new { error = NotFoundError });
     }
+
+    [HttpGet("posts/{id:int}/comments")]
+    public async Task<IActionResult> Comments(int id, CancellationToken ct) =>
+        await blog.ListCommentsAsync(id, CurrentUserId(), await IsAdminAsync(ct), ct) is { } list
+            ? Ok(list)
+            : NotFound(new { error = NotFoundError });
+
+    [HttpPost("posts/{id:int}/comments")]
+    [EnableRateLimiting(CommentRateLimitPolicy)]
+    public async Task<IActionResult> Comment(int id, BlogService.NewComment body, CancellationToken ct)
+    {
+        var username = User.Identity?.IsAuthenticated == true ? User.Identity.Name : null;
+        var error = BlogService.ValidateComment(body, username, Lang.IsEn(Request));
+        if (error != null) return BadRequest(new { error });
+        var (comment, count, err) = await blog.CreateCommentAsync(id, body, CurrentUserId(), username, ct);
+        return err switch
+        {
+            BlogService.CommentError.None => Ok(new { comment, commentCount = count }),
+            BlogService.CommentError.NoParent => NotFound(new { error = Lang.T(Request,
+                "Bình luận bạn trả lời không còn nữa.", "The comment you replied to no longer exists.") }),
+            _ => NotFound(new { error = NotFoundError }),
+        };
+    }
+
+    /// <summary>Người viết (đã đăng nhập lúc viết) hoặc admin.</summary>
+    [HttpDelete("comments/{id:int}")]
+    public async Task<IActionResult> DeleteComment(int id, CancellationToken ct)
+    {
+        if (CurrentUserId() is not { } uid) return Unauthorized();
+        return await blog.DeleteCommentAsync(id, uid, await IsAdminAsync(ct), ct) is { } r
+            ? Ok(new { postId = r.PostId, commentCount = r.CommentCount })
+            : NotFound(new { error = Lang.T(Request, "Không tìm thấy bình luận (có thể đã bị xoá).", "Comment not found (it may have been deleted).") });
+    }
+
+    private async Task<bool> IsAdminAsync(CancellationToken ct) =>
+        CurrentUserId() is { } uid && await db.Users.AnyAsync(x => x.Id == uid && x.IsAdmin, ct);
 
     private string NotFoundError => Lang.T(Request, "Không tìm thấy bài viết (có thể đã bị xoá).", "Post not found (it may have been deleted).");
 
