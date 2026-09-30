@@ -40,3 +40,10 @@ export const addDays = (iso: string, n: number) => {
 export const formatDayMonth = (iso: string) => currentLang() === 'en'
   ? toDate(iso).toLocaleDateString(currentLocale(), { month: 'short', day: 'numeric' })
   : iso.split('-').slice(1).reverse().join('/')
+
+/** Mốc thời gian ISO (UTC từ máy chủ) → '30/09 16:08' theo giờ máy (tiếng Anh: 'Sep 30 4:08 PM'). */
+export const formatDateTime = (iso: string) => {
+  const d = new Date(iso)
+  return `${formatDayMonth(`${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`)} ${
+    d.toLocaleTimeString(currentLocale(), { hour: '2-digit', minute: '2-digit' })}`
+}

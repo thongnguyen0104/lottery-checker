@@ -264,7 +264,8 @@ public class ScanController : ControllerBase
     [GuestQuota(GuestAction.Check)] // dò luôn trong request → tính lượt dò
     [EnableRateLimiting(RateLimitPolicy)]
     [RequestSizeLimit(10_000_000)]
-    public async Task<IActionResult> ScanMulti(IFormFile image, [FromServices] CheckStats stats, CancellationToken ct)
+    public async Task<IActionResult> ScanMulti(IFormFile image, [FromServices] CheckStats stats,
+                                               [FromServices] CheckHistory history, CancellationToken ct)
     {
         var timer = new StageTimer(HttpContext.RequestStartTicks());
 
@@ -335,6 +336,7 @@ public class ScanController : ControllerBase
             {
                 result = await _matcher.Match(info.TicketNumber!, info.DrawDate!.Value, info.Province!, ct);
                 await stats.RecordAsync(result, ct);
+                if (User.UserId() is { } uid) await history.RecordAsync(uid, result, ct);
                 autoChecked++;
             }
             tickets.Add(new
@@ -421,7 +423,8 @@ public class ScanController : ControllerBase
     /// <summary>Bước 2: user bấm "Dò" với info đã xác nhận/chỉnh sửa.</summary>
     [HttpPost("/api/check")]
     [GuestQuota(GuestAction.Check)]
-    public async Task<IActionResult> Check([FromBody] CheckRequest req, [FromServices] CheckStats stats, CancellationToken ct)
+    public async Task<IActionResult> Check([FromBody] CheckRequest req, [FromServices] CheckStats stats,
+                                           [FromServices] CheckHistory history, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(req.TicketNumber)
             || req.TicketNumber.Length != 6
@@ -430,6 +433,7 @@ public class ScanController : ControllerBase
 
         var result = await _matcher.Match(req.TicketNumber, req.DrawDate, req.Province, ct);
         await stats.RecordAsync(result, ct);
+        if (User.UserId() is { } uid) await history.RecordAsync(uid, result, ct);
         return Ok(result);
     }
 

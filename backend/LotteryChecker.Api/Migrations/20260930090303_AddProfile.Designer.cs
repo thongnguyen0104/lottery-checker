@@ -3,6 +3,7 @@ using System;
 using LotteryChecker.Api.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace LotteryChecker.Api.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260930090303_AddProfile")]
+    partial class AddProfile
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.8");
@@ -156,27 +159,6 @@ namespace LotteryChecker.Api.Migrations
                     b.ToTable("CheckedTickets");
                 });
 
-            modelBuilder.Entity("LotteryChecker.Api.Models.FeatureFlag", b =>
-                {
-                    b.Property<string>("Key")
-                        .HasMaxLength(40)
-                        .HasColumnType("TEXT");
-
-                    b.Property<bool>("Enabled")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("UpdatedBy")
-                        .HasMaxLength(20)
-                        .HasColumnType("TEXT");
-
-                    b.HasKey("Key");
-
-                    b.ToTable("FeatureFlags");
-                });
-
             modelBuilder.Entity("LotteryChecker.Api.Models.GuestUsage", b =>
                 {
                     b.Property<string>("Key")
@@ -238,62 +220,6 @@ namespace LotteryChecker.Api.Migrations
                     b.ToTable("LotteryResults");
                 });
 
-            modelBuilder.Entity("LotteryChecker.Api.Models.ScratchTicket", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
-
-                    b.Property<DateOnly>("DrawDate")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Number")
-                        .IsRequired()
-                        .HasMaxLength(2)
-                        .HasColumnType("TEXT");
-
-                    b.Property<long>("Price")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<long>("Prize")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("Province")
-                        .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTime>("PurchasedAt")
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTime?>("ScratchedAt")
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTime?>("SettledAt")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Status")
-                        .IsConcurrencyToken()
-                        .IsRequired()
-                        .HasMaxLength(10)
-                        .HasColumnType("TEXT");
-
-                    b.Property<int>("UserId")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("WinningNumber")
-                        .HasMaxLength(2)
-                        .HasColumnType("TEXT");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Status", "DrawDate");
-
-                    b.HasIndex("UserId", "PurchasedAt");
-
-                    b.ToTable("ScratchTickets");
-                });
-
             modelBuilder.Entity("LotteryChecker.Api.Models.User", b =>
                 {
                     b.Property<int>("Id")
@@ -301,17 +227,10 @@ namespace LotteryChecker.Api.Migrations
                         .HasColumnType("INTEGER");
 
                     b.Property<long>("Balance")
-                        .IsConcurrencyToken()
                         .HasColumnType("INTEGER");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("TEXT");
-
-                    b.Property<bool>("IsAdmin")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<bool>("MustChangePassword")
-                        .HasColumnType("INTEGER");
 
                     b.Property<string>("PasswordHash")
                         .IsRequired()
@@ -330,40 +249,6 @@ namespace LotteryChecker.Api.Migrations
                     b.ToTable("Users");
                 });
 
-            modelBuilder.Entity("LotteryChecker.Api.Models.WalletTransaction", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
-
-                    b.Property<long>("Amount")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<long>("BalanceAfter")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Kind")
-                        .IsRequired()
-                        .HasMaxLength(10)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Note")
-                        .HasMaxLength(200)
-                        .HasColumnType("TEXT");
-
-                    b.Property<int>("UserId")
-                        .HasColumnType("INTEGER");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("UserId", "CreatedAt");
-
-                    b.ToTable("WalletTransactions");
-                });
-
             modelBuilder.Entity("LotteryChecker.Api.Models.BlogVote", b =>
                 {
                     b.HasOne("LotteryChecker.Api.Models.BlogPost", null)
@@ -374,24 +259,6 @@ namespace LotteryChecker.Api.Migrations
                 });
 
             modelBuilder.Entity("LotteryChecker.Api.Models.CheckHistoryEntry", b =>
-                {
-                    b.HasOne("LotteryChecker.Api.Models.User", null)
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("LotteryChecker.Api.Models.ScratchTicket", b =>
-                {
-                    b.HasOne("LotteryChecker.Api.Models.User", null)
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("LotteryChecker.Api.Models.WalletTransaction", b =>
                 {
                     b.HasOne("LotteryChecker.Api.Models.User", null)
                         .WithMany()

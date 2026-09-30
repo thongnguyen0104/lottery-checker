@@ -26,6 +26,9 @@ public static class DrawSchedule
         : MienTrung.Contains(province) ? "MT"
         : "MN";
 
+    /// <summary>Giờ xổ Miền Nam (mọi đài MN cùng giờ).</summary>
+    public static TimeOnly MnDrawTime => MnDraw;
+
     public static TimeOnly DrawTimeOf(string province) => RegionOf(province) switch
     {
         "MB" => MbDraw,

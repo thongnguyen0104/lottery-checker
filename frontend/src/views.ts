@@ -1,6 +1,6 @@
 import type { IconName } from './components/Icon'
 
-export type View = 'check' | 'lucky' | 'predict' | 'results' | 'blog'
+export type View = 'check' | 'lucky' | 'predict' | 'results' | 'blog' | 'profile' | 'admin'
 
 /** Các tính năng — dùng chung cho tab trên AppHeader (màn rộng) và BottomNav (điện thoại). */
 // Chữ hiển thị nằm ở common.json → views.<id>.title/short/hint, dịch lúc render để đổi ngôn ngữ là đổi ngay.
@@ -12,9 +12,17 @@ export const VIEWS: { id: View; path: string; icon: IconName }[] = [
   { id: 'blog', path: '/blog', icon: 'blog' },
 ]
 
+/** Màn có đường dẫn riêng nhưng không nằm trên thanh tab — mở từ menu logo. */
+const EXTRA_VIEWS: { id: View; path: string }[] = [
+  { id: 'profile', path: '/tai-khoan' },
+  { id: 'admin', path: '/quan-tri' },
+]
+
+const ROUTES = [...VIEWS, ...EXTRA_VIEWS]
+
 /** Đường dẫn riêng của mỗi màn — để chia sẻ link / F5 vẫn đúng màn. */
-export const viewPath = (v: View) => VIEWS.find(x => x.id === v)!.path
+export const viewPath = (v: View) => ROUTES.find(x => x.id === v)!.path
 
 /** Màn ứng với đường dẫn; đường dẫn lạ → Dò vé. Bỏ "/" cuối để "/ket-qua/" cũng khớp. */
 export const viewFromPath = (path: string): View =>
-  VIEWS.find(x => x.path === (path.replace(/\/+$/, '') || '/'))?.id ?? 'check'
+  ROUTES.find(x => x.path === (path.replace(/\/+$/, '') || '/'))?.id ?? 'check'

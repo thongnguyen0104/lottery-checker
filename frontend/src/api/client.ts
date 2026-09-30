@@ -340,7 +340,118 @@ export async function searchTail(tail: string) {
 }
 
 // ── Tài khoản: phiên nằm trong cookie HttpOnly do máy chủ đặt (cùng origin qua proxy /api) ──
-export type Account = { username: string }
+export type Account = {
+  username: string
+  /** Vào được trang quản trị. */
+  isAdmin?: boolean
+  /** Phải đổi mật khẩu ngay (tài khoản tạo sẵn / admin vừa đặt lại) — app mở form đổi mật khẩu, không cho đóng. */
+  mustChangePassword?: boolean
+}
+
+export async function changePassword(currentPassword: string, newPassword: string) {
+  try {
+    const { data } = await api.post('/api/auth/change-password', { currentPassword, newPassword })
+    return data as Account
+  } catch (e) {
+    throw toFriendlyError(e)
+  }
+}
+
+// ── Cờ tính năng: tắt = user thường không thấy (máy chủ cũng chặn API); admin luôn xem trước được ──
+export type FeatureKey = 'checkHistory' | 'scratchTickets'
+
+/** available = người đang xem dùng được; enabled = đã bật cho mọi người (admin xem trước khi available && !enabled). */
+export type Features = { available: Record<FeatureKey, boolean>; enabled: Record<FeatureKey, boolean> }
+
+const NO_FEATURES: Record<FeatureKey, boolean> = { checkHistory: false, scratchTickets: false }
+export const FEATURES_OFF: Features = { available: NO_FEATURES, enabled: NO_FEATURES }
+
+/** Lỗi mạng → coi như tắt hết: tính năng mới thà ẩn nhầm còn hơn hiện ra rồi gọi API lỗi. */
+export async function getFeatures() {
+  try {
+    const { data } = await api.get('/api/features', { timeout: 5_000 })
+    return data as Features
+  } catch {
+    return FEATURES_OFF
+  }
+}
+
+export type AdminFeature = {
+  key: FeatureKey
+  name: string
+  description: string
+  enabled: boolean
+  updatedAt: string | null
+  updatedBy: string | null
+}
+
+// ── Trang quản trị (chỉ admin) ──
+export type AdminOverview = {
+  users: number
+  admins: number
+  totalBalance: number
+  ticketsSold: number
+  ticketsWon: number
+  totalPaidOut: number
+  totalTopUp: number
+}
+
+export type AdminUserRow = { id: number; username: string; createdAt: string; balance: number; isAdmin: boolean; tickets: number }
+
+export type AdminUserDetail = {
+  id: number
+  username: string
+  createdAt: string
+  balance: number
+  isAdmin: boolean
+  mustChangePassword: boolean
+  tickets: { bought: number; won: number; pending: number; spent: number; winnings: number }
+  checks: number
+}
+
+export type WalletTransaction = {
+  id: number
+  kind: 'TopUp' | 'Purchase' | 'Win' | 'Refund' | 'Adjust'
+  amount: number
+  balanceAfter: number
+  note: string | null
+  createdAt: string
+}
+
+async function adminCall<T>(fn: () => Promise<{ data: unknown }>) {
+  try {
+    return (await fn()).data as T
+  } catch (e) {
+    throw toFriendlyError(e)
+  }
+}
+
+export const getAdminFeatures = () => adminCall<AdminFeature[]>(() => api.get('/api/admin/features'))
+
+export const setAdminFeature = (key: FeatureKey, enabled: boolean) =>
+  adminCall<AdminFeature[]>(() => api.post(`/api/admin/features/${key}`, { enabled }))
+
+export const getAdminOverview = () => adminCall<AdminOverview>(() => api.get('/api/admin/overview'))
+
+export const getAdminUsers = (search: string, sort: 'new' | 'balance', page: number) =>
+  adminCall<{ items: AdminUserRow[]; hasMore: boolean; total: number }>(
+    () => api.get('/api/admin/users', { params: { search: search || undefined, sort, page } }))
+
+export const getAdminUser = (id: number) => adminCall<AdminUserDetail>(() => api.get(`/api/admin/users/${id}`))
+
+export const getAdminTransactions = (id: number, page: number) =>
+  adminCall<{ items: WalletTransaction[]; hasMore: boolean }>(
+    () => api.get(`/api/admin/users/${id}/transactions`, { params: { page } }))
+
+/** amount > 0 cộng, < 0 trừ. */
+export const adjustBalance = (id: number, amount: number, note: string) =>
+  adminCall<{ balance: number }>(() => api.post(`/api/admin/users/${id}/balance`, { amount, note }))
+
+export const resetUserPassword = (id: number, password: string) =>
+  adminCall<void>(() => api.post(`/api/admin/users/${id}/password`, { password }))
+
+export const setUserAdmin = (id: number, isAdmin: boolean) =>
+  adminCall<void>(() => api.post(`/api/admin/users/${id}/role`, { isAdmin }))
 
 /** Phiên hiện tại; null = chưa đăng nhập (hoặc không gọi được máy chủ). */
 export async function getMe() {
@@ -382,6 +493,113 @@ export async function register(username: string, password: string) {
 export async function logout() {
   try {
     await api.post('/api/auth/logout')
+  } catch (e) {
+    throw toFriendlyError(e)
+  }
+}
+
+// ── Trang Tài khoản (cần đăng nhập) ──
+export type Profile = {
+  username: string
+  createdAt: string
+  /** Số dư ví (VNĐ) — hiện chỉ hiển thị, chưa có nạp/rút. */
+  balance: number
+  /** Tổng lượt dò; winners/totalPrize tính mỗi vé trúng 1 lần dù dò lại nhiều lần. */
+  checks: { checks: number; winners: number; totalPrize: number }
+}
+
+/** Một lượt dò trong lịch sử — drawDate/province null khi lượt đó thiếu thông tin. */
+export type CheckHistoryItem = {
+  id: number
+  ticketNumber: string
+  drawDate: string | null
+  province: string | null
+  status: CheckResult['status']
+  isWinner: boolean
+  prize: number
+  checkedAt: string
+}
+
+export async function getProfile() {
+  try {
+    const { data } = await api.get('/api/profile')
+    return data as Profile
+  } catch (e) {
+    throw toFriendlyError(e)
+  }
+}
+
+export async function getCheckHistory(page: number) {
+  try {
+    const { data } = await api.get('/api/profile/history', { params: { page } })
+    return data as { items: CheckHistoryItem[]; hasMore: boolean }
+  } catch (e) {
+    throw toFriendlyError(e)
+  }
+}
+
+// ── Vé cào 2 số (trúng khi trùng giải tám của đài đã chọn) ──
+export type TicketShop = {
+  drawDate: string
+  /** Giờ VN (không kèm múi giờ) — hiện bằng slice(11, 16). */
+  closesAt: string
+  drawsAt: string
+  provinces: string[]
+  price: number
+  prize: number
+  payoutMultiplier: number
+  maxQuantity: number
+  balance: number
+}
+
+export type ScratchTicket = {
+  id: number
+  drawDate: string
+  province: string
+  number: string
+  price: number
+  status: 'Pending' | 'Won' | 'Lost' | 'Refunded'
+  /** Giải tám của đài — có khi đã chốt Won/Lost. */
+  winningNumber: string | null
+  prize: number
+  /** Đã cào xem chưa — chưa thì phủ lớp cào lên kết quả. */
+  scratched: boolean
+  /** Giờ VN. */
+  drawsAt: string
+  purchasedAt: string
+}
+
+export async function getTicketShop() {
+  try {
+    const { data } = await api.get('/api/tickets/shop')
+    return data as TicketShop
+  } catch (e) {
+    throw toFriendlyError(e)
+  }
+}
+
+export async function getMyTickets(page: number) {
+  try {
+    const { data } = await api.get('/api/tickets', { params: { page } })
+    return data as { items: ScratchTicket[]; hasMore: boolean }
+  } catch (e) {
+    throw toFriendlyError(e)
+  }
+}
+
+export async function buyTickets(body: { province: string; drawDate: string; quantity: number }) {
+  try {
+    const { data } = await api.post('/api/tickets', body)
+    return data as { tickets: ScratchTicket[]; balance: number }
+  } catch (e) {
+    throw toFriendlyError(e)
+  }
+}
+
+export async function scratchTicket(id: number) {
+  try {
+    const { data } = await api.post(`/api/tickets/${id}/scratch`)
+    return data as ScratchTicket
   } catch (e) {
     throw toFriendlyError(e)
   }

@@ -6,17 +6,21 @@ import ThemePicker from './components/ThemePicker'
 import DonateDialog from './components/DonateDialog'
 import AuthDialog from './components/AuthDialog'
 import Icon from './components/Icon'
-import { getMe, logout, type Account } from './api/client'
+import { FEATURES_OFF, getFeatures, getMe, logout, type Account, type Features } from './api/client'
 import AvailableData, { type ResultsFocus } from './components/AvailableData'
 import LuckyNumbers from './components/LuckyNumbers'
 import Predictions from './components/Predictions'
 import Blog from './components/Blog'
+import Profile from './components/Profile'
+import AdminPanel from './components/AdminPanel'
+import ChangePasswordDialog from './components/ChangePasswordDialog'
 import Home from './pages/Home'
 import { useTheme } from './theme'
 import { viewFromPath, viewPath, type View } from './views'
 
 export default function App() {
   const { t } = useTranslation()
+  const { t: ta } = useTranslation('admin')
   // Mở đúng màn theo URL (link chia sẻ / F5); đường dẫn lạ về Dò vé và sửa luôn URL. Xoá state lịch
   // sử còn sót từ trước khi tải lại (vd đang ở bảng 1 đài) — bước bên trong không nằm trên URL.
   // Chạy trước effect của các con để Home ghi stage đầu tiên lên đúng mục này.
@@ -42,6 +46,10 @@ export default function App() {
   const [authReason, setAuthReason] = useState<string | null | undefined>(undefined)
   const closeAuth = useCallback(() => setAuthReason(undefined), [])
   useEffect(() => { getMe().then(setAccount) }, [])
+  // Đổi mật khẩu: tự mở (không đóng được) khi tài khoản đang dùng mật khẩu mặc định / mật khẩu tạm.
+  const [pwOpen, setPwOpen] = useState(false)
+  const closePw = useCallback(() => setPwOpen(false), [])
+  const mustChangePassword = !!account?.mustChangePassword
   // Đăng xuất: về màn mặc định (Dò vé) và dựng lại Home/LuckyNumbers (key theo tài khoản) để
   // không còn sót vé/kết quả/bộ số của phiên vừa rồi.
   const onLogout = async () => {
@@ -50,6 +58,11 @@ export default function App() {
     go('check')
   }
   const sessionKey = account?.username ?? 'guest'
+  // Cờ tính năng theo người đang xem (admin xem trước được tính năng đang tắt) — hỏi lại khi đổi tài khoản.
+  const [features, setFeatures] = useState<Features>(FEATURES_OFF)
+  const refreshFeatures = useCallback(() => { getFeatures().then(setFeatures) }, [])
+  useEffect(() => { if (account !== undefined) refreshFeatures() }, [sessionKey, account, refreshFeatures])
+  const hasProfile = features.available.checkHistory || features.available.scratchTickets
 
   // Mọi lối chuyển màn đều qua đây: mở Kết quả từ menu thì xoá focus của vé lần trước.
   // Mỗi lần chuyển = 1 mục lịch sử (kèm focus) để nút Back của trình duyệt/điện thoại quay về
@@ -80,7 +93,9 @@ export default function App() {
       <div aria-hidden className={`backdrop bgfx-${theme.bg}`} />
       <AppHeader view={view} busy={checking} onChange={v => go(v)} onOpenTheme={() => setThemeOpen(true)}
                  onOpenDonate={() => setDonateOpen(true)}
-                 account={account ?? null} onOpenAuth={() => setAuthReason(null)} onLogout={onLogout} />
+                 account={account ?? null} showProfile={hasProfile} onOpenAuth={() => setAuthReason(null)} onLogout={onLogout}
+                 onOpenProfile={() => go('profile')} onOpenAdmin={() => go('admin')}
+                 onChangePassword={() => setPwOpen(true)} />
 
       {/* Điện thoại: 1 cột + chừa chỗ cho BottomNav (và vạch home của iPhone). Màn rộng: khung
           rộng hơn, từng màn tự chia cột. */}
@@ -119,6 +134,45 @@ export default function App() {
             <Blog key={sessionKey} account={account ?? null} onRequireLogin={() => setAuthReason(null)} />
           </div>
         )}
+        {/* Tài khoản: mount lại mỗi lần mở để lịch sử dò vé có luôn các vé vừa dò. */}
+        {view === 'profile' && (
+          <div className="fade-up">
+            {account ? (
+              <Profile key={sessionKey} features={features} onShowResults={focus => go('results', focus)} onGoCheck={() => go('check')} />
+            ) : account === null && (
+              <div className="card p-6 text-center space-y-3 max-w-md mx-auto">
+                <Icon name="user" className="w-10 h-10 mx-auto text-brand-700 dark:text-brand-400" />
+                <p className="font-semibold">{t('auth.profileTitle')}</p>
+                <p className="text-sm text-ink-soft">{t('auth.profileBody')}</p>
+                <button onClick={() => setAuthReason(null)}
+                        className="px-5 py-2.5 rounded-xl font-semibold bg-gradient-to-r from-primary to-primary-end
+                                   text-on-primary shadow-md shadow-primary/25 active:scale-95 transition">
+                  {t('auth.loginTitle')}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+        {/* Quản trị: mount lại mỗi lần mở cho số liệu mới. Máy chủ vẫn tự kiểm tra quyền mỗi request. */}
+        {view === 'admin' && account !== undefined && (
+          <div className="fade-up">
+            {account?.isAdmin ? (
+              <AdminPanel key={sessionKey} me={account.username} onFeaturesChanged={refreshFeatures} />
+            ) : (
+              <div className="card p-6 text-center space-y-3 max-w-md mx-auto">
+                <Icon name="admin" className="w-10 h-10 mx-auto text-brand-700 dark:text-brand-400" />
+                <p className="font-semibold">{ta(account ? 'noAccess' : 'loginTitle')}</p>
+                {!account && (
+                  <button onClick={() => setAuthReason(null)}
+                          className="px-5 py-2.5 rounded-xl font-semibold bg-gradient-to-r from-primary to-primary-end
+                                     text-on-primary shadow-md shadow-primary/25 active:scale-95 transition">
+                    {t('auth.loginTitle')}
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
         {/* Kết quả thì mount lại mỗi lần mở để lấy danh sách mới nhất. */}
         {view === 'results' && (
           <div className="fade-up">
@@ -132,6 +186,10 @@ export default function App() {
       <BottomNav view={view} busy={checking} onChange={v => go(v)} />
       {themeOpen && <ThemePicker theme={theme} onChange={setTheme} onClose={closeTheme} />}
       {donateOpen && <DonateDialog onClose={closeDonate} />}
+      {account && (pwOpen || mustChangePassword) && (
+        <ChangePasswordDialog forced={mustChangePassword} onClose={closePw} onLogout={() => { closePw(); onLogout() }}
+                              onDone={a => { setAccount(a); closePw() }} />
+      )}
       {authReason !== undefined && (
         <AuthDialog reason={authReason ?? undefined} onClose={closeAuth}
                     onDone={a => { setAccount(a); closeAuth() }} />

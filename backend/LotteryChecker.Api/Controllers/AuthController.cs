@@ -4,6 +4,7 @@ using LotteryChecker.Api.Models;
 using LotteryChecker.Api.Services;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -53,7 +54,7 @@ public class AuthController(AppDbContext db, TimeProvider clock) : ControllerBas
         }
 
         await SignInAsync(user);
-        return Ok(new { username = user.Username });
+        return Ok(ToAccount(user));
     }
 
     [HttpPost("login")]
@@ -68,7 +69,7 @@ public class AuthController(AppDbContext db, TimeProvider clock) : ControllerBas
             return Unauthorized(new { error = Lang.T(Request, "Sai tên đăng nhập hoặc mật khẩu.", "Wrong username or password.") });
 
         await SignInAsync(user);
-        return Ok(new { username = user.Username });
+        return Ok(ToAccount(user));
     }
 
     [HttpPost("logout")]
@@ -78,11 +79,45 @@ public class AuthController(AppDbContext db, TimeProvider clock) : ControllerBas
         return NoContent();
     }
 
-    /// <summary>Phiên hiện tại — FE gọi lúc mở app để biết đã đăng nhập chưa.</summary>
+    /// <summary>
+    /// Phiên hiện tại — FE gọi lúc mở app để biết đã đăng nhập chưa. Đọc DB (không chỉ cookie) để
+    /// quyền admin / cờ phải đổi mật khẩu luôn mới; tài khoản đã bị xoá thì coi như chưa đăng nhập.
+    /// </summary>
     [HttpGet("me")]
-    public IActionResult Me() => User.Identity?.IsAuthenticated == true
-        ? Ok(new { username = User.Identity.Name })
-        : Unauthorized();
+    public async Task<IActionResult> Me()
+    {
+        if (User.UserId() is not { } uid) return Unauthorized();
+        var user = await db.Users.AsNoTracking().FirstOrDefaultAsync(x => x.Id == uid);
+        return user == null ? Unauthorized() : Ok(ToAccount(user));
+    }
+
+    public record ChangePasswordRequest(string? CurrentPassword, string? NewPassword);
+
+    /// <summary>Đổi mật khẩu của chính mình (cần mật khẩu hiện tại). Xong thì tắt cờ phải đổi mật khẩu.</summary>
+    [HttpPost("change-password")]
+    [Authorize]
+    [EnableRateLimiting(RateLimitPolicy)]
+    public async Task<IActionResult> ChangePassword(ChangePasswordRequest body)
+    {
+        var user = await db.Users.FirstOrDefaultAsync(x => x.Id == User.UserId()!.Value);
+        if (user == null) return Unauthorized();
+        if (Hasher.VerifyHashedPassword(user, user.PasswordHash, body.CurrentPassword ?? "") is PasswordVerificationResult.Failed)
+            return BadRequest(new { error = Lang.T(Request, "Mật khẩu hiện tại không đúng.", "Your current password is wrong.") });
+        var error = AccountRules.PasswordError(body.NewPassword, Lang.IsEn(Request));
+        if (error != null) return BadRequest(new { error });
+        if (body.NewPassword == body.CurrentPassword)
+            return BadRequest(new { error = Lang.T(Request, "Mật khẩu mới phải khác mật khẩu hiện tại.", "The new password must differ from the current one.") });
+
+        user.PasswordHash = Hasher.HashPassword(user, body.NewPassword!);
+        user.MustChangePassword = false;
+        await db.SaveChangesAsync();
+        return Ok(ToAccount(user));
+    }
+
+    private static object ToAccount(User u) => new { username = u.Username, isAdmin = u.IsAdmin, mustChangePassword = u.MustChangePassword };
+
+    /// <summary>Dùng chung với trang quản trị (admin đặt lại mật khẩu cho user).</summary>
+    public static string HashPassword(User user, string password) => Hasher.HashPassword(user, password);
 
     private Task SignInAsync(User user) => HttpContext.SignInAsync(
         CookieAuthenticationDefaults.AuthenticationScheme,

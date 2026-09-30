@@ -5,7 +5,7 @@
   "empty": "Chưa có kết quả nào. Kết quả được cập nhật tự động vào buổi tối sau giờ xổ, bạn quay lại sau nhé.",
   "today": "Hôm nay",
   "unknownError": "Lỗi không xác định",
-  "backLabel": { "lucky": "Luận số", "ticket": "Vé của bạn", "list": "Danh sách" },
+  "backLabel": { "lucky": "Luận số", "ticket": "Vé của bạn", "profile": "Lịch sử dò vé", "list": "Danh sách" },
   "provinceTitle": "Xổ số {{province}}",
   "comparing": "Đang so với vé <b>{{ticket}}</b> — chữ số cuối trùng vé được tô xanh, số trúng giải có khung.",
   "loading": "Đang tải..."

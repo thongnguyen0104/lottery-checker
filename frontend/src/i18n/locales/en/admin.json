@@ -1,0 +1,85 @@
+{
+  "title": "Admin",
+  "hint": "Manage accounts, adjust balances, review the wallet ledger.",
+  "money": "{{amount}} VND",
+  "overview": {
+    "users": "Accounts",
+    "admins": "{{count}} admins",
+    "balance": "Total balance",
+    "topUp": "Credited {{amount}} VND",
+    "tickets": "Tickets sold",
+    "won": "{{count}} winning",
+    "paidOut": "Paid out"
+  },
+  "search": "Search by username",
+  "sort": { "new": "Newest", "balance": "Top balance" },
+  "total": "{{count}} accounts",
+  "empty": "No matching accounts.",
+  "joined": "Joined {{date}}",
+  "ticketsCount": "{{count}} tickets",
+  "badge": { "admin": "Admin", "mustChange": "Must change password", "you": "You" },
+  "back": "List",
+  "pick": "Pick an account to see details.",
+  "sections": { "users": "Users", "features": "Features" },
+  "features": {
+    "hint": "Disabled features are hidden from regular users and their APIs are blocked. Admins still see them to test before enabling.",
+    "on": "On",
+    "off": "Off",
+    "updated": "Changed by {{by}} at {{at}}"
+  },
+  "balanceLabel": "Balance",
+  "stats": {
+    "bought": "Tickets bought",
+    "won": "Winning tickets",
+    "pending": "Awaiting draw",
+    "checks": "Ticket checks",
+    "spent": "Spent",
+    "winnings": "Won"
+  },
+  "balance": {
+    "title": "Adjust balance",
+    "add": "Add",
+    "subtract": "Deduct",
+    "amount": "Amount (VND)",
+    "note": "Note (shown in the ledger)",
+    "notePlaceholder": "e.g. welcome gift",
+    "submitAdd": "Add {{amount}} VND",
+    "submitSubtract": "Deduct {{amount}} VND",
+    "confirmAdd": "Add {{amount}} VND to {{username}}?",
+    "confirmSubtract": "Deduct {{amount}} VND from {{username}}?",
+    "confirmBody": "Balance afterwards: {{after}} VND.",
+    "tooMuch": "The balance is only {{balance}} VND — can't deduct that much.",
+    "done": "Updated. New balance: {{balance}} VND."
+  },
+  "account": {
+    "title": "Account",
+    "resetPassword": "Reset password",
+    "tempPassword": "Temporary password",
+    "resetHint": "The user logs in with this temporary password and must set a new one right away.",
+    "resetDone": "Temporary password set. Send it to the user.",
+    "grantAdmin": "Make admin",
+    "revokeAdmin": "Remove admin",
+    "grantConfirm": "Make {{username}} an admin?",
+    "revokeConfirm": "Remove admin rights from {{username}}?",
+    "roleBody": "Admins can see every account and adjust balances.",
+    "selfRole": "You can't change your own role."
+  },
+  "tx": {
+    "title": "Wallet ledger",
+    "empty": "No transactions yet.",
+    "after": "Balance after: {{amount}} VND",
+    "kind": {
+      "TopUp": "Credit",
+      "Adjust": "Deduction",
+      "Purchase": "Ticket purchase",
+      "Win": "Winnings",
+      "Refund": "Refund"
+    }
+  },
+  "confirm": "Confirm",
+  "loadMore": "Load more",
+  "loading": "Loading...",
+  "retry": "Try again",
+  "noAccess": "This page is for admins only.",
+  "loginTitle": "Log in with an admin account to open the admin page."
+}

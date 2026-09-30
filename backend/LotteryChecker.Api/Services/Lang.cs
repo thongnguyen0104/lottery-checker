@@ -11,4 +11,9 @@ public static class Lang
         (req?.Headers.AcceptLanguage.ToString() ?? "").TrimStart().StartsWith("en", StringComparison.OrdinalIgnoreCase);
 
     public static string T(HttpRequest? req, string vi, string en) => IsEn(req) ? en : vi;
+
+    private static readonly System.Globalization.CultureInfo Vi = new("vi-VN"), En = new("en-US");
+
+    /// <summary>Số tiền kiểu người đọc quen: "150.000" (vi) / "150,000" (en) — N0 mặc định theo culture máy chủ.</summary>
+    public static string Num(HttpRequest? req, long n) => n.ToString("N0", IsEn(req) ? En : Vi);
 }

@@ -1,0 +1,52 @@
+{
+  "title": "Tài khoản của tôi",
+  "memberSince": "Thành viên từ {{date}}",
+  "balance": "Số dư tài khoản",
+  "balanceNote": "Tiền ảo trong app, dùng mua vé cào — không nạp/rút tiền thật.",
+  "money": "{{amount}} ₫",
+  "tabs": { "tickets": "Vé của tôi", "history": "Lịch sử dò vé" },
+  "summary": { "checks": "Lượt dò", "winners": "Vé trúng", "prize": "Tiền trúng", "billion": "{{n}} tỷ", "million": "{{n}} triệu" },
+  "historyEmpty": "Bạn chưa dò vé nào. Các vé bạn dò khi đã đăng nhập sẽ được lưu ở đây.",
+  "goCheck": "Dò vé ngay",
+  "status": {
+    "win": "Trúng {{amount}} ₫",
+    "lose": "Không trúng",
+    "NotDrawnYet": "Chưa xổ",
+    "NoData": "Chưa có kết quả",
+    "Expired": "Hết hạn lĩnh"
+  },
+  "unknownDraw": "Thiếu thông tin đài/ngày",
+  "viewResults": "Xem bảng kết quả {{province}} ngày {{date}}",
+  "loadMore": "Tải thêm",
+  "loading": "Đang tải...",
+  "retry": "Thử lại",
+  "previewOnly": "Đang tắt — chỉ admin thấy",
+  "nothingYet": "Chưa có mục nào được mở cho tài khoản.",
+  "shop": {
+    "title": "Mua vé cào 2 số",
+    "rule": "Số ngẫu nhiên 00–99. Trùng giải tám của đài đã chọn là trúng {{prize}} ₫ (1 ăn {{multiplier}}).",
+    "draw": "Kỳ xổ {{day}}",
+    "closes": "Ngừng bán {{time}}",
+    "province": "Chọn đài",
+    "quantity": "Số lượng vé",
+    "less": "Bớt 1 vé",
+    "more": "Thêm 1 vé",
+    "total": "{{count}} vé × {{price}} ₫",
+    "buy": "Mua {{count}} vé · {{total}} ₫",
+    "buying": "Đang mua...",
+    "insufficient": "Số dư không đủ. Liên hệ admin để được cộng tiền.",
+    "bought_one": "Đã mua {{count}} vé — chờ kết quả lúc {{time}}.",
+    "bought_other": "Đã mua {{count}} vé — chờ kết quả lúc {{time}}."
+  },
+  "ticket": {
+    "empty": "Bạn chưa có vé nào. Chọn đài và mua vé ở trên nhé!",
+    "number": "Số của bạn",
+    "waiting": "Chờ xổ {{time}} · {{date}}",
+    "waitingResult": "Đã xổ — đang chờ cập nhật kết quả",
+    "eighth": "Giải tám",
+    "won": "Trúng {{amount}} ₫",
+    "lost": "Không trúng",
+    "refunded": "Đài không có kết quả — đã hoàn {{amount}} ₫",
+    "credited": "Đã cộng vào số dư"
+  }
+}

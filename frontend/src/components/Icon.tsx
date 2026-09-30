@@ -2,7 +2,8 @@ import {
   Award, Bot, CircleUserRound, LogOut, Download, HandHeart, CalendarDays, Camera, Check, ChevronDown, ChevronLeft, ChevronRight, CircleAlert, Globe, CircleCheck,
   CircleX, Clock, Copy, Dices, Focus, History, Hourglass, ImageUp, Inbox, Layers, Lightbulb, ListOrdered, MapPin, MessageSquareText,
   Monitor, Moon, Palette, PencilLine, RotateCcw, Scan, ScanSearch, Sparkles, Sun, Ticket, TicketX, Timer,
-  TrendingUp, Flame, Snowflake, Newspaper, ThumbsUp, ThumbsDown, Send, Trash2, TriangleAlert, Trophy, X,
+  TrendingUp, Flame, Snowflake, Newspaper, ThumbsUp, ThumbsDown, Send, Trash2, TriangleAlert, Trophy, Wallet, X,
+  KeyRound, ShieldCheck, Users, Search,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -61,6 +62,11 @@ const ICONS = {
   dislike: ThumbsDown,
   send: Send,
   trash: Trash2,
+  wallet: Wallet,
+  key: KeyRound,
+  admin: ShieldCheck,
+  users: Users,
+  find: Search,
 } satisfies Record<string, LucideIcon>
 
 export type IconName = keyof typeof ICONS

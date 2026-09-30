@@ -1,4 +1,3 @@
-using System.Security.Claims;
 using LotteryChecker.Api.Middleware;
 using LotteryChecker.Api.Services;
 using Microsoft.AspNetCore.Mvc;
@@ -50,8 +49,7 @@ public class BlogController(BlogService blog) : ControllerBase
 
     private string NotFoundError => Lang.T(Request, "Không tìm thấy bài viết (có thể đã bị xoá).", "Post not found (it may have been deleted).");
 
-    private int? CurrentUserId() =>
-        int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var id) ? id : null;
+    private int? CurrentUserId() => User.UserId();
 
     // Đăng nhập: theo tài khoản (đổi máy vẫn giữ lượt). Khách: theo cookie của máy (VisitorId).
     private string VoterKey() =>

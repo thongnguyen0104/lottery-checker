@@ -78,6 +78,11 @@ builder.Services.AddScoped<ImagePreprocessor>();
 builder.Services.AddScoped<LotteryMatcher>();        // phụ thuộc AppDbContext (Scoped)
 builder.Services.AddScoped<PredictionService>();     // thống kê 1 năm cho màn Dự đoán
 builder.Services.AddScoped<CheckStats>();           // đếm vé đã dò toàn hệ thống
+builder.Services.AddScoped<CheckHistory>();         // lịch sử dò vé từng tài khoản
+builder.Services.AddScoped<Wallet>();               // số dư ảo + sổ giao dịch
+builder.Services.AddScoped<AdminUsers>();           // trang quản trị
+builder.Services.AddScoped<FeatureFlags>();         // bật/tắt tính năng (trang quản trị)
+builder.Services.AddScoped<ScratchTicketService>(); // vé cào 2 số theo giải tám
 builder.Services.AddScoped<BlogService>();
 
 // Hai engine OCR cục bộ — đăng ký CẢ HAI (endpoint debug /api/admin/ocr-debug luôn cần
@@ -161,6 +166,15 @@ builder.Services.AddRateLimiter(o =>
             new FixedWindowRateLimiterOptions
             {
                 PermitLimit = builder.Configuration.GetValue("Blog:VotesPerIpPerMinute", 30),
+                Window = TimeSpan.FromMinutes(1),
+            }));
+    // Mua vé cào: theo tài khoản — chặn script bấm mua liên tục.
+    o.AddPolicy(LotteryChecker.Api.Controllers.TicketsController.BuyRateLimitPolicy, ctx =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            ctx.User.UserId()?.ToString() ?? ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown", _ =>
+            new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = builder.Configuration.GetValue("Tickets:BuysPerUserPerMinute", 10),
                 Window = TimeSpan.FromMinutes(1),
             }));
     o.OnRejected = (ctx, ct) => new ValueTask(ctx.HttpContext.Response.WriteAsJsonAsync(
