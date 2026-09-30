@@ -67,6 +67,7 @@
   "views": {
     "check": { "title": "Dò Vé Số", "short": "Dò vé", "hint": "Chụp vé, tự đọc số và dò giải" },
     "lucky": { "title": "6 Số May Mắn", "short": "Số may mắn", "hint": "Chọn số Vietlott, luận số giấc mơ" },
+    "predict": { "title": "Dự Đoán", "short": "Dự đoán", "hint": "Thống kê 1 năm, gợi ý số từng đài" },
     "results": { "title": "Kết Quả Xổ Số", "short": "Kết quả", "hint": "Xem bảng kết quả chi tiết từng đài" }
   },
   "theme": {

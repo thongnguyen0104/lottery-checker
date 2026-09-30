@@ -2,7 +2,7 @@ import {
   Award, Bot, CircleUserRound, LogOut, Download, HandHeart, CalendarDays, Camera, Check, ChevronDown, ChevronLeft, ChevronRight, CircleAlert, Globe, CircleCheck,
   CircleX, Clock, Copy, Dices, Focus, History, Hourglass, ImageUp, Inbox, Layers, Lightbulb, ListOrdered, MapPin, MessageSquareText,
   Monitor, Moon, Palette, PencilLine, RotateCcw, Scan, ScanSearch, Sparkles, Sun, Ticket, TicketX, Timer,
-  TriangleAlert, Trophy, X, type LucideIcon,
+  TrendingUp, Flame, Snowflake, TriangleAlert, Trophy, X, type LucideIcon,
 } from 'lucide-react'
 
 // Icon Lucide nét mảnh dùng chung toàn app — thay cho emoji (mỗi hệ điều hành vẽ một kiểu, không
@@ -52,6 +52,9 @@ const ICONS = {
   sms: MessageSquareText,
   user: CircleUserRound,
   logout: LogOut,
+  predict: TrendingUp,
+  hot: Flame,
+  cold: Snowflake,
 } satisfies Record<string, LucideIcon>
 
 export type IconName = keyof typeof ICONS
@@ -84,7 +87,7 @@ export function IconBadge({ name, tone }: { name: IconName; tone: keyof typeof T
 /** Chấm nhỏ góc trên phải icon tab: tính năng đó đang xử lý (quét/dò) trong lúc user ở tab khác. */
 export function BusyDot() {
   return (
-    <span aria-hidden className="absolute top-0.5 right-2.5 flex w-2.5 h-2.5">
+    <span aria-hidden className="absolute top-0.5 right-1.5 flex w-2.5 h-2.5">
       <span className="absolute inset-0 rounded-full bg-brand-500 opacity-75 motion-safe:animate-ping" />
       <span className="relative w-2.5 h-2.5 rounded-full bg-brand-500 ring-2 ring-surface" />
     </span>

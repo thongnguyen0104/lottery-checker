@@ -28,3 +28,15 @@ export const todayIso = () => {
   const d = new Date()
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 }
+
+/** Cộng n ngày vào 'YYYY-MM-DD' (theo lịch, không lệch múi giờ). */
+export const addDays = (iso: string, n: number) => {
+  const d = toDate(iso)
+  d.setDate(d.getDate() + n)
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+}
+
+/** 'YYYY-MM-DD' → '26/09' (tiếng Anh: 'Sep 26') — nhãn ngắn cho dải chọn ngày. */
+export const formatDayMonth = (iso: string) => currentLang() === 'en'
+  ? toDate(iso).toLocaleDateString(currentLocale(), { month: 'short', day: 'numeric' })
+  : iso.split('-').slice(1).reverse().join('/')

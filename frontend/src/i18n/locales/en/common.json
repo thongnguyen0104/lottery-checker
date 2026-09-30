@@ -67,6 +67,7 @@
   "views": {
     "check": { "title": "Check Ticket", "short": "Check", "hint": "Snap a ticket to read and check it" },
     "lucky": { "title": "Lucky Numbers", "short": "Lucky", "hint": "Vietlott picks and dream numbers" },
+    "predict": { "title": "Predictions", "short": "Predict", "hint": "1-year stats, number tips per province" },
     "results": { "title": "Lottery Results", "short": "Results", "hint": "Full result tables by province" }
   },
   "theme": {

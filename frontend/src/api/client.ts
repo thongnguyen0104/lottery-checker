@@ -386,3 +386,41 @@ export async function logout() {
     throw toFriendlyError(e)
   }
 }
+
+// ── Dự đoán: thống kê 2 số cuối trong 1 năm, gợi ý số cho từng đài của một ngày ──
+export type NumberStat = {
+  number: string
+  hits: number
+  /** Số kỳ có số này (xuất hiện ≥ 1 lần trong 18 giải). */
+  draws: number
+  probability: number
+  recentProbability: number
+  /** Đã bao nhiêu kỳ liền chưa về. */
+  gap: number
+  score: number
+}
+
+export type ProvincePrediction = {
+  province: string
+  draws: number
+  from: string | null
+  to: string | null
+  top: NumberStat[]
+  overdue: NumberStat[]
+  special: string | null
+  all: NumberStat[]
+  /** 2 số cuối của 18 giải nếu ngày đó đã có kết quả — để đối chiếu gợi ý. */
+  actual: string[] | null
+}
+
+export type Prediction = { date: string; baseline: number; provinces: ProvincePrediction[] }
+
+/** date bỏ trống = kỳ xổ kế tiếp (máy chủ tự chọn hôm nay/ngày mai). */
+export async function getPrediction(date?: string) {
+  try {
+    const { data } = await api.get('/api/predict', { params: date ? { date } : undefined })
+    return data as Prediction
+  } catch (e) {
+    throw toFriendlyError(e)
+  }
+}

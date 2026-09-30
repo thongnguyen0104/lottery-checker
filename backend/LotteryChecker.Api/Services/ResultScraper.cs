@@ -11,7 +11,8 @@ namespace LotteryChecker.Api.Services;
 //   - <thead>: ô đầu "Giải", các ô sau là tên đài (cột).
 //   - mỗi <tr>: <td>G.n + 1 <td class=tn_prize> mỗi đài, số nằm trong <span>.
 //   - ngày lấy từ link <a href="/xsmn-DD-MM-YYYY.html"> trong trang.
-// Cào 30 ngày gần nhất (vé hết hạn lĩnh thưởng sau 30 ngày). Dedupe theo (ngày, đài),
+// Cào 30 ngày gần nhất (vé hết hạn lĩnh thưởng sau 30 ngày) cho dò vé, và giữ thêm tới 1 năm
+// làm dữ liệu thống kê cho màn Dự đoán (cào bù dần lúc khởi động). Dedupe theo (ngày, đài),
 // sanity-check 18 số/đài để KHÔNG ghi data rác. LƯU Ý best-effort: selector phụ thuộc DOM xosodaiphat.
 public class ResultScraper
 {
@@ -22,6 +23,11 @@ public class ResultScraper
 
     private const int PerProvince = 18; // ĐB1+G1..G8 = 1+1+1+2+7+1+3+1+1
     public const int DaysBack = 30;     // vé hết hạn sau 30 ngày
+    /// <summary>Giữ kết quả bao lâu — màn Dự đoán thống kê trên 1 năm.</summary>
+    public const int HistoryDays = 365;
+
+    /// <summary>Ngày cũ nhất còn tính là "gần đây" (dò vé / bảng kết quả chỉ hiện từ ngày này).</summary>
+    public static DateOnly RecentCutoff() => DateOnly.FromDateTime(DrawSchedule.NowVn()).AddDays(-DaysBack);
 
     public ResultScraper(AppDbContext db, ILogger<ResultScraper> logger, HttpClient http,
                          ProvinceMatcher provinces)
@@ -63,6 +69,29 @@ public class ResultScraper
 
         return wanted
             .Where(d => DrawSchedule.MnProvincesOn(d).Any(p => !have.Contains((d, p))))
+            .ToList();
+    }
+
+    /// <summary>
+    /// Những ngày cũ hơn 30 ngày nhưng còn trong 1 năm mà DB chưa có đài nào (mới → cũ) — dữ liệu
+    /// thống kê cho Dự đoán. Khác <see cref="MissingDatesAsync"/>: có 1 đài là coi như đủ, vì lịch
+    /// xổ trong năm có thể đổi (thêm/bớt đài) — so theo lịch hiện tại sẽ cào lại mãi các ngày đó.
+    /// </summary>
+    public async Task<IReadOnlyList<DateOnly>> MissingHistoryDatesAsync(CancellationToken ct)
+    {
+        var latest = DrawSchedule.LatestPublishedDate(DrawSchedule.NowVn());
+        var oldest = latest.AddDays(-(HistoryDays - 1));
+        var newest = latest.AddDays(-DaysBack);
+        var have = (await _db.LotteryResults
+            .Where(r => r.DrawDate >= oldest && r.DrawDate <= newest)
+            .Select(r => r.DrawDate)
+            .Distinct()
+            .ToListAsync(ct))
+            .ToHashSet();
+
+        return Enumerable.Range(0, newest.DayNumber - oldest.DayNumber + 1)
+            .Select(i => newest.AddDays(-i))
+            .Where(d => !have.Contains(d))
             .ToList();
     }
 
@@ -189,15 +218,15 @@ public class ResultScraper
         }
         _db.LotteryResults.AddRange(all);
 
-        // Tự dọn vé đã hết hạn lĩnh thưởng (cũ hơn 30 ngày) — chỉ chạy khi cào thành công.
-        var cutoff = DateOnly.FromDateTime(DrawSchedule.NowVn()).AddDays(-DaysBack);
+        // Tự dọn kết quả quá 1 năm (hết dùng cho thống kê Dự đoán) — chỉ chạy khi cào thành công.
+        var cutoff = DateOnly.FromDateTime(DrawSchedule.NowVn()).AddDays(-HistoryDays);
         var stale = _db.LotteryResults.Where(r => r.DrawDate < cutoff).ToList();
         if (stale.Count > 0) _db.LotteryResults.RemoveRange(stale);
 
         await _db.SaveChangesAsync(ct);
 
         _logger.LogInformation("Cào xosodaiphat: lưu {Count} dòng ({Boards} đài-ngày); dọn {Stale} dòng cũ (>{Days} ngày).",
-            all.Count, acc.Count, stale.Count, DaysBack);
+            all.Count, acc.Count, stale.Count, HistoryDays);
         return all.Count;
     }
 

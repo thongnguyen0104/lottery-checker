@@ -9,6 +9,7 @@ import Icon from './components/Icon'
 import { getMe, logout, type Account } from './api/client'
 import AvailableData, { type ResultsFocus } from './components/AvailableData'
 import LuckyNumbers from './components/LuckyNumbers'
+import Predictions from './components/Predictions'
 import Home from './pages/Home'
 import { useTheme } from './theme'
 import { viewFromPath, viewPath, type View } from './views'
@@ -24,6 +25,9 @@ export default function App() {
     return v
   })
   const [resultsFocus, setResultsFocus] = useState<ResultsFocus | null>(null)
+  // Các màn đã mở ít nhất 1 lần — màn nặng (Dự đoán) chỉ mount khi cần rồi giữ lại.
+  const [seen, setSeen] = useState<ReadonlySet<View>>(() => new Set([view]))
+  if (!seen.has(view)) setSeen(new Set(seen).add(view))
   const [theme, setTheme] = useTheme()
   const [themeOpen, setThemeOpen] = useState(false)
   const closeTheme = useCallback(() => setThemeOpen(false), [])
@@ -102,6 +106,12 @@ export default function App() {
             </div>
           )}
         </div>
+        {/* Dự đoán: mount lần đầu mở tới rồi giữ lại (ẩn) — quay lại vẫn đúng ngày đang xem. */}
+        {seen.has('predict') && (
+          <div hidden={view !== 'predict'} className="fade-up">
+            <Predictions />
+          </div>
+        )}
         {/* Kết quả thì mount lại mỗi lần mở để lấy danh sách mới nhất. */}
         {view === 'results' && (
           <div className="fade-up">

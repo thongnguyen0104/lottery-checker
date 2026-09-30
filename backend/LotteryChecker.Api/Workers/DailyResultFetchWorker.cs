@@ -48,6 +48,7 @@ public class DailyResultFetchWorker : BackgroundService
         // Cào bù ngay khi khởi động: máy dev/server tắt vài ngày là DB thiếu kết quả,
         // mà vòng lặp dưới chỉ chạy từ 16:45 nên có thể phải chờ tới chiều.
         var todayComplete = await FetchMissingAsync("Khởi động", todayOnly: false, ct);
+        await BackfillHistoryAsync(ct);
 
         while (!ct.IsCancellationRequested)
         {
@@ -65,6 +66,33 @@ public class DailyResultFetchWorker : BackgroundService
 
             todayComplete = await FetchMissingAsync(isRetry ? "Worker (thử lại)" : "Worker",
                                                     todayOnly: isRetry, ct);
+        }
+    }
+
+    /// <summary>
+    /// Cào bù kết quả cũ (31 ngày → 1 năm) cho thống kê Dự đoán. Lưu theo lô 30 ngày: tắt app giữa
+    /// chừng thì lần sau chỉ cào tiếp phần còn thiếu. Lỗi chỉ ghi log — dò vé không cần phần này.
+    /// </summary>
+    private async Task BackfillHistoryAsync(CancellationToken ct)
+    {
+        try
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var scraper = scope.ServiceProvider.GetRequiredService<ResultScraper>();
+            var missing = await scraper.MissingHistoryDatesAsync(ct);
+            if (missing.Count == 0) return;
+
+            _logger.LogInformation("Cào bù lịch sử: thiếu {Count} ngày ({From:dd-MM-yyyy} → {To:dd-MM-yyyy}).",
+                missing.Count, missing.Min(), missing.Max());
+            var saved = 0;
+            foreach (var chunk in missing.Chunk(30))
+                saved += await scraper.FetchDates(chunk, ct);
+            _logger.LogInformation("Cào bù lịch sử xong: lưu {Count} dòng.", saved);
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Cào bù lịch sử lỗi");
         }
     }
 

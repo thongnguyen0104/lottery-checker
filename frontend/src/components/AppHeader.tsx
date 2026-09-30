@@ -100,7 +100,7 @@ export default function AppHeader({ view, busy, onChange, onOpenTheme, onOpenDon
             const active = v.id === view
             return (
               <button key={v.id} onClick={() => onChange(v.id)} aria-current={active ? 'page' : undefined}
-                      className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition active:scale-95
+                      className={`flex items-center gap-2 px-3 lg:px-4 py-2 rounded-lg text-sm font-semibold whitespace-nowrap transition active:scale-95
                                   ${active
                                     ? 'bg-surface dark:bg-brand-500/10 text-brand-700 shadow-sm dark:text-brand-400'
                                     : 'text-ink-faint hover:text-ink'}`}>
@@ -110,7 +110,9 @@ export default function AppHeader({ view, busy, onChange, onOpenTheme, onOpenDon
                     <span aria-hidden className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-brand-500 motion-safe:animate-pulse" />
                   )}
                 </span>
-                {t(`views.${v.id}.title`)}
+                {/* md chật (logo + nhiều tab) → tên ngắn; lg mới đủ chỗ cho tên đầy đủ */}
+                <span className="lg:hidden">{t(`views.${v.id}.short`)}</span>
+                <span className="hidden lg:inline">{t(`views.${v.id}.title`)}</span>
                 {busy && !active && v.id === 'check' && <span className="sr-only">{t('app.busy')}</span>}
               </button>
             )
