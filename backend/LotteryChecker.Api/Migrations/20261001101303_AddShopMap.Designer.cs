@@ -3,6 +3,7 @@ using System;
 using LotteryChecker.Api.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace LotteryChecker.Api.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20261001101303_AddShopMap")]
+    partial class AddShopMap
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.8");
@@ -644,40 +647,6 @@ namespace LotteryChecker.Api.Migrations
                     b.ToTable("ShopReviews");
                 });
 
-            modelBuilder.Entity("LotteryChecker.Api.Models.ShopRevision", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("Action")
-                        .IsRequired()
-                        .HasMaxLength(8)
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("TEXT");
-
-                    b.Property<int>("ShopId")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("SnapshotJson")
-                        .IsRequired()
-                        .HasMaxLength(2000)
-                        .HasColumnType("TEXT");
-
-                    b.Property<int>("UserId")
-                        .HasColumnType("INTEGER");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("UserId");
-
-                    b.HasIndex("ShopId", "Id");
-
-                    b.ToTable("ShopRevisions");
-                });
-
             modelBuilder.Entity("LotteryChecker.Api.Models.ShopWinReport", b =>
                 {
                     b.Property<int>("Id")
@@ -912,21 +881,6 @@ namespace LotteryChecker.Api.Migrations
                 });
 
             modelBuilder.Entity("LotteryChecker.Api.Models.ShopReview", b =>
-                {
-                    b.HasOne("LotteryChecker.Api.Models.ShopLocation", null)
-                        .WithMany()
-                        .HasForeignKey("ShopId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("LotteryChecker.Api.Models.User", null)
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("LotteryChecker.Api.Models.ShopRevision", b =>
                 {
                     b.HasOne("LotteryChecker.Api.Models.ShopLocation", null)
                         .WithMany()

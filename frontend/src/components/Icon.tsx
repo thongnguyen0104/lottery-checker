@@ -4,6 +4,7 @@ import {
   Monitor, Moon, Palette, PencilLine, RotateCcw, Scan, ScanSearch, Sparkles, Sun, Ticket, TicketX, Timer,
   TrendingUp, Flame, Snowflake, Newspaper, ThumbsUp, ThumbsDown, Send, Trash2, TriangleAlert, Trophy, Wallet, X,
   KeyRound, ShieldCheck, Users, Search, MessageCircle, Reply, Bell, CheckCheck, Link2, ImagePlus,
+  MapIcon, Star, Navigation, Phone, Flag, LocateFixed, Plus, SlidersHorizontal, Share2, Eye, EyeOff, Store, Footprints,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -73,6 +74,19 @@ const ICONS = {
   readAll: CheckCheck,
   link: Link2,
   addImage: ImagePlus,
+  map: MapIcon,
+  star: Star,
+  directions: Navigation,
+  phone: Phone,
+  flag: Flag,
+  locate: LocateFixed,
+  plus: Plus,
+  filter: SlidersHorizontal,
+  share: Share2,
+  show: Eye,
+  hide: EyeOff,
+  store: Store,
+  street: Footprints,
 } satisfies Record<string, LucideIcon>
 
 export type IconName = keyof typeof ICONS

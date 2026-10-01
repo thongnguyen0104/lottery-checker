@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import AppHeader from './components/AppHeader'
 import BottomNav from './components/BottomNav'
@@ -17,20 +17,38 @@ import AdminPanel from './components/AdminPanel'
 import ChangePasswordDialog from './components/ChangePasswordDialog'
 import Home from './pages/Home'
 import { useTheme } from './theme'
-import { blogPostIdFromPath, blogPostPath, viewFromPath, viewPath, type View } from './views'
+import { blogPostIdFromPath, blogPostPath, shopIdFromPath, shopPath, viewFromPath, viewPath, type View } from './views'
+import type { MapFocus } from './components/map/ShopMap'
+
+// Bản đồ kéo theo Leaflet (~150KB) — tải riêng khi mở tới.
+const ShopMap = lazy(() => import('./components/map/ShopMap'))
 
 export default function App() {
   const { t } = useTranslation()
   const { t: ta } = useTranslation('admin')
+  const { t: tm } = useTranslation('map')
   // Mở đúng màn theo URL (link chia sẻ / F5); đường dẫn lạ về Dò vé và sửa luôn URL. Xoá state lịch
   // sử còn sót từ trước khi tải lại (vd đang ở bảng 1 đài) — bước bên trong không nằm trên URL.
   // Chạy trước effect của các con để Home ghi stage đầu tiên lên đúng mục này.
   const [view, setView] = useState<View>(() => {
     const v = viewFromPath(location.pathname)
     const shared = blogPostIdFromPath(location.pathname)
-    history.replaceState({ view: v }, '', (shared ? blogPostPath(shared) : viewPath(v)) + location.search + location.hash)
+    const shop = shopIdFromPath(location.pathname)
+    history.replaceState({ view: v }, '',
+      (shared ? blogPostPath(shared) : shop ? shopPath(shop) : viewPath(v)) + location.search + location.hash)
     return v
   })
+  // Điểm bán mở từ link chia sẻ /ban-do/{guid} / chuông thông báo / tab Quản trị.
+  const [mapFocus, setMapFocus] = useState<MapFocus | null>(() => {
+    const shop = shopIdFromPath(location.pathname)
+    return shop ? { id: shop, at: 0 } : null
+  })
+  // Bản đồ đổi điểm đang mở → sửa URL tại chỗ (không thêm mục lịch sử) để F5 / chia sẻ đúng điểm.
+  // Người dùng đã tự chọn điểm → bỏ focus cũ để lần sau mở lại bản đồ không bật lại điểm đó.
+  const onMapSelect = useCallback((id: string | null) => {
+    history.replaceState({ view: 'map' }, '', id ? shopPath(id) : viewPath('map'))
+    setMapFocus(null)
+  }, [])
   const [resultsFocus, setResultsFocus] = useState<ResultsFocus | null>(null)
   // Bài mở từ chuông thông báo / link chia sẻ /blog/{guid} — Blog hiện bài đó trên cùng.
   const [blogFocus, setBlogFocus] = useState<BlogFocus | null>(() => {
@@ -72,7 +90,9 @@ export default function App() {
   const sessionKey = account?.username ?? 'guest'
   // Cờ tính năng theo người đang xem (admin xem trước được tính năng đang tắt) — hỏi lại khi đổi tài khoản.
   const [features, setFeatures] = useState<Features>(FEATURES_OFF)
-  const refreshFeatures = useCallback(() => { getFeatures().then(setFeatures) }, [])
+  // Chưa hỏi xong thì chưa biết tính năng có mở không — mở thẳng /ban-do khỏi báo "chưa mở" nhầm.
+  const [featuresReady, setFeaturesReady] = useState(false)
+  const refreshFeatures = useCallback(() => { getFeatures().then(f => { setFeatures(f); setFeaturesReady(true) }) }, [])
   useEffect(() => { if (account !== undefined) refreshFeatures() }, [sessionKey, account, refreshFeatures])
   const hasProfile = features.available.checkHistory || features.available.scratchTickets
 
@@ -84,6 +104,12 @@ export default function App() {
     setView(v)
     window.scrollTo(0, 0)
     history.pushState({ view: v, focus }, '', viewPath(v))
+  }
+
+  const openShop = (id: string) => {
+    setMapFocus({ id, at: Date.now() })
+    go('map')
+    history.replaceState({ view: 'map' }, '', shopPath(id))
   }
 
   useEffect(() => {
@@ -98,6 +124,8 @@ export default function App() {
       // Back/Forward về mục lịch sử là link 1 bài → mở lại đúng bài đó.
       const shared = blogPostIdFromPath(location.pathname)
       if (shared) setBlogFocus(f => f?.publicId === shared ? f : { publicId: shared, at: Date.now() })
+      const shop = shopIdFromPath(location.pathname)
+      if (shop) setMapFocus(f => f?.id === shop ? f : { id: shop, at: Date.now() })
     }
     window.addEventListener('popstate', onPop)
     return () => window.removeEventListener('popstate', onPop)
@@ -110,8 +138,14 @@ export default function App() {
                  onOpenDonate={() => setDonateOpen(true)}
                  account={account ?? null} showProfile={hasProfile} onOpenAuth={() => setAuthReason(null)} onLogout={onLogout}
                  onOpenProfile={() => go('profile')} onOpenAdmin={() => go('admin')}
+                 showMap={features.available.shopMap} onOpenMap={() => go('map')}
                  onChangePassword={() => setPwOpen(true)}
-                 onOpenNotification={n => { setBlogFocus({ postId: n.postId, commentId: n.commentId, at: Date.now() }); go('blog') }} />
+                 onOpenNotification={n => {
+                   if (n.shopPublicId) { openShop(n.shopPublicId); return }
+                   if (n.postId == null || n.commentId == null) return
+                   setBlogFocus({ postId: n.postId, commentId: n.commentId, at: Date.now() })
+                   go('blog')
+                 }} />
 
       {/* Điện thoại: 1 cột (chỗ cho BottomNav do AppFooter chừa). Màn rộng: khung rộng hơn,
           từng màn tự chia cột. */}
@@ -173,7 +207,7 @@ export default function App() {
         {view === 'admin' && account !== undefined && (
           <div className="fade-up">
             {account?.isAdmin ? (
-              <AdminPanel key={sessionKey} me={account.username} onFeaturesChanged={refreshFeatures} />
+              <AdminPanel key={sessionKey} me={account.username} onFeaturesChanged={refreshFeatures} onOpenShop={openShop} />
             ) : (
               <div className="card p-6 text-center space-y-3 max-w-md mx-auto">
                 <Icon name="admin" className="w-10 h-10 mx-auto text-brand-700 dark:text-brand-400" />
@@ -189,6 +223,23 @@ export default function App() {
             )}
           </div>
         )}
+        {/* Bản đồ: mount khi mở (Leaflet đo kích thước lúc dựng — dựng trong khung đang ẩn thì vẽ lệch).
+            key theo tài khoản: đăng nhập/xuất thì quyền sửa, đánh giá của mình đổi theo. */}
+        {view === 'map' && account !== undefined && featuresReady && (
+          <div className="fade-up">
+            {features.available.shopMap ? (
+              <Suspense fallback={<div className="card h-[60vh] animate-pulse" aria-busy />}>
+                <ShopMap key={sessionKey} account={account} onRequireLogin={() => setAuthReason(null)}
+                         focus={mapFocus} onSelect={onMapSelect} />
+              </Suspense>
+            ) : (
+              <div className="card p-6 text-center space-y-3 max-w-md mx-auto">
+                <Icon name="map" className="w-10 h-10 mx-auto text-brand-700 dark:text-brand-400" />
+                <p className="font-semibold">{tm('unavailable')}</p>
+              </div>
+            )}
+          </div>
+        )}
         {/* Kết quả thì mount lại mỗi lần mở để lấy danh sách mới nhất. */}
         {view === 'results' && (
           <div className="fade-up">
@@ -199,7 +250,7 @@ export default function App() {
         )}
       </main>
 
-      <AppFooter onNavigate={v => go(v)} onOpenDonate={() => setDonateOpen(true)} />
+      <AppFooter onNavigate={v => go(v)} onOpenDonate={() => setDonateOpen(true)} showMap={features.available.shopMap} />
       <BottomNav view={view} busy={checking} onChange={v => go(v)} />
       {themeOpen && <ThemePicker theme={theme} onChange={setTheme} onClose={closeTheme} />}
       {donateOpen && <DonateDialog onClose={closeDonate} />}

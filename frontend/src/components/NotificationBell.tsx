@@ -1,12 +1,34 @@
 import { useEffect, useRef, useState } from 'react'
 import { Trans, useTranslation } from 'react-i18next'
 import type { HubConnection } from '@microsoft/signalr'
-import Icon from './Icon'
+import Icon, { type IconName } from './Icon'
 import { getNotifications, markNotificationsRead, NOTIFICATION_HUB_URL, type AppNotification } from '../api/client'
-import { timeAgo } from '../utils/date'
+import i18n from '../i18n'
+import { provinceName } from '../data/provinces'
+import { formatDate, timeAgo } from '../utils/date'
 
 /** Kết nối lần đầu hỏng (mạng / máy chủ đang khởi động lại) thì thử lại sau chừng này. */
 const RETRY_MS = 15_000
+
+const KIND_ICON: Record<AppNotification['kind'], IconName> = {
+  PostComment: 'comment',
+  CommentReply: 'reply',
+  ShopReview: 'star',
+  ShopWin: 'trophy',
+}
+
+/** Dòng trích dưới thông báo. Vé trúng: máy chủ gửi "đài|giải|yyyy-MM-dd" để FE dịch. */
+function snippet(n: AppNotification) {
+  if (n.kind === 'ShopWin') {
+    const [province, tier, date] = n.snippet.split('|')
+    return i18n.t('map:wins.line', {
+      tier: i18n.t(`map:wins.tiers.${tier}`, { defaultValue: tier }),
+      province: province === 'Vietlott' ? 'Vietlott' : provinceName(province),
+      date: date ? formatDate(date) : '',
+    })
+  }
+  return n.snippet ? `“${n.snippet}”` : ''
+}
 
 /**
  * Chuông thông báo trên header (chỉ hiện khi đã đăng nhập): số chưa đọc + danh sách. Thông báo mới đẩy
@@ -131,15 +153,15 @@ export default function NotificationBell({ onOpen }: { onOpen: (n: AppNotificati
                                   ${n.isRead ? '' : 'bg-brand-500/5'}`}>
                 <span className={`shrink-0 mt-0.5 w-8 h-8 rounded-full flex items-center justify-center
                                   ${n.isRead ? 'bg-muted text-ink-faint' : 'bg-brand-500/10 text-brand-700 dark:text-brand-400'}`}>
-                  <Icon name={n.kind === 'CommentReply' ? 'reply' : 'comment'} className="w-4 h-4" />
+                  <Icon name={KIND_ICON[n.kind]} className="w-4 h-4" />
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className={`block text-sm leading-snug break-words ${n.isRead ? 'text-ink-soft' : 'text-ink'}`}>
                     <Trans t={t} i18nKey={`notifications.${n.kind}`}
-                           values={{ name: n.actorName ?? t('notifications.someone'), title: n.postTitle }}
+                           values={{ name: n.actorName ?? t('notifications.someone'), title: n.postTitle, shop: n.shopName, stars: n.stars }}
                            components={{ b: <b className="font-semibold" /> }} />
                   </span>
-                  <span className="mt-0.5 block text-xs text-ink-faint line-clamp-2 break-words">“{n.snippet}”</span>
+                  {snippet(n) && <span className="mt-0.5 block text-xs text-ink-faint line-clamp-2 break-words">{snippet(n)}</span>}
                   <time dateTime={n.createdAt} className="mt-0.5 block text-xs text-ink-faint">{timeAgo(n.createdAt)}</time>
                 </span>
                 {!n.isRead && <span aria-hidden className="shrink-0 mt-2 w-2 h-2 rounded-full bg-brand-500" />}

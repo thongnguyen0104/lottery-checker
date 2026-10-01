@@ -10,6 +10,7 @@ import { PASSWORD_RULES, passwordValid } from '../utils/accountRules'
 import { formatDateTime } from '../utils/date'
 import ConfirmDialog from './ConfirmDialog'
 import Icon, { IconBadge, type IconName } from './Icon'
+import AdminShops from './map/AdminShops'
 
 const num = (n: number) => n.toLocaleString(currentLocale())
 const joined = (iso: string) => new Date(iso).toLocaleDateString(currentLocale(), { day: '2-digit', month: '2-digit', year: 'numeric' })
@@ -19,9 +20,13 @@ const MAX_AMOUNT = 100_000_000
 type Sort = 'new' | 'balance'
 
 /** Trang quản trị: tổng quan, danh sách tài khoản, chi tiết + cộng/trừ tiền, đặt lại mật khẩu, quyền admin. */
-export default function AdminPanel({ me, onFeaturesChanged }: { me: string; onFeaturesChanged: () => void }) {
+export default function AdminPanel({ me, onFeaturesChanged, onOpenShop }: {
+  me: string; onFeaturesChanged: () => void
+  /** Tab Điểm bán → mở điểm trên bản đồ. */
+  onOpenShop: (id: string) => void
+}) {
   const { t } = useTranslation('admin')
-  const [section, setSection] = useState<'users' | 'features'>('users')
+  const [section, setSection] = useState<'users' | 'features' | 'shops'>('users')
   const [overview, setOverview] = useState<AdminOverview | null>(null)
   const [selected, setSelected] = useState<number | null>(null)
   // Tăng khi có thay đổi (cộng tiền, đổi quyền) → danh sách + tổng quan tải lại cho khớp.
@@ -45,18 +50,19 @@ export default function AdminPanel({ me, onFeaturesChanged }: { me: string; onFe
 
       {overview && <Overview o={overview} />}
 
-      <div className="grid grid-cols-2 gap-1 p-1 rounded-xl bg-muted border border-line/60 max-w-sm" role="tablist">
-        {(['users', 'features'] as const).map(s => (
+      <div className="grid grid-cols-3 gap-1 p-1 rounded-xl bg-muted border border-line/60 max-w-md" role="tablist">
+        {(['users', 'features', 'shops'] as const).map(s => (
           <button key={s} role="tab" aria-selected={s === section} onClick={() => setSection(s)}
                   className={`flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-semibold transition ${s === section
                     ? 'bg-surface dark:bg-brand-500/10 shadow-sm text-brand-700 dark:text-brand-400'
                     : 'text-ink-faint hover:text-ink-soft'}`}>
-            <Icon name={s === 'users' ? 'users' : 'sparkles'} className="w-4 h-4" /> {t(`sections.${s}`)}
+            <Icon name={s === 'users' ? 'users' : s === 'shops' ? 'map' : 'sparkles'} className="w-4 h-4" /> {t(`sections.${s}`)}
           </button>
         ))}
       </div>
 
       {section === 'features' && <FeatureToggles onChanged={onFeaturesChanged} />}
+      {section === 'shops' && <AdminShops onOpen={onOpenShop} />}
 
       {/* Điện thoại: danh sách HOẶC chi tiết. Màn rộng: 2 cột cạnh nhau. */}
       <div hidden={section !== 'users'} className="lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)] lg:gap-4 lg:items-start">

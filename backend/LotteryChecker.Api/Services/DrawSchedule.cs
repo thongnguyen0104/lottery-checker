@@ -65,6 +65,21 @@ public static class DrawSchedule
     /// <summary>Các đài Miền Nam xổ vào ngày này (theo lịch cố định trong tuần).</summary>
     public static IReadOnlyList<string> MnProvincesOn(DateOnly date) => MnSchedule[date.DayOfWeek];
 
+    // Đài MN có code (FE provinces.ts) nhưng không nằm trong lịch cố định ở trên.
+    private static readonly HashSet<string> MnUnscheduled = new(StringComparer.OrdinalIgnoreCase) { "LamDong" };
+
+    /// <summary>
+    /// Đài <paramref name="province"/> có thể xổ ngày này không — để chặn báo "vé trúng" sai lịch. MN theo lịch
+    /// cố định; MB xổ mỗi ngày; MT (chưa có lịch) và đài MN ngoài lịch thì cho qua. Code lạ = false.
+    /// </summary>
+    public static bool MayDrawOn(DateOnly date, string province)
+    {
+        if (string.Equals(province, "MB", StringComparison.OrdinalIgnoreCase)) return true;
+        if (MienTrung.Contains(province) || MnUnscheduled.Contains(province)) return true;
+        if (!MnSchedule.Values.Any(v => v.Contains(province, StringComparer.OrdinalIgnoreCase))) return false;
+        return MnProvincesOn(date).Contains(province, StringComparer.OrdinalIgnoreCase);
+    }
+
     /// <summary>Vé XSKT được lĩnh thưởng trong 30 ngày kể từ ngày mở thưởng.</summary>
     public const int ClaimDays = 30;
 

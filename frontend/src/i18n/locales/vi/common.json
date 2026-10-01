@@ -82,6 +82,8 @@
     "someone": "Ẩn danh",
     "PostComment": "<b>{{name}}</b> đã bình luận bài <b>{{title}}</b>",
     "CommentReply": "<b>{{name}}</b> đã trả lời bình luận của bạn trong <b>{{title}}</b>",
+    "ShopReview": "<b>{{name}}</b> đã đánh giá {{stars}}★ điểm bán <b>{{shop}}</b>",
+    "ShopWin": "<b>{{name}}</b> báo điểm bán <b>{{shop}}</b> từng bán vé trúng",
     "loadError": "Không tải được thông báo.",
     "focusedPost": "Bài viết từ thông báo",
     "showAll": "Xem tất cả bài",
@@ -109,6 +111,7 @@
     "results": { "title": "Kết Quả Xổ Số", "short": "Kết quả", "hint": "Xem bảng kết quả chi tiết từng đài" },
     "blog": { "title": "Blog", "short": "Blog", "hint": "Chia sẻ chuyện dò vé, trúng trượt" },
     "profile": { "title": "Tài khoản", "short": "Tài khoản", "hint": "Vé, lịch sử dò và số dư của bạn" },
+    "map": { "title": "Bản đồ điểm bán", "short": "Bản đồ", "hint": "Tìm và chia sẻ chỗ bán vé số" },
     "admin": { "title": "Quản trị", "short": "Quản trị", "hint": "Quản lý tài khoản và số dư" }
   },
   "theme": {

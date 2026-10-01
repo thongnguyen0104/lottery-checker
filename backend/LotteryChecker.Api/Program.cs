@@ -92,6 +92,15 @@ builder.Services.AddHostedService<BlogImageCleanupWorker>();
 builder.Services.AddSignalR();
 builder.Services.AddSingleton<INotificationPusher, SignalRNotificationPusher>();
 builder.Services.AddScoped<NotificationService>();
+// Bản đồ điểm bán vé số (mục "Shops") + tìm địa chỉ qua Nominatim (mục "Geo").
+builder.Services.AddSingleton(builder.Configuration.GetSection("Shops").Get<ShopOptions>() ?? new ShopOptions());
+builder.Services.AddScoped<ShopService>();
+builder.Services.AddHttpClient<GeocodingService>(c =>
+{
+    c.Timeout = TimeSpan.FromSeconds(10);
+    // Policy Nominatim: bắt buộc User-Agent nhận diện được app.
+    c.DefaultRequestHeaders.UserAgent.ParseAdd(builder.Configuration["Geo:UserAgent"] ?? "LotteryChecker/1.0 (dovesomienam)");
+});
 
 // Hai engine OCR cục bộ — đăng ký CẢ HAI (endpoint debug /api/admin/ocr-debug luôn cần
 // Tesseract để so sánh), còn engine thực sự dùng khi quét thì chọn bằng Ocr:Engine.
@@ -190,6 +199,29 @@ builder.Services.AddRateLimiter(o =>
             {
                 PermitLimit = builder.Configuration.GetValue("Blog:ImagesPerIpPer10Minutes", 20),
                 Window = TimeSpan.FromMinutes(10),
+            }));
+    // Bản đồ điểm bán: ghi (tạo/sửa/xác nhận/đánh giá/báo cáo) theo IP; ảnh như Blog; tìm địa chỉ thì
+    // chung 1 request/giây Nominatim cho cả app → chặn 1 IP chiếm hết.
+    o.AddPolicy(LotteryChecker.Api.Controllers.ShopsController.WriteRateLimitPolicy, ctx =>
+        RateLimitPartition.GetFixedWindowLimiter(ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown", _ =>
+            new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = builder.Configuration.GetValue("Shops:WritesPerIpPer10Minutes", 60),
+                Window = TimeSpan.FromMinutes(10),
+            }));
+    o.AddPolicy(LotteryChecker.Api.Controllers.ShopsController.ImageRateLimitPolicy, ctx =>
+        RateLimitPartition.GetFixedWindowLimiter(ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown", _ =>
+            new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = builder.Configuration.GetValue("Shops:ImagesPerIpPer10Minutes", 15),
+                Window = TimeSpan.FromMinutes(10),
+            }));
+    o.AddPolicy(LotteryChecker.Api.Controllers.GeoController.RateLimitPolicy, ctx =>
+        RateLimitPartition.GetFixedWindowLimiter(ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown", _ =>
+            new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = builder.Configuration.GetValue("Geo:PermitPerIpPerMinute", 20),
+                Window = TimeSpan.FromMinutes(1),
             }));
     // Mua vé cào: theo tài khoản — chặn script bấm mua liên tục.
     o.AddPolicy(LotteryChecker.Api.Controllers.TicketsController.BuyRateLimitPolicy, ctx =>
