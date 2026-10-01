@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
+import type { TFunction } from 'i18next'
 import { useTranslation } from 'react-i18next'
 import { getPrediction, type NumberStat, type Prediction, type ProvincePrediction } from '../api/client'
+import { animalOf } from '../data/animals'
 import { provinceName } from '../data/provinces'
 import { currentLocale } from '../i18n'
 import { addDays, formatDate, formatDayMonth, todayIso, weekday } from '../utils/date'
@@ -162,14 +164,18 @@ function ProvinceCard({ p }: { p: ProvincePrediction }) {
 
           <Section icon="cold" title={t('overdue')} hint={t('overdueHint')}>
             <div className="flex flex-wrap gap-2">
-              {p.overdue.map(s => (
-                <span key={s.number} title={t('hitsOf', { hits: s.hits, draws: p.draws })}
-                      className={`inline-flex items-baseline gap-1.5 rounded-full border px-3 py-1.5 text-sm
-                                  ${actual?.has(s.number) ? 'border-ok bg-ok/10' : 'border-line bg-muted/60'}`}>
-                  <b className="font-mono tabular-nums">{s.number}</b>
-                  <span className="text-xs text-ink-faint">{t('gap', { count: s.gap })}</span>
-                </span>
-              ))}
+              {p.overdue.map(s => {
+                const animal = animalOf(s.number)
+                return (
+                  <span key={s.number} title={withAnimal(t, s.number, t('hitsOf', { hits: s.hits, draws: p.draws }))}
+                        className={`inline-flex items-baseline gap-1.5 rounded-full border px-3 py-1.5 text-sm
+                                    ${actual?.has(s.number) ? 'border-ok bg-ok/10' : 'border-line bg-muted/60'}`}>
+                    {animal && <span aria-hidden className="self-center text-base leading-none">{animal.emoji}</span>}
+                    <b className="font-mono tabular-nums">{s.number}</b>
+                    <span className="text-xs text-ink-faint">{t('gap', { count: s.gap })}</span>
+                  </span>
+                )
+              })}
             </div>
           </Section>
 
@@ -213,15 +219,26 @@ function Section({ icon, title, hint, children }: {
   )
 }
 
-/** Viên số gợi ý + xác suất bên dưới; hit = ngày đã có kết quả và số này về thật. */
+/** Tooltip kèm con vật của số (nếu có): "07 · Con heo — Về 5 lần / 50 kỳ". */
+function withAnimal(t: TFunction<'predict'>, number: string, text: string) {
+  const animal = animalOf(number)
+  return animal ? `${number} · ${t(`animals.${animal.key}`)} — ${text}` : text
+}
+
+/** Viên số gợi ý + con vật + xác suất bên dưới; hit = ngày đã có kết quả và số này về thật. */
 function Ball({ stat, total, hit }: { stat: NumberStat; total: number; hit?: boolean }) {
   const { t } = useTranslation('predict')
+  const animal = animalOf(stat.number)
   return (
-    <span className="flex flex-col items-center gap-1" title={t('hitsOf', { hits: stat.hits, draws: total })}>
+    <span className="flex flex-col items-center gap-1" title={withAnimal(t, stat.number, t('hitsOf', { hits: stat.hits, draws: total }))}>
       <span className={`relative w-11 h-11 rounded-full flex items-center justify-center font-mono text-lg font-extrabold shadow-md
                         bg-gradient-to-br from-primary to-primary-end text-on-primary
                         ${hit ? 'ring-4 ring-ok/60' : ''}`}>
         {stat.number}
+        {animal && (
+          <span aria-hidden className="absolute -bottom-1 -left-1.5 w-6 h-6 rounded-full bg-surface border border-line shadow-sm
+                                       flex items-center justify-center text-sm leading-none">{animal.emoji}</span>
+        )}
         {hit && (
           <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-ok text-white flex items-center justify-center">
             <Icon name="check" className="w-3 h-3" strokeWidth={3} />
@@ -229,6 +246,7 @@ function Ball({ stat, total, hit }: { stat: NumberStat; total: number; hit?: boo
         )}
       </span>
       <span className="text-[11px] text-ink-faint tabular-nums">{pct(stat.probability)}</span>
+      {animal && <span className="text-[10px] leading-none text-ink-soft whitespace-nowrap">{t(`animals.${animal.key}`)}</span>}
     </span>
   )
 }
@@ -238,6 +256,7 @@ function HeatGrid({ stats, draws, actual }: { stats: NumberStat[]; draws: number
   const { t } = useTranslation('predict')
   const [picked, setPicked] = useState<NumberStat | null>(null)
   const max = Math.max(...stats.map(s => s.probability), 0.0001)
+  const pickedAnimal = picked && animalOf(picked.number)
   return (
     <div className="mt-3">
       <p className="text-xs text-ink-faint mb-2">{t('tableHint')}</p>
@@ -259,6 +278,7 @@ function HeatGrid({ stats, draws, actual }: { stats: NumberStat[]; draws: number
       {picked && (
         <p className="mt-2 text-sm">
           <b className="font-mono">{picked.number}</b>
+          {pickedAnimal && <> {pickedAnimal.emoji} {t(`animals.${pickedAnimal.key}`)}</>}
           {' · '}{t('probability', { value: pct(picked.probability) })}
           {' · '}{t('hitsOf', { hits: picked.hits, draws })}
           {' · '}{t('overdue')}: {t('gap', { count: picked.gap })}
