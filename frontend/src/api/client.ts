@@ -370,12 +370,12 @@ export async function changePassword(currentPassword: string, newPassword: strin
 }
 
 // ── Cờ tính năng: tắt = user thường không thấy (máy chủ cũng chặn API); admin luôn xem trước được ──
-export type FeatureKey = 'checkHistory' | 'scratchTickets'
+export type FeatureKey = 'checkHistory' | 'scratchTickets' | 'shopMap'
 
 /** available = người đang xem dùng được; enabled = đã bật cho mọi người (admin xem trước khi available && !enabled). */
 export type Features = { available: Record<FeatureKey, boolean>; enabled: Record<FeatureKey, boolean> }
 
-const NO_FEATURES: Record<FeatureKey, boolean> = { checkHistory: false, scratchTickets: false }
+const NO_FEATURES: Record<FeatureKey, boolean> = { checkHistory: false, scratchTickets: false, shopMap: false }
 export const FEATURES_OFF: Features = { available: NO_FEATURES, enabled: NO_FEATURES }
 
 /** Lỗi mạng → coi như tắt hết: tính năng mới thà ẩn nhầm còn hơn hiện ra rồi gọi API lỗi. */
@@ -810,12 +810,17 @@ export async function getBlogPost(id: number | string) {
 // ── Chuông thông báo (cần đăng nhập); thông báo mới đẩy realtime qua SignalR — xem NotificationBell ──
 export type AppNotification = {
   id: number
-  kind: 'PostComment' | 'CommentReply'
-  postId: number
-  commentId: number
-  postTitle: string
-  /** null = người viết ký Ẩn danh. */
+  kind: 'PostComment' | 'CommentReply' | 'ShopReview' | 'ShopWin'
+  /** Blog — null với thông báo điểm bán. */
+  postId: number | null
+  commentId: number | null
+  postTitle: string | null
+  /** null = người viết ký Ẩn danh. Điểm bán: username người đánh giá / báo vé trúng. */
   actorName: string | null
+  /** Điểm bán (ShopReview / ShopWin). ShopWin: snippet = "đài|giải|yyyy-MM-dd". */
+  shopPublicId?: string | null
+  shopName?: string | null
+  stars?: number | null
   snippet: string
   createdAt: string
   isRead: boolean
@@ -842,3 +847,182 @@ export async function markNotificationsRead(ids?: number[]) {
     throw toFriendlyError(e)
   }
 }
+
+// ── Bản đồ điểm bán vé số (cờ shopMap): khách xem; ghim / đánh giá / báo cáo cần đăng nhập ──
+export type ShopType = 'Agency' | 'Street' | 'Vietlott' | 'Redemption'
+export const SHOP_TYPES: ShopType[] = ['Agency', 'Street', 'Vietlott', 'Redemption']
+export type ShopReportReason = 'NotExist' | 'WrongLocation' | 'Duplicate' | 'Spam' | 'Other'
+export const SHOP_REPORT_REASONS: ShopReportReason[] = ['NotExist', 'WrongLocation', 'Duplicate', 'Spam', 'Other']
+
+/** Marker gọn cho bản đồ / danh sách. Giờ mở/đóng = phút trong ngày (giờ VN); distanceM chỉ có ở "gần tôi". */
+export type ShopMarker = {
+  id: string
+  lat: number
+  lng: number
+  type: ShopType
+  name: string
+  address: string
+  rating: number | null
+  ratingCount: number
+  winCount: number
+  opensAtMin: number | null
+  closesAtMin: number | null
+  lastConfirmedAt: string | null
+  distanceM?: number | null
+}
+
+export type ShopReview = { id: number; username: string; stars: number; content: string | null; updatedAt: string; mine: boolean }
+export type ShopWin = {
+  id: number; username: string; drawDate: string; provinceCode: string; prizeTier: string
+  imageUrl: string | null; createdAt: string; mine: boolean
+}
+
+export type ShopDetail = {
+  id: string
+  name: string
+  type: ShopType
+  lat: number
+  lng: number
+  address: string
+  phone: string | null
+  opensAtMin: number | null
+  closesAtMin: number | null
+  note: string | null
+  imageUrl: string | null
+  status: 'Visible' | 'Hidden'
+  confirmCount: number
+  lastConfirmedAt: string | null
+  rating: number | null
+  ratingCount: number
+  winCount: number
+  createdBy: string
+  createdAt: string
+  mine: boolean
+  canEdit: boolean
+  confirmedRecently: boolean
+  reportedByMe: boolean
+  myReview: ShopReview | null
+  reviews: ShopReview[]
+  wins: ShopWin[]
+}
+
+export type ShopInput = {
+  name: string
+  type: ShopType
+  lat: number
+  lng: number
+  address: string
+  phone: string | null
+  phoneConsent: boolean
+  opensAtMin: number | null
+  closesAtMin: number | null
+  note: string | null
+  imageId?: number | null
+  removeImage?: boolean
+}
+
+export type ShopOptions = {
+  imagesEnabled: boolean; maxImageBytes: number; duplicateRadiusM: number
+  xsktTiers: string[]; vietlottTiers: string[]
+}
+
+export type GeoPlace = { label: string; lat: number; lng: number }
+
+export type ReportedShop = {
+  id: string; name: string; type: ShopType; address: string; lat: number; lng: number
+  status: 'Visible' | 'Hidden'; reportCount: number; createdBy: string; createdAt: string
+  reports: { username: string; reason: ShopReportReason; note: string | null; createdAt: string }[]
+}
+
+async function call<T>(fn: () => Promise<{ data: unknown }>) {
+  try {
+    return (await fn()).data as T
+  } catch (e) {
+    throw toFriendlyError(e)
+  }
+}
+
+let shopOptions: Promise<ShopOptions> | null = null
+
+export function getShopOptions(): Promise<ShopOptions> {
+  shopOptions ??= api.get('/api/shops/options').then(r => r.data as ShopOptions)
+    .catch(() => {
+      shopOptions = null
+      return { imagesEnabled: false, maxImageBytes: 0, duplicateRadiusM: 30, xsktTiers: [], vietlottTiers: [] }
+    })
+  return shopOptions
+}
+
+/** bbox = [minLat, minLng, maxLat, maxLng]. */
+export const listShops = (bbox: [number, number, number, number], types: ShopType[], hasWin: boolean, signal?: AbortSignal) =>
+  call<ShopMarker[]>(() => api.get('/api/shops', {
+    params: { bbox: bbox.map(v => v.toFixed(5)).join(','), types: types.join(',') || undefined, hasWin: hasWin || undefined },
+    signal,
+  }))
+
+export const nearbyShops = (lat: number, lng: number, radius: number, signal?: AbortSignal) =>
+  call<ShopMarker[]>(() => api.get('/api/shops/nearby', { params: { lat, lng, radius }, signal }))
+
+export const searchShops = (q: string, near?: { lat: number; lng: number }, signal?: AbortSignal) =>
+  call<ShopMarker[]>(() => api.get('/api/shops/search', { params: { q, lat: near?.lat, lng: near?.lng }, signal }))
+
+export const getShop = (id: string) => call<ShopDetail>(() => api.get(`/api/shops/${id}`))
+
+export const createShop = (body: ShopInput) => call<ShopDetail>(() => api.post('/api/shops', body))
+
+export const updateShop = (id: string, body: ShopInput) => call<ShopDetail>(() => api.put(`/api/shops/${id}`, body))
+
+export const deleteShop = (id: string) => call<void>(() => api.delete(`/api/shops/${id}`))
+
+export const confirmShop = (id: string) =>
+  call<{ confirmCount: number; lastConfirmedAt: string | null }>(() => api.post(`/api/shops/${id}/confirm`))
+
+export const upsertShopReview = (id: string, stars: number, content: string | null) =>
+  call<{ review: ShopReview; rating: number | null; ratingCount: number }>(() => api.put(`/api/shops/${id}/review`, { stars, content }))
+
+export const deleteShopReview = (reviewId: number) =>
+  call<{ rating: number | null; ratingCount: number }>(() => api.delete(`/api/shops/reviews/${reviewId}`))
+
+export const addShopWin = (id: string, body: { drawDate: string; provinceCode: string; prizeTier: string; imageId?: number | null }) =>
+  call<ShopWin>(() => api.post(`/api/shops/${id}/wins`, body))
+
+export const deleteShopWin = (winId: number) => call<{ winCount: number }>(() => api.delete(`/api/shops/wins/${winId}`))
+
+export const reportShop = (id: string, reason: ShopReportReason, note: string | null) =>
+  call<{ hidden: boolean }>(() => api.post(`/api/shops/${id}/report`, { reason, note }))
+
+/** Nén rồi upload 1 ảnh (điểm bán / vé trúng) → id gửi kèm lúc lưu. */
+export async function uploadShopImage(file: Blob, signal?: AbortSignal) {
+  try {
+    const c = await compressImage(file, DEFAULT_COMPRESS)
+    const fd = new FormData()
+    fd.append('image', c.blob, 'image.jpg')
+    const { data } = await api.post('/api/shops/images', fd, { timeout: 60_000, signal })
+    return data as { id: number; url: string }
+  } catch (e) {
+    throw toFriendlyError(e)
+  }
+}
+
+/** Ảnh điểm bán đi qua backend như ảnh Blog. */
+export const shopImageUrl = (path: string) => `${API_BASE}${path}`
+
+export const geoSearch = (q: string, signal?: AbortSignal) =>
+  call<GeoPlace[]>(() => api.get('/api/geo/search', { params: { q }, signal }))
+
+export const geoReverse = (lat: number, lng: number, signal?: AbortSignal) =>
+  call<GeoPlace | null>(() => api.get('/api/geo/reverse', { params: { lat, lng }, signal }))
+
+export const getReportedShops = () => call<ReportedShop[]>(() => api.get('/api/admin/shops/reported'))
+
+export const setShopStatus = (id: string, status: 'Visible' | 'Hidden') =>
+  call<void>(() => api.post(`/api/admin/shops/${id}/status`, { status }))
+
+export type ShopSnapshot = {
+  name: string; type: ShopType; lat: number; lng: number; address: string; phone: string | null
+  opensAtMin: number | null; closesAtMin: number | null; note: string | null; imageUrl: string | null
+}
+export type ShopRevision = { id: number; username: string; action: 'Created' | 'Updated'; createdAt: string; snapshot: ShopSnapshot }
+
+/** Lịch sử tạo / sửa 1 điểm (admin), mới nhất trước. */
+export const getShopHistory = (id: string) => call<ShopRevision[]>(() => api.get(`/api/admin/shops/${id}/history`))

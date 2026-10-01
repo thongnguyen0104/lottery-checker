@@ -28,6 +28,9 @@ type Props = {
   /** Chỉ hiện khi account.isAdmin. */
   onOpenAdmin: () => void
   onChangePassword: () => void
+  /** Bản đồ điểm bán (cờ shopMap) — không nằm trên dãy tab, mở từ menu logo. */
+  showMap: boolean
+  onOpenMap: () => void
   /** Bấm 1 thông báo trong chuông (chỉ hiện khi đã đăng nhập) — mở bài đó. */
   onOpenNotification: (n: AppNotification) => void
 }
@@ -36,7 +39,7 @@ type Props = {
  *  (điện thoại dùng BottomNav cho vừa tầm ngón cái). Bấm logo sổ menu: ủng hộ, tài khoản, đăng nhập/xuất,
  *  ngôn ngữ, bảng màu. */
 export default function AppHeader({ view, busy, onChange, onOpenTheme, onOpenDonate, account, showProfile, onOpenAuth, onLogout, onOpenProfile,
-                                    onOpenAdmin, onChangePassword, onOpenNotification }: Props) {
+                                    onOpenAdmin, onChangePassword, showMap, onOpenMap, onOpenNotification }: Props) {
   const { t, i18n } = useTranslation()
   const lang = currentLang()
   const [confirmLogout, setConfirmLogout] = useState(false)
@@ -84,6 +87,10 @@ export default function AppHeader({ view, busy, onChange, onOpenTheme, onOpenDon
             <div role="menu"
                  className="absolute left-0 top-full mt-3 w-64 p-1.5 rounded-2xl bg-surface border border-line shadow-2xl z-40">
               <MenuItem icon="donate" label={t('app.donate')} onClick={pick(onOpenDonate)} iconClass="text-accent" />
+              {showMap && (
+                <MenuItem icon="map" label={t('views.map.title')} onClick={pick(onOpenMap)}
+                          iconClass="text-brand-700 dark:text-brand-400" />
+              )}
               {account && showProfile && (
                 <MenuItem icon="wallet" label={t('auth.profile')} onClick={pick(onOpenProfile)}
                           iconClass="text-brand-700 dark:text-brand-400" />

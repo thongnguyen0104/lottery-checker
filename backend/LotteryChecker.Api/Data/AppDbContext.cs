@@ -20,6 +20,13 @@ public class AppDbContext : DbContext
     public DbSet<WalletTransaction> WalletTransactions => Set<WalletTransaction>();
     public DbSet<FeatureFlag> FeatureFlags => Set<FeatureFlag>();
     public DbSet<Notification> Notifications => Set<Notification>();
+    public DbSet<ShopLocation> Shops => Set<ShopLocation>();
+    public DbSet<ShopConfirm> ShopConfirms => Set<ShopConfirm>();
+    public DbSet<ShopReview> ShopReviews => Set<ShopReview>();
+    public DbSet<ShopWinReport> ShopWinReports => Set<ShopWinReport>();
+    public DbSet<ShopReport> ShopReports => Set<ShopReport>();
+    public DbSet<ShopImage> ShopImages => Set<ShopImage>();
+    public DbSet<ShopRevision> ShopRevisions => Set<ShopRevision>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -128,6 +135,75 @@ public class AppDbContext : DbContext
             e.HasOne<User>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne<BlogPost>().WithMany().HasForeignKey(x => x.PostId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne<BlogComment>().WithMany().HasForeignKey(x => x.CommentId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne<ShopLocation>().WithMany().HasForeignKey(x => x.ShopId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne<ShopReview>().WithMany().HasForeignKey(x => x.ShopReviewId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne<ShopWinReport>().WithMany().HasForeignKey(x => x.ShopWinReportId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<ShopLocation>(e =>
+        {
+            e.ToTable("Shops");
+            e.HasIndex(x => x.PublicId).IsUnique();
+            e.HasIndex(x => new { x.Status, x.Lat, x.Lng });   // truy vấn theo khung nhìn bản đồ
+            e.HasIndex(x => new { x.UserId, x.CreatedAt });    // giới hạn số điểm tạo / ngày
+            e.Property(x => x.Name).HasMaxLength(80);
+            e.Property(x => x.Address).HasMaxLength(200);
+            e.Property(x => x.Phone).HasMaxLength(15);
+            e.Property(x => x.Note).HasMaxLength(500);
+            e.Property(x => x.ImageKey).HasMaxLength(80);
+            e.Property(x => x.Type).HasConversion<string>().HasMaxLength(12);
+            e.Property(x => x.Status).HasConversion<string>().HasMaxLength(8);
+            e.HasOne<User>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<ShopConfirm>(e =>
+        {
+            e.HasKey(x => new { x.ShopId, x.UserId });
+            e.HasOne<ShopLocation>().WithMany().HasForeignKey(x => x.ShopId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne<User>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<ShopReview>(e =>
+        {
+            e.HasIndex(x => new { x.ShopId, x.UserId }).IsUnique();
+            e.Property(x => x.Content).HasMaxLength(1000);
+            e.HasOne<ShopLocation>().WithMany().HasForeignKey(x => x.ShopId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne<User>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<ShopWinReport>(e =>
+        {
+            e.HasIndex(x => new { x.ShopId, x.DrawDate });
+            e.Property(x => x.ProvinceCode).HasMaxLength(32);
+            e.Property(x => x.PrizeTier).HasMaxLength(10);
+            e.Property(x => x.ImageKey).HasMaxLength(80);
+            e.HasOne<ShopLocation>().WithMany().HasForeignKey(x => x.ShopId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne<User>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<ShopReport>(e =>
+        {
+            e.HasKey(x => new { x.ShopId, x.UserId });
+            e.Property(x => x.Reason).HasConversion<string>().HasMaxLength(14);
+            e.Property(x => x.Note).HasMaxLength(300);
+            e.HasOne<ShopLocation>().WithMany().HasForeignKey(x => x.ShopId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne<User>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<ShopRevision>(e =>
+        {
+            e.HasIndex(x => new { x.ShopId, x.Id });
+            e.Property(x => x.Action).HasConversion<string>().HasMaxLength(8);
+            e.Property(x => x.SnapshotJson).HasMaxLength(2000);
+            e.HasOne<ShopLocation>().WithMany().HasForeignKey(x => x.ShopId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne<User>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<ShopImage>(e =>
+        {
+            e.HasIndex(x => x.Key).IsUnique();
+            e.HasIndex(x => new { x.Used, x.CreatedAt });
+            e.Property(x => x.Key).HasMaxLength(80);
         });
 
         b.Entity<WalletTransaction>(e =>

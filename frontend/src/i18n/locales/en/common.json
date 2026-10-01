@@ -82,6 +82,8 @@
     "someone": "Anonymous",
     "PostComment": "<b>{{name}}</b> commented on your post <b>{{title}}</b>",
     "CommentReply": "<b>{{name}}</b> replied to your comment on <b>{{title}}</b>",
+    "ShopReview": "<b>{{name}}</b> gave your shop <b>{{shop}}</b> {{stars}}★",
+    "ShopWin": "<b>{{name}}</b> reported a winning ticket from your shop <b>{{shop}}</b>",
     "loadError": "Couldn't load notifications.",
     "focusedPost": "Post from notification",
     "showAll": "See all posts",
@@ -109,6 +111,7 @@
     "results": { "title": "Lottery Results", "short": "Results", "hint": "Full result tables by province" },
     "blog": { "title": "Blog", "short": "Blog", "hint": "Share your lottery stories" },
     "profile": { "title": "Account", "short": "Account", "hint": "Your tickets, check history and balance" },
+    "map": { "title": "Shop map", "short": "Map", "hint": "Find and share lottery shops" },
     "admin": { "title": "Admin", "short": "Admin", "hint": "Manage accounts and balances" }
   },
   "theme": {

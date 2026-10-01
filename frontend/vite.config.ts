@@ -18,6 +18,19 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'favicon.svg', 'icons/apple-touch-icon.png'],
+      workbox: {
+        // Tile bản đồ điểm bán (Esri sáng / tối): xem rồi thì mất mạng vẫn hiện lại được.
+        // CacheFirst + giới hạn số ô để không phình bộ nhớ máy; KHÔNG tải trước (policy OSM cấm prefetch hàng loạt).
+        runtimeCaching: [{
+          urlPattern: ({ url }) => url.hostname === 'server.arcgisonline.com' && url.pathname.includes('/MapServer/tile/'),
+          handler: 'CacheFirst',
+          options: {
+            cacheName: 'map-tiles',
+            expiration: { maxEntries: 800, maxAgeSeconds: 30 * 24 * 3600, purgeOnQuotaError: true },
+            cacheableResponse: { statuses: [0, 200] },
+          },
+        }],
+      },
       manifest: {
         name: 'Dò Vé Số',
         short_name: 'Dò Vé Số',

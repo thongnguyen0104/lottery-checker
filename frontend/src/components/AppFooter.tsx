@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import Icon from './Icon'
 import { currentLang } from '../i18n'
-import { VIEWS, viewPath, type View } from '../views'
+import { EXTRA_VIEWS, VIEWS, viewPath, type View } from '../views'
 
 type DrawId = 'south' | 'central' | 'north' | 'vietlott'
 type DrawState = 'done' | 'live' | 'next' | 'later' | 'off'
@@ -51,7 +51,11 @@ const fmtTime = (m: number) => `${String(Math.floor(m / 60)).padStart(2, '0')}:$
 
 /** Chân trang: giới thiệu + ủng hộ, lịch quay số hôm nay, link tính năng (điện thoại đã có BottomNav
  *  nên ẩn), lưu ý chơi có trách nhiệm, bản quyền + đổi ngôn ngữ + lên đầu trang. */
-export default function AppFooter({ onNavigate, onOpenDonate }: { onNavigate: (v: View) => void; onOpenDonate: () => void }) {
+export default function AppFooter({ onNavigate, onOpenDonate, showMap }: {
+  onNavigate: (v: View) => void; onOpenDonate: () => void
+  /** Bản đồ điểm bán (cờ shopMap) — thêm vào danh sách link tính năng. */
+  showMap: boolean
+}) {
   const { t, i18n } = useTranslation()
   const lang = currentLang()
   const draws = useDrawSchedule()
@@ -159,7 +163,7 @@ export default function AppFooter({ onNavigate, onOpenDonate }: { onNavigate: (v
                 <nav aria-label={t('app.features')} className="hidden md:block">
                   <h2 className="text-sm font-bold mb-3">{t('app.features')}</h2>
                   <ul className="space-y-1">
-                    {VIEWS.map(v => (
+                    {[...VIEWS, ...(showMap ? EXTRA_VIEWS.filter(x => x.id === 'map') : [])].map(v => (
                       <li key={v.id}>
                         <a href={viewPath(v.id)}
                            onClick={e => {

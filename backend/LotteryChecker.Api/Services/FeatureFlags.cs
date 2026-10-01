@@ -13,6 +13,7 @@ public class FeatureFlags(AppDbContext db, IMemoryCache cache, TimeProvider cloc
 {
     public const string CheckHistory = "checkHistory";
     public const string ScratchTickets = "scratchTickets";
+    public const string ShopMap = "shopMap";
 
     public record Definition(string Key, string NameVi, string NameEn, string DescriptionVi, string DescriptionEn);
 
@@ -25,6 +26,9 @@ public class FeatureFlags(AppDbContext db, IMemoryCache cache, TimeProvider cloc
         new(ScratchTickets, "Vé cào 2 số", "2-digit scratch tickets",
             "Mua vé cào, mục Vé của tôi và thẻ số dư ở trang Tài khoản. Vé đã mua vẫn được chốt và trả thưởng khi tắt.",
             "Buying scratch tickets, My tickets and the balance card. Bought tickets still settle and pay out while off."),
+        new(ShopMap, "Bản đồ điểm bán", "Shop map",
+            "Bản đồ điểm bán vé số do người dùng ghim (/ban-do): thêm điểm, xác nhận, đánh giá, báo vé trúng, báo cáo.",
+            "The user-pinned lottery shop map (/ban-do): add shops, confirm, review, report wins and abuse."),
     ];
 
     public record FlagDto(string Key, string Name, string Description, bool Enabled, DateTime? UpdatedAt, string? UpdatedBy);
