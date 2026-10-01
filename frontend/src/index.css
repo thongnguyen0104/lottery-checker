@@ -305,3 +305,18 @@ input[type="date"]::-webkit-date-and-time-value {
   .wiggle, .tab-pop { animation: none; }
   .btn-close:hover svg { transform: none; }
 }
+
+/* Nội dung có định dạng của website con (giới thiệu, bài viết) + khung soạn TipTap — Tailwind base đã xoá
+   mọi kiểu mặc định của h2/ul/blockquote nên phải đặt lại. Màu chữ kế thừa từ thẻ chứa. */
+.site-prose { line-height: 1.7; overflow-wrap: anywhere; }
+.site-prose > * + * { margin-top: 0.75em; }
+.site-prose h2 { font-size: 1.35em; font-weight: 700; line-height: 1.3; margin-top: 1.2em; }
+.site-prose h3 { font-size: 1.15em; font-weight: 700; margin-top: 1em; }
+.site-prose ul { list-style: disc; padding-left: 1.4em; }
+.site-prose ol { list-style: decimal; padding-left: 1.4em; }
+.site-prose blockquote { border-left: 3px solid var(--sp, currentColor); padding-left: 1em; opacity: 0.85; font-style: italic; }
+.site-prose a { color: var(--sp, rgb(var(--brand-600))); text-decoration: underline; }
+.site-prose img { max-width: 100%; height: auto; border-radius: 0.75rem; }
+.site-prose code { font-family: ui-monospace, monospace; font-size: 0.9em; background: rgb(0 0 0 / 0.06); padding: 0.1em 0.3em; border-radius: 0.25rem; }
+.site-prose hr { border-color: rgb(0 0 0 / 0.15); }
+.site-prose p.is-editor-empty:first-child::before { content: attr(data-placeholder); float: left; opacity: 0.4; pointer-events: none; height: 0; }

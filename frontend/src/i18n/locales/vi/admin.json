@@ -20,7 +20,7 @@
   "badge": { "admin": "Admin", "mustChange": "Chờ đổi mật khẩu", "you": "Bạn" },
   "back": "Danh sách",
   "pick": "Chọn một tài khoản để xem chi tiết.",
-  "sections": { "users": "Người dùng", "features": "Tính năng", "shops": "Điểm bán" },
+  "sections": { "users": "Người dùng", "features": "Tính năng", "shops": "Điểm bán", "sites": "Website" },
   "features": {
     "hint": "Tính năng đang tắt bị ẩn với user thường và máy chủ chặn luôn API. Admin vẫn thấy để kiểm tra trước khi bật.",
     "on": "Đang bật",

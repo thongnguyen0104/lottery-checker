@@ -31,6 +31,11 @@ public class BlogImageCleanupWorker(IServiceScopeFactory scopeFactory, BlogImage
                 var shopOrphans = await shops.OrphanImagesAsync(clock.GetUtcNow().UtcDateTime - ShopService.PendingImageTtl, BatchSize, ct);
                 if (shopOrphans.Count > 0)
                     logger.LogInformation("Dọn ảnh điểm bán mồ côi: xoá {Done}/{Count} ảnh.", await PurgeShopImagesAsync(shops, shopOrphans, ct), shopOrphans.Count);
+
+                var sites = scope.ServiceProvider.GetRequiredService<SiteService>();
+                var siteOrphans = await sites.OrphanImagesAsync(clock.GetUtcNow().UtcDateTime - SiteService.PendingImageTtl, BatchSize, ct);
+                if (siteOrphans.Count > 0)
+                    logger.LogInformation("Dọn ảnh website con mồ côi: xoá {Done}/{Count} ảnh.", await PurgeSiteImagesAsync(sites, siteOrphans, ct), siteOrphans.Count);
             }
             catch (Exception e) when (e is not OperationCanceledException)
             {
@@ -56,6 +61,26 @@ public class BlogImageCleanupWorker(IServiceScopeFactory scopeFactory, BlogImage
             }
         }
         if (done.Count > 0) await shops.RemoveImageRowsAsync(done, ct);
+        return done.Count;
+    }
+
+    private async Task<int> PurgeSiteImagesAsync(SiteService sites, List<SiteImage> orphans, CancellationToken ct)
+    {
+        var done = new List<SiteImage>();
+        foreach (var img in orphans)
+        {
+            try
+            {
+                await storage.DeleteAsync(img.Key, ct);
+                done.Add(img);
+            }
+            catch (Exception e) when (e is not OperationCanceledException)
+            {
+                storage.Evict(img.Key);
+                logger.LogWarning(e, "Không xoá được ảnh website con {Key} trên bucket — để lượt sau thử lại.", img.Key);
+            }
+        }
+        if (done.Count > 0) await sites.RemoveImageRowsAsync(done, ct);
         return done.Count;
     }
 }

@@ -84,6 +84,7 @@
     "CommentReply": "<b>{{name}}</b> replied to your comment on <b>{{title}}</b>",
     "ShopReview": "<b>{{name}}</b> gave your shop <b>{{shop}}</b> {{stars}}★",
     "ShopWin": "<b>{{name}}</b> reported a winning ticket from your shop <b>{{shop}}</b>",
+    "SiteReservation": "<b>{{name}}</b> wants to reserve {{qty}} × {{product}} on your site",
     "loadError": "Couldn't load notifications.",
     "focusedPost": "Post from notification",
     "showAll": "See all posts",
@@ -112,7 +113,9 @@
     "blog": { "title": "Blog", "short": "Blog", "hint": "Share your lottery stories" },
     "profile": { "title": "Account", "short": "Account", "hint": "Your tickets, check history and balance" },
     "map": { "title": "Shop map", "short": "Map", "hint": "Find and share lottery shops" },
-    "admin": { "title": "Admin", "short": "Admin", "hint": "Manage accounts and balances" }
+    "admin": { "title": "Admin", "short": "Admin", "hint": "Manage accounts and balances" },
+    "mySite": { "title": "My site", "short": "Site", "hint": "Build a page for your shop" },
+    "site": { "title": "Site", "short": "Site", "hint": "" }
   },
   "theme": {
     "dialog": "Customize appearance",

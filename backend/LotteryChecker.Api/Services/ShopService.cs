@@ -70,7 +70,7 @@ public partial class ShopService(AppDbContext db, TimeProvider clock, ShopOption
                             int ConfirmCount, DateTime? LastConfirmedAt, double? Rating, int RatingCount, int WinCount,
                             string CreatedBy, DateTime CreatedAt, bool Mine, bool CanEdit,
                             bool ConfirmedRecently, bool ReportedByMe, ReviewDto? MyReview,
-                            ReviewDto[] Reviews, WinDto[] Wins);
+                            ReviewDto[] Reviews, WinDto[] Wins, string? SiteSlug = null);
 
     public record ReviewInput(int Stars, string? Content);
     public record WinInput(DateOnly DrawDate, string? ProvinceCode, string? PrizeTier, int? ImageId = null);
@@ -230,7 +230,10 @@ public partial class ShopService(AppDbContext db, TimeProvider clock, ShopOption
             Rating(s), s.RatingCount, s.WinReportCount, createdBy, Utc(s.CreatedAt),
             Mine: s.UserId == userId, CanEdit: s.UserId == userId || isAdmin, confirmedRecently, reported, mine,
             reviews.Select(x => ToReview(x.r, x.Username, userId)).ToArray(),
-            wins.Select(x => ToWin(x.w, x.Username, userId)).ToArray());
+            wins.Select(x => ToWin(x.w, x.Username, userId)).ToArray(),
+            // Website con gắn với điểm (đã publish, không ẩn) — bản đồ hiện nút "Xem website".
+            await db.Sites.Where(x => x.ShopId == s.Id && x.Status == SiteStatus.Active && x.PublishedJson != null)
+                .Select(x => x.Slug).FirstOrDefaultAsync(ct));
     }
 
     // ───────────────────────── Tạo / sửa / xoá ─────────────────────────

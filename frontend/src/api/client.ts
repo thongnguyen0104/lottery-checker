@@ -370,12 +370,12 @@ export async function changePassword(currentPassword: string, newPassword: strin
 }
 
 // ── Cờ tính năng: tắt = user thường không thấy (máy chủ cũng chặn API); admin luôn xem trước được ──
-export type FeatureKey = 'checkHistory' | 'scratchTickets' | 'shopMap'
+export type FeatureKey = 'checkHistory' | 'scratchTickets' | 'shopMap' | 'sites'
 
 /** available = người đang xem dùng được; enabled = đã bật cho mọi người (admin xem trước khi available && !enabled). */
 export type Features = { available: Record<FeatureKey, boolean>; enabled: Record<FeatureKey, boolean> }
 
-const NO_FEATURES: Record<FeatureKey, boolean> = { checkHistory: false, scratchTickets: false, shopMap: false }
+const NO_FEATURES: Record<FeatureKey, boolean> = { checkHistory: false, scratchTickets: false, shopMap: false, sites: false }
 export const FEATURES_OFF: Features = { available: NO_FEATURES, enabled: NO_FEATURES }
 
 /** Lỗi mạng → coi như tắt hết: tính năng mới thà ẩn nhầm còn hơn hiện ra rồi gọi API lỗi. */
@@ -810,7 +810,7 @@ export async function getBlogPost(id: number | string) {
 // ── Chuông thông báo (cần đăng nhập); thông báo mới đẩy realtime qua SignalR — xem NotificationBell ──
 export type AppNotification = {
   id: number
-  kind: 'PostComment' | 'CommentReply' | 'ShopReview' | 'ShopWin'
+  kind: 'PostComment' | 'CommentReply' | 'ShopReview' | 'ShopWin' | 'SiteReservation'
   /** Blog — null với thông báo điểm bán. */
   postId: number | null
   commentId: number | null
@@ -821,6 +821,8 @@ export type AppNotification = {
   shopPublicId?: string | null
   shopName?: string | null
   stars?: number | null
+  /** Website con (SiteReservation): actorName = tên khách, snippet = "số lượng|tên sản phẩm". */
+  siteSlug?: string | null
   snippet: string
   createdAt: string
   isRead: boolean
@@ -904,6 +906,8 @@ export type ShopDetail = {
   myReview: ShopReview | null
   reviews: ShopReview[]
   wins: ShopWin[]
+  /** Website con gắn với điểm (đã publish) — nút "Xem website". */
+  siteSlug?: string | null
 }
 
 export type ShopInput = {
@@ -1026,3 +1030,161 @@ export type ShopRevision = { id: number; username: string; action: 'Created' | '
 
 /** Lịch sử tạo / sửa 1 điểm (admin), mới nhất trước. */
 export const getShopHistory = (id: string) => call<ShopRevision[]>(() => api.get(`/api/admin/shops/${id}/history`))
+
+// ── Website con /s/{slug} (cờ sites): khách xem + gửi yêu cầu giữ vé (trả tiền tại quầy); chủ site sửa nháp / publish ──
+export type SiteBlockType = 'hero' | 'about' | 'products' | 'reserve' | 'posts' | 'results' | 'map' | 'contact'
+export type SiteTheme = 'classic' | 'modern' | 'lucky' | 'minimal'
+export type SiteBlock = { type: SiteBlockType; enabled: boolean }
+
+/** Thứ tự blocks = thứ tự hiện trên trang. Ảnh là đường dẫn /api/sites/images/... */
+export type SiteConfig = {
+  name: string
+  tagline: string | null
+  theme: SiteTheme
+  primaryColor: string
+  logoUrl: string | null
+  coverUrl: string | null
+  phone: string | null
+  zalo: string | null
+  facebook: string | null
+  address: string | null
+  openingHours: string | null
+  aboutHtml: string | null
+  blocks: SiteBlock[]
+}
+
+export type SiteShopRef = {
+  id: string; name: string; address: string; lat: number; lng: number; opensAtMin: number | null; closesAtMin: number | null
+}
+
+export type MySite = {
+  id: string
+  slug: string
+  status: 'Active' | 'Hidden'
+  draft: SiteConfig
+  published: SiteConfig | null
+  publishedAt: string | null
+  hasUnpublishedChanges: boolean
+  shop: SiteShopRef | null
+  /** Điểm bán mình đã ghim — chọn để gắn vào site. */
+  myShops: SiteShopRef[]
+}
+
+export type SiteProductKind = 'Traditional' | 'Vietlott' | 'Scratch' | 'Other'
+export const SITE_PRODUCT_KINDS: SiteProductKind[] = ['Traditional', 'Vietlott', 'Scratch', 'Other']
+
+export type SiteProduct = {
+  id: number
+  name: string
+  description: string | null
+  /** VND; null = liên hệ. */
+  price: number | null
+  kind: SiteProductKind
+  imageUrl: string | null
+  /** null = không giới hạn; 0 = hết. */
+  stock: number | null
+  isVisible: boolean
+  sortOrder: number
+}
+export type SiteProductInput = Omit<SiteProduct, 'id'>
+
+export type SitePostSummary = {
+  id: string; title: string; excerpt: string; coverUrl: string | null
+  status: 'Draft' | 'Published'; publishedAt: string | null; crossPosted: boolean
+}
+export type SitePost = Omit<SitePostSummary, 'excerpt'> & { contentHtml: string }
+
+export type PublicSite = {
+  slug: string
+  owner: string
+  config: SiteConfig
+  shop: SiteShopRef | null
+  products: SiteProduct[]
+  posts: SitePostSummary[]
+}
+
+export type ReservationStatus = 'Pending' | 'Confirmed' | 'Completed' | 'Cancelled'
+export const RESERVATION_STATUSES: ReservationStatus[] = ['Pending', 'Confirmed', 'Completed', 'Cancelled']
+export type SiteReservation = {
+  id: string; productId: number | null; productName: string | null; customerName: string; phone: string
+  quantity: number; note: string | null; status: ReservationStatus; createdAt: string
+}
+
+export type SiteReportReason = 'Scam' | 'Inappropriate' | 'Impersonation' | 'Other'
+export const SITE_REPORT_REASONS: SiteReportReason[] = ['Scam', 'Inappropriate', 'Impersonation', 'Other']
+
+export type AdminSite = {
+  id: string; slug: string; name: string; owner: string; status: 'Active' | 'Hidden'; published: boolean; reportCount: number
+  createdAt: string; publishedAt: string | null
+  reports: { username: string; reason: SiteReportReason; note: string | null; createdAt: string }[]
+}
+
+export type SiteOptions = { imagesEnabled: boolean; maxImageBytes: number; slugMin: number; slugMax: number }
+
+let siteOptions: Promise<SiteOptions> | null = null
+export function getSiteOptions(): Promise<SiteOptions> {
+  siteOptions ??= api.get('/api/sites/options').then(r => r.data as SiteOptions)
+    .catch(() => {
+      siteOptions = null
+      return { imagesEnabled: false, maxImageBytes: 0, slugMin: 3, slugMax: 40 }
+    })
+  return siteOptions
+}
+
+/** Ảnh site đi qua backend như ảnh Blog. */
+export const siteImageUrl = (path: string) => `${API_BASE}${path}`
+
+export const checkSiteSlug = (slug: string, signal?: AbortSignal) =>
+  call<{ available: boolean; error?: string }>(() => api.get('/api/sites/slug-available', { params: { slug }, signal }))
+
+const siteBase = (slug: string) => `/api/sites/public/${encodeURIComponent(slug)}`
+
+export const getPublicSite = (slug: string, preview = false) =>
+  call<PublicSite>(() => api.get(siteBase(slug), { params: preview ? { preview: true } : {} }))
+export const getPublicSitePosts = (slug: string) => call<SitePostSummary[]>(() => api.get(`${siteBase(slug)}/posts`))
+export const getPublicSitePost = (slug: string, id: string) => call<SitePost>(() => api.get(`${siteBase(slug)}/posts/${id}`))
+export const reserveOnSite = (slug: string, body: {
+  productId: number | null; customerName: string; phone: string; quantity: number; note: string | null
+}) => call<{ id: string }>(() => api.post(`${siteBase(slug)}/reservations`, body))
+export const reportSite = (slug: string, reason: SiteReportReason, note: string | null) =>
+  call<{ hidden: boolean }>(() => api.post(`${siteBase(slug)}/report`, { reason, note }))
+
+export const getMySite = () => call<{ site: MySite | null; pendingReservations: number }>(() => api.get('/api/sites/mine'))
+export const createMySite = (slug: string) => call<MySite>(() => api.post('/api/sites/mine', { slug }))
+export const saveSiteDraft = (body: { slug: string; config: SiteConfig; shopId: string | null }) =>
+  call<MySite>(() => api.put('/api/sites/mine/draft', body))
+export const publishSite = () => call<MySite>(() => api.post('/api/sites/mine/publish'))
+
+export const getMySiteProducts = () => call<SiteProduct[]>(() => api.get('/api/sites/mine/products'))
+export const saveSiteProduct = (id: number | null, body: SiteProductInput) =>
+  call<SiteProduct>(() => id == null ? api.post('/api/sites/mine/products', body) : api.put(`/api/sites/mine/products/${id}`, body))
+export const deleteSiteProduct = (id: number) => call<void>(() => api.delete(`/api/sites/mine/products/${id}`))
+
+export const getMySitePosts = () => call<SitePostSummary[]>(() => api.get('/api/sites/mine/posts'))
+export const getMySitePost = (id: string) => call<SitePost>(() => api.get(`/api/sites/mine/posts/${id}`))
+export const saveSitePost = (id: string | null, body: {
+  title: string; contentHtml: string; coverUrl: string | null; publish: boolean; crossPostToBlog: boolean
+}) => call<SitePost>(() => id == null ? api.post('/api/sites/mine/posts', body) : api.put(`/api/sites/mine/posts/${id}`, body))
+export const deleteSitePost = (id: string) => call<void>(() => api.delete(`/api/sites/mine/posts/${id}`))
+
+export const getSiteReservations = (status?: ReservationStatus) =>
+  call<SiteReservation[]>(() => api.get('/api/sites/mine/reservations', { params: status ? { status } : {} }))
+export const setReservationStatus = (id: string, status: ReservationStatus) =>
+  call<SiteReservation>(() => api.put(`/api/sites/mine/reservations/${id}`, { status }))
+
+/** Nén rồi upload 1 ảnh của site → url dùng thẳng trong cấu hình / sản phẩm / bài viết. */
+export async function uploadSiteImage(file: Blob, signal?: AbortSignal) {
+  try {
+    const c = await compressImage(file, DEFAULT_COMPRESS)
+    const fd = new FormData()
+    fd.append('image', c.blob, 'image.jpg')
+    const { data } = await api.post('/api/sites/images', fd, { timeout: 60_000, signal })
+    return data as { id: number; url: string }
+  } catch (e) {
+    throw toFriendlyError(e)
+  }
+}
+
+export const getAdminSites = () => call<AdminSite[]>(() => api.get('/api/admin/sites'))
+export const setAdminSiteStatus = (id: string, status: 'Active' | 'Hidden') =>
+  call<void>(() => api.post(`/api/admin/sites/${id}/status`, { status }))

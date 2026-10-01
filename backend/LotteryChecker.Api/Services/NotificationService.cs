@@ -34,7 +34,8 @@ public class NotificationService(AppDbContext db, INotificationPusher pusher, Ti
     /// </summary>
     public record NotificationDto(int Id, NotificationKind Kind, int? PostId, int? CommentId, string? PostTitle,
                                   string? ActorName, string Snippet, DateTime CreatedAt, bool IsRead,
-                                  Guid? ShopPublicId = null, string? ShopName = null, int? Stars = null);
+                                  Guid? ShopPublicId = null, string? ShopName = null, int? Stars = null,
+                                  string? SiteSlug = null);
 
     public record ListDto(NotificationDto[] Items, int Unread);
 
@@ -115,6 +116,30 @@ public class NotificationService(AppDbContext db, INotificationPusher pusher, Ti
         await PushAllAsync([n], _ => ShopDto(n, x.s, x.Username, WinSnippet(x.w), null), ct);
     }
 
+    /// <summary>Khách gửi yêu cầu giữ vé: báo chủ site.</summary>
+    public async Task OnSiteReservationAsync(int reservationId, CancellationToken ct)
+    {
+        var x = await ReservationQuery(db.SiteReservations.AsNoTracking().Where(r => r.Id == reservationId)).FirstOrDefaultAsync(ct);
+        if (x == null) return;
+        var n = new Notification
+        {
+            UserId = x.OwnerUserId, Kind = NotificationKind.SiteReservation, SiteReservationId = reservationId,
+            CreatedAt = clock.GetUtcNow().UtcDateTime,
+        };
+        db.Notifications.Add(n);
+        await db.SaveChangesAsync(ct);
+        await PushAllAsync([n], _ => SiteDto(n, x.Slug, x.r, x.ProductName), ct);
+    }
+
+    private IQueryable<ReservationRow> ReservationQuery(IQueryable<SiteReservation> q) =>
+        from r in q
+        join s in db.Sites on r.SiteId equals s.Id
+        join p in db.SiteProducts on r.ProductId equals (int?)p.Id into pj
+        from p in pj.DefaultIfEmpty()
+        select new ReservationRow(r, s.Slug, s.OwnerUserId, p == null ? null : p.Name);
+
+    private record ReservationRow(SiteReservation r, string Slug, int OwnerUserId, string? ProductName);
+
     private async Task PushAllAsync(IEnumerable<Notification> rows, Func<Notification, NotificationDto> dto, CancellationToken ct)
     {
         foreach (var n in rows)
@@ -158,9 +183,19 @@ public class NotificationService(AppDbContext db, INotificationPusher pusher, Ti
                           orderby n.Id descending
                           select new { n, s, u.Username, w }).Take(ListSize).ToListAsync(ct);
 
+        var reservations = await (from n in db.Notifications.AsNoTracking()
+                                  where n.UserId == userId
+                                  join r in db.SiteReservations on n.SiteReservationId equals (int?)r.Id
+                                  join s in db.Sites on r.SiteId equals s.Id
+                                  join p in db.SiteProducts on r.ProductId equals (int?)p.Id into pj
+                                  from p in pj.DefaultIfEmpty()
+                                  orderby n.Id descending
+                                  select new { n, r, s.Slug, ProductName = p == null ? null : p.Name }).Take(ListSize).ToListAsync(ct);
+
         var items = blog.Select(x => ToDto(x.n, x.Title, x.c))
             .Concat(reviews.Select(x => ShopDto(x.n, x.s, x.Username, x.Content ?? "", x.Stars)))
             .Concat(wins.Select(x => ShopDto(x.n, x.s, x.Username, WinSnippet(x.w), null)))
+            .Concat(reservations.Select(x => SiteDto(x.n, x.Slug, x.r, x.ProductName)))
             .OrderByDescending(x => x.Id).Take(ListSize).ToArray();
         return new(items, await UnreadAsync(userId, ct));
     }
@@ -171,7 +206,8 @@ public class NotificationService(AppDbContext db, INotificationPusher pusher, Ti
         var unread = db.Notifications.Where(n => n.UserId == userId && !n.IsRead);
         return await (from n in unread join c in db.BlogComments on n.CommentId equals (int?)c.Id select n.Id).CountAsync(ct)
              + await (from n in unread join r in db.ShopReviews on n.ShopReviewId equals (int?)r.Id select n.Id).CountAsync(ct)
-             + await (from n in unread join w in db.ShopWinReports on n.ShopWinReportId equals (int?)w.Id select n.Id).CountAsync(ct);
+             + await (from n in unread join w in db.ShopWinReports on n.ShopWinReportId equals (int?)w.Id select n.Id).CountAsync(ct)
+             + await (from n in unread join r in db.SiteReservations on n.SiteReservationId equals (int?)r.Id select n.Id).CountAsync(ct);
     }
 
     /// <summary>ids null = đánh dấu đọc hết. Trả số chưa đọc còn lại.</summary>
@@ -191,6 +227,11 @@ public class NotificationService(AppDbContext db, INotificationPusher pusher, Ti
     private static NotificationDto ShopDto(Notification n, ShopLocation s, string actor, string snippet, int? stars) => new(
         n.Id, n.Kind, null, null, null, actor, Snip(snippet),
         DateTime.SpecifyKind(n.CreatedAt, DateTimeKind.Utc), n.IsRead, s.PublicId, s.Name, stars);
+
+    /// <summary>Giữ vé: ActorName = tên khách, Snippet = "{số lượng}|{tên sản phẩm}" (FE tự dịch).</summary>
+    private static NotificationDto SiteDto(Notification n, string slug, SiteReservation r, string? productName) => new(
+        n.Id, n.Kind, null, null, null, r.CustomerName, Snip($"{r.Quantity}|{productName}"),
+        DateTime.SpecifyKind(n.CreatedAt, DateTimeKind.Utc), n.IsRead, SiteSlug: slug);
 
     /// <summary>FE tự dịch: "{đài}|{giải}|{yyyy-MM-dd}".</summary>
     private static string WinSnippet(ShopWinReport w) => $"{w.ProvinceCode}|{w.PrizeTier}|{w.DrawDate:yyyy-MM-dd}";

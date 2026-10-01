@@ -17,16 +17,20 @@ import AdminPanel from './components/AdminPanel'
 import ChangePasswordDialog from './components/ChangePasswordDialog'
 import Home from './pages/Home'
 import { useTheme } from './theme'
-import { blogPostIdFromPath, blogPostPath, shopIdFromPath, shopPath, viewFromPath, viewPath, type View } from './views'
+import { blogPostIdFromPath, blogPostPath, shopIdFromPath, shopPath, siteRouteFromPath, viewFromPath, viewPath, type View } from './views'
 import type { MapFocus } from './components/map/ShopMap'
 
 // Bản đồ kéo theo Leaflet (~150KB) — tải riêng khi mở tới.
 const ShopMap = lazy(() => import('./components/map/ShopMap'))
+// Website con: trang công khai + trình sửa (TipTap, dnd-kit) — tải riêng, người chỉ dò vé không phải tải.
+const SitePage = lazy(() => import('./components/site/SitePage'))
+const SiteEditor = lazy(() => import('./components/site/SiteEditor'))
 
 export default function App() {
   const { t } = useTranslation()
   const { t: ta } = useTranslation('admin')
   const { t: tm } = useTranslation('map')
+  const { t: ts } = useTranslation('site')
   // Mở đúng màn theo URL (link chia sẻ / F5); đường dẫn lạ về Dò vé và sửa luôn URL. Xoá state lịch
   // sử còn sót từ trước khi tải lại (vd đang ở bảng 1 đài) — bước bên trong không nằm trên URL.
   // Chạy trước effect của các con để Home ghi stage đầu tiên lên đúng mục này.
@@ -34,6 +38,8 @@ export default function App() {
     const v = viewFromPath(location.pathname)
     const shared = blogPostIdFromPath(location.pathname)
     const shop = shopIdFromPath(location.pathname)
+    // Website con: giữ nguyên đường dẫn /s/{slug}/... (không có trong danh sách màn cố định).
+    if (v === 'site') { history.replaceState({ view: v }, '', location.pathname + location.search + location.hash); return v }
     history.replaceState({ view: v }, '',
       (shared ? blogPostPath(shared) : shop ? shopPath(shop) : viewPath(v)) + location.search + location.hash)
     return v
@@ -131,6 +137,14 @@ export default function App() {
     return () => window.removeEventListener('popstate', onPop)
   }, [])
 
+  // Website con /s/{slug}: toàn màn hình, giao diện riêng của chủ site — không có khung app chính.
+  const siteRoute = view === 'site' ? siteRouteFromPath(location.pathname) : null
+  if (siteRoute) return (
+    <Suspense fallback={<div className="min-h-screen animate-pulse bg-muted" aria-busy />}>
+      <SitePage key={siteRoute.slug} initial={siteRoute} />
+    </Suspense>
+  )
+
   return (
     <div className="min-h-screen flex flex-col">
       <div aria-hidden className={`backdrop bgfx-${theme.bg}`} />
@@ -139,8 +153,10 @@ export default function App() {
                  account={account ?? null} showProfile={hasProfile} onOpenAuth={() => setAuthReason(null)} onLogout={onLogout}
                  onOpenProfile={() => go('profile')} onOpenAdmin={() => go('admin')}
                  showMap={features.available.shopMap} onOpenMap={() => go('map')}
+                 showMySite={features.available.sites} onOpenMySite={() => go('mySite')}
                  onChangePassword={() => setPwOpen(true)}
                  onOpenNotification={n => {
+                   if (n.kind === 'SiteReservation') { go('mySite'); return }
                    if (n.shopPublicId) { openShop(n.shopPublicId); return }
                    if (n.postId == null || n.commentId == null) return
                    setBlogFocus({ postId: n.postId, commentId: n.commentId, at: Date.now() })
@@ -219,6 +235,32 @@ export default function App() {
                     {t('auth.loginTitle')}
                   </button>
                 )}
+              </div>
+            )}
+          </div>
+        )}
+        {/* Website của tôi: cần đăng nhập + cờ sites. key theo tài khoản: đổi tài khoản là tải site khác. */}
+        {view === 'mySite' && account !== undefined && featuresReady && (
+          <div className="fade-up">
+            {!features.available.sites ? (
+              <div className="card p-6 text-center space-y-3 max-w-md mx-auto">
+                <Icon name="site" className="w-10 h-10 mx-auto text-brand-700 dark:text-brand-400" />
+                <p className="font-semibold">{ts('unavailable')}</p>
+              </div>
+            ) : account ? (
+              <Suspense fallback={<div className="card h-64 animate-pulse" aria-busy />}>
+                <SiteEditor key={sessionKey} />
+              </Suspense>
+            ) : (
+              <div className="card p-6 text-center space-y-3 max-w-md mx-auto">
+                <Icon name="site" className="w-10 h-10 mx-auto text-brand-700 dark:text-brand-400" />
+                <p className="font-semibold">{ts('loginTitle')}</p>
+                <p className="text-sm text-ink-soft">{ts('loginBody')}</p>
+                <button onClick={() => setAuthReason(null)}
+                        className="px-5 py-2.5 rounded-xl font-semibold bg-gradient-to-r from-primary to-primary-end
+                                   text-on-primary shadow-md shadow-primary/25 active:scale-95 transition">
+                  {t('auth.loginTitle')}
+                </button>
               </div>
             )}
           </div>

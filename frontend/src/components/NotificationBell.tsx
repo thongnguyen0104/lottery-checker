@@ -15,6 +15,7 @@ const KIND_ICON: Record<AppNotification['kind'], IconName> = {
   CommentReply: 'reply',
   ShopReview: 'star',
   ShopWin: 'trophy',
+  SiteReservation: 'ticket',
 }
 
 /** Dòng trích dưới thông báo. Vé trúng: máy chủ gửi "đài|giải|yyyy-MM-dd" để FE dịch. */
@@ -27,6 +28,7 @@ function snippet(n: AppNotification) {
       date: date ? formatDate(date) : '',
     })
   }
+  if (n.kind === 'SiteReservation') return ''
   return n.snippet ? `“${n.snippet}”` : ''
 }
 
@@ -158,7 +160,8 @@ export default function NotificationBell({ onOpen }: { onOpen: (n: AppNotificati
                 <span className="min-w-0 flex-1">
                   <span className={`block text-sm leading-snug break-words ${n.isRead ? 'text-ink-soft' : 'text-ink'}`}>
                     <Trans t={t} i18nKey={`notifications.${n.kind}`}
-                           values={{ name: n.actorName ?? t('notifications.someone'), title: n.postTitle, shop: n.shopName, stars: n.stars }}
+                           values={{ name: n.actorName ?? t('notifications.someone'), title: n.postTitle, shop: n.shopName, stars: n.stars,
+                                     ...reservation(n) }}
                            components={{ b: <b className="font-semibold" /> }} />
                   </span>
                   {snippet(n) && <span className="mt-0.5 block text-xs text-ink-faint line-clamp-2 break-words">{snippet(n)}</span>}
@@ -172,4 +175,11 @@ export default function NotificationBell({ onOpen }: { onOpen: (n: AppNotificati
       )}
     </div>
   )
+}
+
+/** Giữ vé: máy chủ gửi "số lượng|tên sản phẩm" (tên trống = khách ghi trong ghi chú). */
+function reservation(n: AppNotification) {
+  if (n.kind !== 'SiteReservation') return {}
+  const [qty, product] = n.snippet.split('|')
+  return { qty, product: product || '' }
 }
