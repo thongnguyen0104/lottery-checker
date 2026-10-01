@@ -14,6 +14,7 @@ public class FeatureFlags(AppDbContext db, IMemoryCache cache, TimeProvider cloc
     public const string CheckHistory = "checkHistory";
     public const string ScratchTickets = "scratchTickets";
     public const string ShopMap = "shopMap";
+    public const string Sites = "sites";
 
     public record Definition(string Key, string NameVi, string NameEn, string DescriptionVi, string DescriptionEn);
 
@@ -29,6 +30,9 @@ public class FeatureFlags(AppDbContext db, IMemoryCache cache, TimeProvider cloc
         new(ShopMap, "Bản đồ điểm bán", "Shop map",
             "Bản đồ điểm bán vé số do người dùng ghim (/ban-do): thêm điểm, xác nhận, đánh giá, báo vé trúng, báo cáo.",
             "The user-pinned lottery shop map (/ban-do): add shops, confirm, review, report wins and abuse."),
+        new(Sites, "Website con", "Mini-sites",
+            "Người dùng / đại lý tự tạo website riêng (/s/{tên}): giao diện, sản phẩm, bài viết, nhận giữ vé trả tại quầy.",
+            "Users / agents build their own site (/s/{name}): theme, products, posts, in-store ticket reservations."),
     ];
 
     public record FlagDto(string Key, string Name, string Description, bool Enabled, DateTime? UpdatedAt, string? UpdatedBy);

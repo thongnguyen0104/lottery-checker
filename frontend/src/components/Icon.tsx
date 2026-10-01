@@ -5,6 +5,7 @@ import {
   TrendingUp, Flame, Snowflake, Newspaper, ThumbsUp, ThumbsDown, Send, Trash2, TriangleAlert, Trophy, Wallet, X,
   KeyRound, ShieldCheck, Users, Search, MessageCircle, Reply, Bell, CheckCheck, Link2, ImagePlus,
   MapIcon, Star, Navigation, Phone, Flag, LocateFixed, Plus, SlidersHorizontal, Share2, Eye, EyeOff, Store, Footprints,
+  GripVertical, LayoutTemplate, Bold, Italic, Underline, List, Quote, Heading2, Undo2, Redo2, ExternalLink, Rocket, Package,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -87,6 +88,19 @@ const ICONS = {
   hide: EyeOff,
   store: Store,
   street: Footprints,
+  grip: GripVertical,
+  site: LayoutTemplate,
+  bold: Bold,
+  italic: Italic,
+  underline: Underline,
+  bullets: List,
+  quote: Quote,
+  heading: Heading2,
+  undo: Undo2,
+  redo: Redo2,
+  external: ExternalLink,
+  publish: Rocket,
+  product: Package,
 } satisfies Record<string, LucideIcon>
 
 export type IconName = keyof typeof ICONS

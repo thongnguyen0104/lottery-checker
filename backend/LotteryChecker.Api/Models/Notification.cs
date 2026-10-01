@@ -9,6 +9,7 @@ public enum NotificationKind
     CommentReply,  // có người trả lời bình luận của mình
     ShopReview,    // có người đánh giá điểm bán mình ghim
     ShopWin,       // có người báo điểm bán mình ghim từng bán vé trúng
+    SiteReservation, // có khách gửi yêu cầu giữ vé trên website của mình
 }
 
 /// <summary>
@@ -27,6 +28,7 @@ public class Notification
     public int? ShopId { get; set; }
     public int? ShopReviewId { get; set; }
     public int? ShopWinReportId { get; set; }
+    public int? SiteReservationId { get; set; }
     public DateTime CreatedAt { get; set; }
     public bool IsRead { get; set; }
 }

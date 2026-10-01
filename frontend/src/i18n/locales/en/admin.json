@@ -20,7 +20,7 @@
   "badge": { "admin": "Admin", "mustChange": "Must change password", "you": "You" },
   "back": "List",
   "pick": "Pick an account to see details.",
-  "sections": { "users": "Users", "features": "Features", "shops": "Shops" },
+  "sections": { "users": "Users", "features": "Features", "shops": "Shops", "sites": "Sites" },
   "features": {
     "hint": "Disabled features are hidden from regular users and their APIs are blocked. Admins still see them to test before enabling.",
     "on": "On",

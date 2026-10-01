@@ -27,6 +27,12 @@ public class AppDbContext : DbContext
     public DbSet<ShopReport> ShopReports => Set<ShopReport>();
     public DbSet<ShopImage> ShopImages => Set<ShopImage>();
     public DbSet<ShopRevision> ShopRevisions => Set<ShopRevision>();
+    public DbSet<Site> Sites => Set<Site>();
+    public DbSet<SiteProduct> SiteProducts => Set<SiteProduct>();
+    public DbSet<SitePost> SitePosts => Set<SitePost>();
+    public DbSet<SiteReservation> SiteReservations => Set<SiteReservation>();
+    public DbSet<SiteImage> SiteImages => Set<SiteImage>();
+    public DbSet<SiteReport> SiteReports => Set<SiteReport>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -138,6 +144,7 @@ public class AppDbContext : DbContext
             e.HasOne<ShopLocation>().WithMany().HasForeignKey(x => x.ShopId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne<ShopReview>().WithMany().HasForeignKey(x => x.ShopReviewId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne<ShopWinReport>().WithMany().HasForeignKey(x => x.ShopWinReportId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne<SiteReservation>().WithMany().HasForeignKey(x => x.SiteReservationId).OnDelete(DeleteBehavior.Cascade);
         });
 
         b.Entity<ShopLocation>(e =>
@@ -211,6 +218,72 @@ public class AppDbContext : DbContext
             e.HasIndex(x => new { x.UserId, x.CreatedAt });
             e.Property(x => x.Kind).HasConversion<string>().HasMaxLength(10);
             e.Property(x => x.Note).HasMaxLength(200);
+            e.HasOne<User>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<Site>(e =>
+        {
+            e.HasIndex(x => x.PublicId).IsUnique();
+            e.HasIndex(x => x.Slug).IsUnique();
+            e.HasIndex(x => x.OwnerUserId).IsUnique();   // mỗi tài khoản 1 site
+            e.HasIndex(x => x.ShopId);
+            e.Property(x => x.Slug).HasMaxLength(40);
+            e.Property(x => x.Status).HasConversion<string>().HasMaxLength(8);
+            e.HasOne<User>().WithMany().HasForeignKey(x => x.OwnerUserId).OnDelete(DeleteBehavior.Cascade);
+            // Điểm bán bị xoá → site vẫn còn, chỉ mất liên kết.
+            e.HasOne<ShopLocation>().WithMany().HasForeignKey(x => x.ShopId).OnDelete(DeleteBehavior.SetNull);
+        });
+
+        b.Entity<SiteProduct>(e =>
+        {
+            e.HasIndex(x => new { x.SiteId, x.SortOrder });
+            e.Property(x => x.Name).HasMaxLength(80);
+            e.Property(x => x.Description).HasMaxLength(500);
+            e.Property(x => x.ImageKey).HasMaxLength(80);
+            e.Property(x => x.Kind).HasConversion<string>().HasMaxLength(12);
+            e.HasOne<Site>().WithMany().HasForeignKey(x => x.SiteId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<SitePost>(e =>
+        {
+            e.HasIndex(x => x.PublicId).IsUnique();
+            e.HasIndex(x => new { x.SiteId, x.Status, x.PublishedAt });
+            e.Property(x => x.Title).HasMaxLength(120);
+            e.Property(x => x.CoverKey).HasMaxLength(80);
+            e.Property(x => x.Status).HasConversion<string>().HasMaxLength(10);
+            e.HasOne<Site>().WithMany().HasForeignKey(x => x.SiteId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne<BlogPost>().WithMany().HasForeignKey(x => x.BlogPostId).OnDelete(DeleteBehavior.SetNull);
+        });
+
+        b.Entity<SiteReservation>(e =>
+        {
+            e.HasIndex(x => x.PublicId).IsUnique();
+            e.HasIndex(x => new { x.SiteId, x.Status, x.Id });
+            e.HasIndex(x => new { x.SiteId, x.RequesterKey, x.Status });
+            e.Property(x => x.CustomerName).HasMaxLength(40);
+            e.Property(x => x.Phone).HasMaxLength(20);
+            e.Property(x => x.Note).HasMaxLength(300);
+            e.Property(x => x.RequesterKey).HasMaxLength(64);
+            e.Property(x => x.Status).HasConversion<string>().HasMaxLength(10);
+            e.HasOne<Site>().WithMany().HasForeignKey(x => x.SiteId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne<SiteProduct>().WithMany().HasForeignKey(x => x.ProductId).OnDelete(DeleteBehavior.SetNull);
+            e.HasOne<User>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.SetNull);
+        });
+
+        b.Entity<SiteImage>(e =>
+        {
+            e.HasIndex(x => x.Key).IsUnique();
+            e.HasIndex(x => new { x.Used, x.CreatedAt });
+            e.HasIndex(x => x.UserId);
+            e.Property(x => x.Key).HasMaxLength(80);
+        });
+
+        b.Entity<SiteReport>(e =>
+        {
+            e.HasIndex(x => new { x.SiteId, x.UserId }).IsUnique();
+            e.Property(x => x.Reason).HasConversion<string>().HasMaxLength(14);
+            e.Property(x => x.Note).HasMaxLength(300);
+            e.HasOne<Site>().WithMany().HasForeignKey(x => x.SiteId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne<User>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
         });
     }

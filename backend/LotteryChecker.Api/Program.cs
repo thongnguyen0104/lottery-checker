@@ -95,6 +95,9 @@ builder.Services.AddScoped<NotificationService>();
 // Bản đồ điểm bán vé số (mục "Shops") + tìm địa chỉ qua Nominatim (mục "Geo").
 builder.Services.AddSingleton(builder.Configuration.GetSection("Shops").Get<ShopOptions>() ?? new ShopOptions());
 builder.Services.AddScoped<ShopService>();
+builder.Services.AddSingleton(builder.Configuration.GetSection("Sites").Get<SiteOptions>() ?? new SiteOptions());
+builder.Services.AddSingleton<SiteHtmlSanitizer>();   // cấu hình 1 lần, thread-safe
+builder.Services.AddScoped<SiteService>();          // website con /s/{slug}
 builder.Services.AddHttpClient<GeocodingService>(c =>
 {
     c.Timeout = TimeSpan.FromSeconds(10);
@@ -222,6 +225,28 @@ builder.Services.AddRateLimiter(o =>
             {
                 PermitLimit = builder.Configuration.GetValue("Geo:PermitPerIpPerMinute", 20),
                 Window = TimeSpan.FromMinutes(1),
+            }));
+    // Website con: ghi theo IP như bản đồ; ảnh như Blog; giữ vé thì khách cũng gửi được → chặn spam theo IP.
+    o.AddPolicy(LotteryChecker.Api.Controllers.SitesController.WriteRateLimitPolicy, ctx =>
+        RateLimitPartition.GetFixedWindowLimiter(ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown", _ =>
+            new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = builder.Configuration.GetValue("Sites:WritesPerIpPer10Minutes", 120),
+                Window = TimeSpan.FromMinutes(10),
+            }));
+    o.AddPolicy(LotteryChecker.Api.Controllers.SitesController.ImageRateLimitPolicy, ctx =>
+        RateLimitPartition.GetFixedWindowLimiter(ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown", _ =>
+            new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = builder.Configuration.GetValue("Sites:ImagesPerIpPer10Minutes", 30),
+                Window = TimeSpan.FromMinutes(10),
+            }));
+    o.AddPolicy(LotteryChecker.Api.Controllers.SitesController.ReserveRateLimitPolicy, ctx =>
+        RateLimitPartition.GetFixedWindowLimiter(ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown", _ =>
+            new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = builder.Configuration.GetValue("Sites:ReservationsPerIpPerHour", 10),
+                Window = TimeSpan.FromHours(1),
             }));
     // Mua vé cào: theo tài khoản — chặn script bấm mua liên tục.
     o.AddPolicy(LotteryChecker.Api.Controllers.TicketsController.BuyRateLimitPolicy, ctx =>

@@ -11,7 +11,7 @@ import {
 } from '../../api/client'
 import { provinceName } from '../../data/provinces'
 import { formatDate, timeAgo } from '../../utils/date'
-import { shopPath } from '../../views'
+import { shopPath, sitePath } from '../../views'
 import { directionsUrl, fmtMinutes, isOpenNow, TYPE_ICON, VIETLOTT } from './shopUtils'
 
 type Props = {
@@ -154,6 +154,11 @@ export default function ShopDetail({ id, account, onRequireLogin, onClose, onLoa
             <Icon name="directions" className="w-4 h-4" /> {t('detail.directions')}
           </a>
         </div>
+        {d.siteSlug && (
+          <a href={sitePath(d.siteSlug)} target="_blank" rel="noopener" className={`${secondaryBtn} w-full py-2.5`}>
+            <Icon name="site" className="w-4 h-4" /> {t('detail.website')}
+          </a>
+        )}
         <div className="flex flex-wrap gap-2">
           <button onClick={share} className={secondaryBtn}><Icon name="share" className="w-4 h-4" /> {t('detail.share')}</button>
           {!d.mine && (

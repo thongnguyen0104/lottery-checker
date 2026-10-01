@@ -31,6 +31,9 @@ type Props = {
   /** Bản đồ điểm bán (cờ shopMap) — không nằm trên dãy tab, mở từ menu logo. */
   showMap: boolean
   onOpenMap: () => void
+  /** Website của tôi (cờ sites) — mở từ menu logo; khách bấm thì màn đó mời đăng nhập. */
+  showMySite: boolean
+  onOpenMySite: () => void
   /** Bấm 1 thông báo trong chuông (chỉ hiện khi đã đăng nhập) — mở bài đó. */
   onOpenNotification: (n: AppNotification) => void
 }
@@ -39,7 +42,8 @@ type Props = {
  *  (điện thoại dùng BottomNav cho vừa tầm ngón cái). Bấm logo sổ menu: ủng hộ, tài khoản, đăng nhập/xuất,
  *  ngôn ngữ, bảng màu. */
 export default function AppHeader({ view, busy, onChange, onOpenTheme, onOpenDonate, account, showProfile, onOpenAuth, onLogout, onOpenProfile,
-                                    onOpenAdmin, onChangePassword, showMap, onOpenMap, onOpenNotification }: Props) {
+                                    onOpenAdmin, onChangePassword, showMap, onOpenMap, showMySite, onOpenMySite,
+                                    onOpenNotification }: Props) {
   const { t, i18n } = useTranslation()
   const lang = currentLang()
   const [confirmLogout, setConfirmLogout] = useState(false)
@@ -89,6 +93,10 @@ export default function AppHeader({ view, busy, onChange, onOpenTheme, onOpenDon
               <MenuItem icon="donate" label={t('app.donate')} onClick={pick(onOpenDonate)} iconClass="text-accent" />
               {showMap && (
                 <MenuItem icon="map" label={t('views.map.title')} onClick={pick(onOpenMap)}
+                          iconClass="text-brand-700 dark:text-brand-400" />
+              )}
+              {showMySite && (
+                <MenuItem icon="site" label={t('views.mySite.title')} onClick={pick(onOpenMySite)}
                           iconClass="text-brand-700 dark:text-brand-400" />
               )}
               {account && showProfile && (
