@@ -3,6 +3,7 @@ using System;
 using LotteryChecker.Api.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace LotteryChecker.Api.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260930134248_AddBlogPublicId")]
+    partial class AddBlogPublicId
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.8");
@@ -56,46 +59,6 @@ namespace LotteryChecker.Api.Migrations
                     b.HasIndex("PostId", "Id");
 
                     b.ToTable("BlogComments");
-                });
-
-            modelBuilder.Entity("LotteryChecker.Api.Models.BlogImage", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Key")
-                        .IsRequired()
-                        .HasMaxLength(80)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("OwnerKey")
-                        .IsRequired()
-                        .HasMaxLength(40)
-                        .HasColumnType("TEXT");
-
-                    b.Property<int?>("PostId")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<int>("SizeBytes")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<int>("SortOrder")
-                        .HasColumnType("INTEGER");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Key")
-                        .IsUnique();
-
-                    b.HasIndex("OwnerKey", "CreatedAt");
-
-                    b.HasIndex("PostId", "SortOrder");
-
-                    b.ToTable("BlogImages");
                 });
 
             modelBuilder.Entity("LotteryChecker.Api.Models.BlogPost", b =>
@@ -503,14 +466,6 @@ namespace LotteryChecker.Api.Migrations
                         .HasForeignKey("PostId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-                });
-
-            modelBuilder.Entity("LotteryChecker.Api.Models.BlogImage", b =>
-                {
-                    b.HasOne("LotteryChecker.Api.Models.BlogPost", null)
-                        .WithMany()
-                        .HasForeignKey("PostId")
-                        .OnDelete(DeleteBehavior.SetNull);
                 });
 
             modelBuilder.Entity("LotteryChecker.Api.Models.BlogVote", b =>

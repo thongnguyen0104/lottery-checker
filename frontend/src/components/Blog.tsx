@@ -1,10 +1,14 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
+import { createPortal } from 'react-dom'
 import {
-  createBlogComment, createBlogPost, deleteBlogComment, deleteBlogPost, getBlogComments, getBlogPosts, voteBlogPost,
-  type Account, type BlogAuthorMode, type BlogComment, type BlogPost,
+  blogImageUrl, createBlogComment, createBlogPost, deleteBlogComment, deleteBlogPost, getBlogComments, getBlogOptions, getBlogPost,
+  getBlogPosts, uploadBlogImage, voteBlogPost,
+  type Account, type BlogAuthorMode, type BlogComment, type BlogOptions, type BlogPost,
 } from '../api/client'
 import { currentLocale } from '../i18n'
+import { timeAgo } from '../utils/date'
+import { blogPostPath } from '../views'
 import ConfirmDialog from './ConfirmDialog'
 import Icon, { IconBadge } from './Icon'
 
@@ -18,13 +22,24 @@ const CLAMP_CHARS = 280
 
 type Sort = 'new' | 'top'
 
+/** Ảnh trong form đăng bài: xem trước bằng file trên máy; id có khi upload xong. */
+type PendingImage = { preview: string; id?: number }
+
+/**
+ * Bài mở riêng trên cùng: từ chuông thông báo (postId + commentId) hoặc link chia sẻ /blog/{guid}
+ * (publicId). at đổi mỗi lần bấm để bấm lại cùng thông báo vẫn cuộn tới.
+ */
+export type BlogFocus = { postId?: number; publicId?: string; commentId?: number; at: number }
+
 type Props = {
   account: Account | null
   onRequireLogin: () => void
+  focus?: BlogFocus | null
+  onClearFocus?: () => void
 }
 
 /** Blog cho mọi người: đọc, viết (ký tên tài khoản / ẩn danh / tự đặt), like/dislike, xoá bài của mình. */
-export default function Blog({ account, onRequireLogin }: Props) {
+export default function Blog({ account, onRequireLogin, focus, onClearFocus }: Props) {
   const { t } = useTranslation('blog')
   const [sort, setSort] = useState<Sort>('new')
   const [posts, setPosts] = useState<BlogPost[]>([])
@@ -84,6 +99,12 @@ export default function Blog({ account, onRequireLogin }: Props) {
                   }} />
       )}
 
+      {focus && (
+        <FocusedPost key={focus.at} focus={focus} account={account} onRequireLogin={onRequireLogin}
+                     onClose={() => onClearFocus?.()}
+                     onChange={(id, patch) => update(id, patch)} />
+      )}
+
       <div className="grid grid-cols-2 gap-1 p-1 rounded-xl bg-muted border border-line/60 max-w-xs" role="tablist">
         {(['new', 'top'] as const).map(s => (
           <button key={s} role="tab" aria-selected={s === sort} onClick={() => s !== sort && load(s, 1)}
@@ -113,7 +134,7 @@ export default function Blog({ account, onRequireLogin }: Props) {
       )}
 
       <div className="space-y-3">
-        {posts.map(p => <PostCard key={p.id} post={p} account={account} onRequireLogin={onRequireLogin}
+        {posts.filter(p => p.id !== focus?.postId && p.publicId !== focus?.publicId).map(p => <PostCard key={p.id} post={p} account={account} onRequireLogin={onRequireLogin}
                                  onChange={patch => update(p.id, patch)} />)}
         {loading && page === 1 && Array.from({ length: 3 }, (_, i) => (
           <div key={i} className="card p-4 motion-safe:animate-pulse space-y-3">
@@ -134,6 +155,62 @@ export default function Blog({ account, onRequireLogin }: Props) {
   )
 }
 
+/**
+ * Bài mở từ chuông thông báo (mở sẵn bình luận) hoặc từ link chia sẻ: tải riêng bài đó (có thể không
+ * nằm ở trang đầu).
+ */
+function FocusedPost({ focus, account, onRequireLogin, onClose, onChange }: {
+  focus: BlogFocus
+  account: Account | null
+  onRequireLogin: () => void
+  onClose: () => void
+  onChange: (id: number, patch: Partial<BlogPost> | null) => void
+}) {
+  const { t } = useTranslation()
+  const { t: tb } = useTranslation('blog')
+  const [post, setPost] = useState<BlogPost | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const key = focus.publicId ?? focus.postId!
+  const label = focus.publicId ? tb('sharedPost') : t('notifications.focusedPost')
+  const [reload, setReload] = useState(0)
+
+  useEffect(() => {
+    let alive = true
+    getBlogPost(key).then(p => alive && setPost(p)).catch(e => alive && setError(e?.message ?? t('notifications.postGone')))
+    return () => { alive = false }
+  }, [key, t, reload])
+
+  return (
+    <section className="space-y-2 fade-up" aria-label={label}>
+      <div className="flex items-center justify-between gap-2 text-sm">
+        <span className="inline-flex items-center gap-1.5 font-semibold text-brand-700 dark:text-brand-400">
+          <Icon name={focus.publicId ? 'link' : 'bell'} className="w-4 h-4" /> {label}
+        </span>
+        <button onClick={onClose} className="font-semibold text-ink-faint hover:text-ink">{t('notifications.showAll')}</button>
+      </div>
+      {error && (
+        <div className="card p-4 flex items-center justify-between gap-3 text-sm text-ink-soft">
+          <span>{error}</span>
+          <button onClick={() => { setError(null); setReload(n => n + 1) }} className="btn btn-soft shrink-0 py-1.5 text-sm">
+            <Icon name="retry" className="w-4 h-4" /> {tb('retry')}
+          </button>
+        </div>
+      )}
+      {!post && !error && <div className="card h-40 motion-safe:animate-pulse" />}
+      {post && (
+        <div className="rounded-2xl ring-2 ring-brand-500/40">
+          <PostCard post={post} account={account} onRequireLogin={onRequireLogin} highlightCommentId={focus.commentId}
+                    onChange={patch => {
+                      onChange(post.id, patch)
+                      if (patch) setPost({ ...post, ...patch })
+                      else onClose()
+                    }} />
+        </div>
+      )}
+    </section>
+  )
+}
+
 function Composer({ account, onRequireLogin, onCancel, onPosted }: {
   account: Account | null
   onRequireLogin: () => void
@@ -147,21 +224,63 @@ function Composer({ account, onRequireLogin, onCancel, onPosted }: {
   const [name, setName] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [options, setOptions] = useState<BlogOptions | null>(null)
+  const [images, setImages] = useState<PendingImage[]>([])
+  const fileInput = useRef<HTMLInputElement>(null)
   // Đăng xuất giữa chừng → không còn ký tên tài khoản được nữa.
   const effectiveMode = mode === 'Account' && !account ? 'Anonymous' : mode
+  const uploading = images.some(i => i.id == null)
+
+  useEffect(() => { getBlogOptions().then(setOptions) }, [])
+
+  // Đóng form → thu hồi các URL xem trước (giữ file ảnh trong RAM tới khi revoke).
+  const previews = useRef<string[]>([])
+  useEffect(() => { previews.current = images.map(i => i.preview) }, [images])
+  useEffect(() => () => previews.current.forEach(URL.revokeObjectURL), [])
 
   const valid = title.trim().length >= TITLE.min && content.trim().length >= CONTENT.min
     && (effectiveMode !== 'Custom' || name.trim().length >= NAME.min)
 
+  const addImages = (files: FileList | null) => {
+    if (!files || !options) return
+    setError(null)
+    const room = options.maxImages - images.length
+    const picked = Array.from(files)
+    if (picked.length > room) setError(t('images.tooMany', { max: options.maxImages }))
+    for (const file of picked.slice(0, Math.max(0, room))) {
+      // Chặn ảnh gốc > 5MB ngay trên máy — khỏi nén + gửi rồi mới bị máy chủ từ chối.
+      if (file.size > options.maxImageBytes) {
+        setError(t('images.tooLarge', { name: file.name, max: Math.round(options.maxImageBytes / 1024 / 1024) }))
+        continue
+      }
+      const preview = URL.createObjectURL(file)
+      setImages(xs => [...xs, { preview }])
+      uploadBlogImage(file)
+        .then(r => setImages(xs => xs.map(x => x.preview === preview ? { ...x, id: r.id } : x)))
+        .catch(err => {
+          URL.revokeObjectURL(preview)
+          setImages(xs => xs.filter(x => x.preview !== preview))
+          setError((err as Error).message)
+        })
+    }
+  }
+
+  // Ảnh bỏ ra đã nằm trên máy chủ thì thành mồ côi, máy chủ tự dọn sau 24h.
+  const removeImage = (preview: string) => {
+    URL.revokeObjectURL(preview)
+    setImages(xs => xs.filter(x => x.preview !== preview))
+  }
+
   const submit = async (e: FormEvent) => {
     e.preventDefault()
-    if (!valid || busy) return
+    if (!valid || busy || uploading) return
     setBusy(true)
     setError(null)
     try {
       onPosted(await createBlogPost({
         title: title.trim(), content: content.trim(), authorMode: effectiveMode,
         authorName: effectiveMode === 'Custom' ? name.trim() : undefined,
+        imageIds: images.map(i => i.id!),
       }))
     } catch (err) {
       setError((err as Error).message)
@@ -187,6 +306,43 @@ function Composer({ account, onRequireLogin, onCancel, onPosted }: {
                   placeholder={t('contentPlaceholder')} className="field mt-1 resize-y min-h-28" />
       </label>
 
+      {options?.imagesEnabled && (
+        <div className="space-y-2">
+          {images.length > 0 && (
+            <ul className="grid grid-cols-4 gap-2">
+              {images.map(img => (
+                <li key={img.preview} className="relative aspect-square rounded-xl overflow-hidden bg-muted border border-line/60">
+                  <img src={img.preview} alt="" className={`w-full h-full object-cover ${img.id == null ? 'opacity-50' : ''}`} />
+                  {img.id == null && (
+                    <span className="absolute inset-0 flex items-center justify-center" aria-label={t('images.uploading')}>
+                      <span className="w-6 h-6 rounded-full border-2 border-white/70 border-t-transparent motion-safe:animate-spin" />
+                    </span>
+                  )}
+                  <button type="button" onClick={() => removeImage(img.preview)}
+                          title={t('images.remove')} aria-label={t('images.remove')}
+                          className="absolute top-1 right-1 w-7 h-7 rounded-full bg-black/60 text-white flex items-center justify-center
+                                     hover:bg-black/80 transition">
+                    <Icon name="close" className="w-4 h-4" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          {images.length < options.maxImages && (
+            <button type="button" onClick={() => fileInput.current?.click()} className="btn btn-soft py-1.5 text-sm">
+              <Icon name="addImage" className="w-4 h-4" /> {t('images.add')}
+              {images.length > 0 && (
+                <span className="font-normal text-xs text-ink-faint tabular-nums">
+                  {t('images.count', { count: images.length, max: options.maxImages })}
+                </span>
+              )}
+            </button>
+          )}
+          <input ref={fileInput} type="file" accept="image/*" multiple={options.maxImages > 1} hidden
+                 onChange={e => { addImages(e.target.files); e.target.value = '' }} />
+        </div>
+      )}
+
       <SignAsPicker account={account} mode={effectiveMode} onMode={setMode} name={name} onName={setName}
                     onRequireLogin={onRequireLogin} />
 
@@ -194,8 +350,8 @@ function Composer({ account, onRequireLogin, onCancel, onPosted }: {
 
       <div className="flex gap-2 justify-end">
         <button type="button" onClick={onCancel} className="btn btn-soft">{t('cancel')}</button>
-        <button type="submit" disabled={!valid || busy} className="btn btn-primary">
-          <Icon name="send" className="w-4 h-4" /> {busy ? t('posting') : t('post')}
+        <button type="submit" disabled={!valid || busy || uploading} className="btn btn-primary">
+          <Icon name="send" className="w-4 h-4" /> {busy ? t('posting') : uploading ? t('images.uploading') : t('post')}
         </button>
       </div>
     </form>
@@ -251,15 +407,17 @@ function SignAsPicker({ account, mode, onMode, name, onName, onRequireLogin, com
   )
 }
 
-function PostCard({ post, account, onRequireLogin, onChange }: {
+function PostCard({ post, account, onRequireLogin, onChange, highlightCommentId }: {
   post: BlogPost
   account: Account | null
   onRequireLogin: () => void
   onChange: (patch: Partial<BlogPost> | null) => void
+  /** Có = mở sẵn bình luận và cuộn tới bình luận này (từ chuông thông báo). */
+  highlightCommentId?: number
 }) {
   const { t } = useTranslation('blog')
   const [expanded, setExpanded] = useState(false)
-  const [showComments, setShowComments] = useState(false)
+  const [showComments, setShowComments] = useState(highlightCommentId != null)
   const [voting, setVoting] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -314,6 +472,7 @@ function PostCard({ post, account, onRequireLogin, onChange }: {
           {expanded ? t('less') : t('more')}
         </button>
       )}
+      {post.images?.length ? <ImageGrid images={post.images} /> : null}
 
       <div className="mt-3 pt-3 border-t border-line/60 flex items-center gap-2">
         <VoteButton icon="like" label={t('like')} count={post.likes} active={post.myVote === 1} tone="ok"
@@ -328,6 +487,7 @@ function PostCard({ post, account, onRequireLogin, onChange }: {
                                            : 'border-line text-ink-soft hover:bg-muted'}`}>
           <Icon name="comment" className="w-4 h-4" /> {post.commentCount}
         </button>
+        <CopyLinkButton publicId={post.publicId} />
         {post.mine && (
           <button onClick={() => setConfirmDelete(true)} title={t('delete')} aria-label={t('delete')}
                   className="ml-auto w-9 h-9 rounded-lg flex items-center justify-center text-ink-faint hover:text-bad hover:bg-bad/10 transition">
@@ -338,7 +498,7 @@ function PostCard({ post, account, onRequireLogin, onChange }: {
       {error && <p className="mt-2 text-xs text-bad">{error}</p>}
 
       {showComments && (
-        <Comments postId={post.id} account={account} onRequireLogin={onRequireLogin}
+        <Comments postId={post.id} account={account} onRequireLogin={onRequireLogin} highlightId={highlightCommentId}
                   onCount={commentCount => onChange({ commentCount })} />
       )}
 
@@ -350,12 +510,83 @@ function PostCard({ post, account, onRequireLogin, onChange }: {
   )
 }
 
+/** Ảnh của bài: 1 ảnh thì to hết khung, 2–4 ảnh xếp lưới 2 cột (3 ảnh: ảnh đầu nằm ngang cả hàng). */
+function ImageGrid({ images }: { images: string[] }) {
+  const { t } = useTranslation('blog')
+  const [open, setOpen] = useState<number | null>(null)
+  const single = images.length === 1
+  return (
+    <>
+      <div className={`mt-3 grid gap-1.5 rounded-xl overflow-hidden ${single ? '' : 'grid-cols-2'}`}>
+        {images.map((src, i) => (
+          <button key={src} type="button" onClick={() => setOpen(i)}
+                  aria-label={t('images.open', { n: i + 1, total: images.length })}
+                  className={`block bg-muted overflow-hidden ${single ? ''
+                              : images.length === 3 && i === 0 ? 'col-span-2 aspect-[2/1]' : 'aspect-[4/3]'}`}>
+            <img src={blogImageUrl(src)} alt="" loading="lazy" decoding="async"
+                 className={`w-full object-cover hover:opacity-90 transition ${single ? 'max-h-[28rem]' : 'h-full'}`} />
+          </button>
+        ))}
+      </div>
+      {open != null && <ImageViewer images={images} index={open} onIndex={setOpen} onClose={() => setOpen(null)} />}
+    </>
+  )
+}
+
+/** Xem ảnh to: bấm nền / Esc để đóng, mũi tên trái/phải để chuyển ảnh. */
+function ImageViewer({ images, index, onIndex, onClose }: {
+  images: string[]; index: number; onIndex: (i: number) => void; onClose: () => void
+}) {
+  const { t } = useTranslation('blog')
+  const many = images.length > 1
+  const go = (d: number) => onIndex((index + d + images.length) % images.length)
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+      else if (many && e.key === 'ArrowLeft') onIndex((index - 1 + images.length) % images.length)
+      else if (many && e.key === 'ArrowRight') onIndex((index + 1) % images.length)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [index, images.length, many, onClose, onIndex])
+
+  const navBtn = 'absolute top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/15 text-white flex items-center justify-center hover:bg-white/25 transition'
+  // Portal ra body như ConfirmDialog — khung cha có thể nhốt position:fixed.
+  return createPortal(
+    <div role="dialog" aria-modal="true" aria-label={t('images.open', { n: index + 1, total: images.length })}
+         className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4" onClick={onClose}>
+      <img src={blogImageUrl(images[index])} alt="" className="max-w-full max-h-full object-contain"
+           onClick={e => e.stopPropagation()} />
+      <button onClick={onClose} title={t('images.close')} aria-label={t('images.close')}
+              className="absolute top-3 right-3 w-10 h-10 rounded-full bg-white/15 text-white flex items-center justify-center hover:bg-white/25 transition">
+        <Icon name="close" className="w-5 h-5" />
+      </button>
+      {many && (
+        <>
+          <button onClick={e => { e.stopPropagation(); go(-1) }} aria-label={t('images.prev')} className={`${navBtn} left-3`}>
+            <Icon name="back" className="w-5 h-5" />
+          </button>
+          <button onClick={e => { e.stopPropagation(); go(1) }} aria-label={t('images.next')} className={`${navBtn} right-3`}>
+            <Icon name="next" className="w-5 h-5" />
+          </button>
+          <span className="absolute bottom-4 left-1/2 -translate-x-1/2 text-sm text-white/80 tabular-nums">
+            {index + 1}/{images.length}
+          </span>
+        </>
+      )}
+    </div>,
+    document.body,
+  )
+}
+
 /**
  * Bình luận của 1 bài: luồng 1 cấp (bình luận gốc + các trả lời thụt vào). Trả lời một câu trả lời →
  * vẫn vào luồng đó, điền sẵn "@tên" để biết đang trả lời ai. Tải khi mở, không tải sẵn cho mọi bài.
  */
-function Comments({ postId, account, onRequireLogin, onCount }: {
+function Comments({ postId, account, onRequireLogin, onCount, highlightId }: {
   postId: number
+  highlightId?: number
   account: Account | null
   onRequireLogin: () => void
   onCount: (count: number) => void
@@ -366,12 +597,18 @@ function Comments({ postId, account, onRequireLogin, onCount }: {
   // Đang trả lời luồng nào (id bình luận gốc) + "@tên" điền sẵn khi trả lời một câu trả lời.
   const [replyTo, setReplyTo] = useState<{ rootId: number; mention: string } | null>(null)
   const [deleting, setDeleting] = useState<BlogComment | null>(null)
+  const [reload, setReload] = useState(0)
 
   useEffect(() => {
     let alive = true
     getBlogComments(postId).then(c => alive && setComments(c)).catch(e => alive && setError(e?.message ?? ''))
     return () => { alive = false }
-  }, [postId])
+  }, [postId, reload])
+
+  const retry = () => {
+    setError(null)
+    setReload(n => n + 1)
+  }
 
   const added = (c: BlogComment, count: number) => {
     setComments(cs => [...(cs ?? []), c])
@@ -398,7 +635,17 @@ function Comments({ postId, account, onRequireLogin, onCount }: {
 
   return (
     <section className="mt-3 pt-3 border-t border-line/60 space-y-3" aria-label={t('comments.title')}>
-      {error && <p className="text-xs text-bad">{error}</p>}
+      {error && (
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-xs text-bad">{error}</p>
+          {/* Chưa tải được danh sách thì mới cần tải lại; lỗi lúc xoá bình luận thì danh sách vẫn còn. */}
+          {!comments && (
+            <button onClick={retry} className="btn btn-soft shrink-0 py-1.5 text-sm">
+              <Icon name="retry" className="w-4 h-4" /> {t('retry')}
+            </button>
+          )}
+        </div>
+      )}
       {!comments && !error && <div className="h-12 rounded-xl bg-muted motion-safe:animate-pulse" />}
       {comments && roots.length === 0 && <p className="text-sm text-ink-faint">{t('comments.empty')}</p>}
 
@@ -406,11 +653,11 @@ function Comments({ postId, account, onRequireLogin, onCount }: {
         const replies = comments!.filter(c => c.parentId === root.id)
         return (
           <div key={root.id} className="space-y-2">
-            <CommentItem c={root} onReply={() => reply(root.id, root)} onDelete={() => setDeleting(root)} />
+            <CommentItem c={root} highlight={root.id === highlightId} onReply={() => reply(root.id, root)} onDelete={() => setDeleting(root)} />
             {(replies.length > 0 || replyTo?.rootId === root.id) && (
               <div className="ml-4 pl-3 border-l-2 border-line/70 space-y-2">
                 {replies.map(r => (
-                  <CommentItem key={r.id} c={r} onReply={() => reply(root.id, r)} onDelete={() => setDeleting(r)} />
+                  <CommentItem key={r.id} c={r} highlight={r.id === highlightId} onReply={() => reply(root.id, r)} onDelete={() => setDeleting(r)} />
                 ))}
                 {replyTo?.rootId === root.id && (
                   <CommentForm key={`${root.id}:${replyTo.mention}`} postId={postId} parentId={root.id}
@@ -436,11 +683,15 @@ function Comments({ postId, account, onRequireLogin, onCount }: {
   )
 }
 
-function CommentItem({ c, onReply, onDelete }: { c: BlogComment; onReply: () => void; onDelete: () => void }) {
+function CommentItem({ c, highlight, onReply, onDelete }: {
+  c: BlogComment; highlight?: boolean; onReply: () => void; onDelete: () => void
+}) {
   const { t } = useTranslation('blog')
   const account = c.authorMode === 'Account'
+  const ref = useRef<HTMLDivElement>(null)
+  useEffect(() => { if (highlight) ref.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }) }, [highlight])
   return (
-    <div className="group">
+    <div ref={ref} className={`group ${highlight ? '-mx-2 px-2 py-1 rounded-lg bg-brand-500/10 ring-1 ring-brand-500/30' : ''}`}>
       <div className="flex items-center gap-1 text-xs text-ink-faint">
         {account && <Icon name="user" className="w-3.5 h-3.5 text-brand-700 dark:text-brand-400" />}
         <span className={`font-semibold ${account ? 'text-brand-700 dark:text-brand-400' : 'text-ink-soft'}`}
@@ -528,6 +779,35 @@ function CommentForm({ postId, parentId, initial = '', account, onRequireLogin, 
   )
 }
 
+/** Copy link riêng của bài (/blog/{guid}) để chia sẻ; đổi thành dấu tích ~1.5s sau khi copy xong. */
+function CopyLinkButton({ publicId }: { publicId: string }) {
+  const { t } = useTranslation('blog')
+  const [copied, setCopied] = useState(false)
+
+  const copy = async () => {
+    const url = `${location.origin}${blogPostPath(publicId)}`
+    try {
+      await navigator.clipboard.writeText(url)
+    } catch {
+      // Trình duyệt chặn clipboard (http, WebView cũ) — cho hiện link để tự copy.
+      window.prompt(t('copyLink'), url)
+      return
+    }
+    setCopied(true)
+    setTimeout(() => setCopied(false), 1500)
+  }
+
+  return (
+    <button onClick={copy} title={t('copyLink')} aria-label={copied ? t('linkCopied') : t('copyLink')}
+            className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-semibold
+                        transition active:scale-95
+                        ${copied ? 'border-ok/40 bg-ok/10 text-ok' : 'border-line text-ink-soft hover:bg-muted'}`}>
+      <Icon name={copied ? 'check' : 'link'} className="w-4 h-4" />
+      <span className="hidden sm:inline" aria-live="polite">{copied ? t('linkCopied') : t('share')}</span>
+    </button>
+  )
+}
+
 function VoteButton({ icon, label, count, active, tone, disabled, onClick }: {
   icon: 'like' | 'dislike'; label: string; count: number; active: boolean; tone: 'ok' | 'bad'
   disabled: boolean; onClick: () => void
@@ -541,15 +821,4 @@ function VoteButton({ icon, label, count, active, tone, disabled, onClick }: {
       <Icon name={icon} className="w-4 h-4" /> {count}
     </button>
   )
-}
-
-/** "5 phút trước" / "5 minutes ago" — quá 30 ngày thì ghi ngày. */
-function timeAgo(iso: string) {
-  const sec = (Date.now() - new Date(iso).getTime()) / 1000
-  const rtf = new Intl.RelativeTimeFormat(currentLocale(), { numeric: 'auto' })
-  if (sec < 60) return rtf.format(0, 'second')
-  if (sec < 3600) return rtf.format(-Math.floor(sec / 60), 'minute')
-  if (sec < 86400) return rtf.format(-Math.floor(sec / 3600), 'hour')
-  if (sec < 30 * 86400) return rtf.format(-Math.floor(sec / 86400), 'day')
-  return new Date(iso).toLocaleDateString(currentLocale())
 }

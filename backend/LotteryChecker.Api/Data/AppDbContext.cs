@@ -14,10 +14,12 @@ public class AppDbContext : DbContext
     public DbSet<BlogPost> BlogPosts => Set<BlogPost>();
     public DbSet<BlogVote> BlogVotes => Set<BlogVote>();
     public DbSet<BlogComment> BlogComments => Set<BlogComment>();
+    public DbSet<BlogImage> BlogImages => Set<BlogImage>();
     public DbSet<CheckHistoryEntry> CheckHistory => Set<CheckHistoryEntry>();
     public DbSet<ScratchTicket> ScratchTickets => Set<ScratchTicket>();
     public DbSet<WalletTransaction> WalletTransactions => Set<WalletTransaction>();
     public DbSet<FeatureFlag> FeatureFlags => Set<FeatureFlag>();
+    public DbSet<Notification> Notifications => Set<Notification>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -54,6 +56,7 @@ public class AppDbContext : DbContext
         b.Entity<BlogPost>(e =>
         {
             e.HasIndex(x => x.CreatedAt);
+            e.HasIndex(x => x.PublicId).IsUnique();
             e.Property(x => x.Title).HasMaxLength(120);
             e.Property(x => x.Content).HasMaxLength(5000);
             e.Property(x => x.AuthorName).HasMaxLength(30);
@@ -76,6 +79,17 @@ public class AppDbContext : DbContext
             // Xoá bài → xoá hết bình luận; xoá bình luận gốc → xoá các trả lời của nó.
             e.HasOne<BlogPost>().WithMany().HasForeignKey(x => x.PostId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne<BlogComment>().WithMany().HasForeignKey(x => x.ParentId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<BlogImage>(e =>
+        {
+            e.HasIndex(x => x.Key).IsUnique();
+            e.HasIndex(x => new { x.PostId, x.SortOrder });
+            e.HasIndex(x => new { x.OwnerKey, x.CreatedAt });
+            e.Property(x => x.Key).HasMaxLength(80);
+            e.Property(x => x.OwnerKey).HasMaxLength(40);
+            // Xoá bài → ảnh thành mồ côi (không xoá dòng) để worker còn key mà xoá trên bucket.
+            e.HasOne<BlogPost>().WithMany().HasForeignKey(x => x.PostId).OnDelete(DeleteBehavior.SetNull);
         });
 
         b.Entity<CheckHistoryEntry>(e =>
@@ -104,6 +118,16 @@ public class AppDbContext : DbContext
             e.HasKey(x => x.Key);
             e.Property(x => x.Key).HasMaxLength(40);
             e.Property(x => x.UpdatedBy).HasMaxLength(20);
+        });
+
+        b.Entity<Notification>(e =>
+        {
+            e.HasIndex(x => new { x.UserId, x.Id });
+            e.Property(x => x.Kind).HasConversion<string>().HasMaxLength(16);
+            // Xoá tài khoản / bài / bình luận → thông báo liên quan đi theo.
+            e.HasOne<User>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne<BlogPost>().WithMany().HasForeignKey(x => x.PostId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne<BlogComment>().WithMany().HasForeignKey(x => x.CommentId).OnDelete(DeleteBehavior.Cascade);
         });
 
         b.Entity<WalletTransaction>(e =>

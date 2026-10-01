@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import AppHeader from './components/AppHeader'
 import BottomNav from './components/BottomNav'
+import AppFooter from './components/AppFooter'
 import ThemePicker from './components/ThemePicker'
 import DonateDialog from './components/DonateDialog'
 import AuthDialog from './components/AuthDialog'
@@ -10,13 +11,13 @@ import { FEATURES_OFF, getFeatures, getMe, logout, type Account, type Features }
 import AvailableData, { type ResultsFocus } from './components/AvailableData'
 import LuckyNumbers from './components/LuckyNumbers'
 import Predictions from './components/Predictions'
-import Blog from './components/Blog'
+import Blog, { type BlogFocus } from './components/Blog'
 import Profile from './components/Profile'
 import AdminPanel from './components/AdminPanel'
 import ChangePasswordDialog from './components/ChangePasswordDialog'
 import Home from './pages/Home'
 import { useTheme } from './theme'
-import { viewFromPath, viewPath, type View } from './views'
+import { blogPostIdFromPath, blogPostPath, viewFromPath, viewPath, type View } from './views'
 
 export default function App() {
   const { t } = useTranslation()
@@ -26,10 +27,21 @@ export default function App() {
   // Chạy trước effect của các con để Home ghi stage đầu tiên lên đúng mục này.
   const [view, setView] = useState<View>(() => {
     const v = viewFromPath(location.pathname)
-    history.replaceState({ view: v }, '', viewPath(v) + location.search + location.hash)
+    const shared = blogPostIdFromPath(location.pathname)
+    history.replaceState({ view: v }, '', (shared ? blogPostPath(shared) : viewPath(v)) + location.search + location.hash)
     return v
   })
   const [resultsFocus, setResultsFocus] = useState<ResultsFocus | null>(null)
+  // Bài mở từ chuông thông báo / link chia sẻ /blog/{guid} — Blog hiện bài đó trên cùng.
+  const [blogFocus, setBlogFocus] = useState<BlogFocus | null>(() => {
+    const shared = blogPostIdFromPath(location.pathname)
+    return shared ? { publicId: shared, at: 0 } : null
+  })
+  // Bỏ bài đang mở: link chia sẻ trên thanh địa chỉ cũng về /blog để F5 không mở lại bài đó.
+  const clearBlogFocus = useCallback(() => {
+    setBlogFocus(null)
+    if (blogPostIdFromPath(location.pathname)) history.replaceState({ view: 'blog' }, '', viewPath('blog'))
+  }, [])
   // Các màn đã mở ít nhất 1 lần — màn nặng (Dự đoán) chỉ mount khi cần rồi giữ lại.
   const [seen, setSeen] = useState<ReadonlySet<View>>(() => new Set([view]))
   if (!seen.has(view)) setSeen(new Set(seen).add(view))
@@ -83,24 +95,27 @@ export default function App() {
         return v
       })
       setResultsFocus(st?.focus ?? null)
+      // Back/Forward về mục lịch sử là link 1 bài → mở lại đúng bài đó.
+      const shared = blogPostIdFromPath(location.pathname)
+      if (shared) setBlogFocus(f => f?.publicId === shared ? f : { publicId: shared, at: Date.now() })
     }
     window.addEventListener('popstate', onPop)
     return () => window.removeEventListener('popstate', onPop)
   }, [])
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen flex flex-col">
       <div aria-hidden className={`backdrop bgfx-${theme.bg}`} />
       <AppHeader view={view} busy={checking} onChange={v => go(v)} onOpenTheme={() => setThemeOpen(true)}
                  onOpenDonate={() => setDonateOpen(true)}
                  account={account ?? null} showProfile={hasProfile} onOpenAuth={() => setAuthReason(null)} onLogout={onLogout}
                  onOpenProfile={() => go('profile')} onOpenAdmin={() => go('admin')}
-                 onChangePassword={() => setPwOpen(true)} />
+                 onChangePassword={() => setPwOpen(true)}
+                 onOpenNotification={n => { setBlogFocus({ postId: n.postId, commentId: n.commentId, at: Date.now() }); go('blog') }} />
 
-      {/* Điện thoại: 1 cột + chừa chỗ cho BottomNav (và vạch home của iPhone). Màn rộng: khung
-          rộng hơn, từng màn tự chia cột. */}
-      <main className="w-full max-w-md md:max-w-3xl lg:max-w-5xl mx-auto px-4 pt-4 md:pt-8
-                       pb-[calc(6.5rem+env(safe-area-inset-bottom))] md:pb-12">
+      {/* Điện thoại: 1 cột (chỗ cho BottomNav do AppFooter chừa). Màn rộng: khung rộng hơn,
+          từng màn tự chia cột. */}
+      <main className="flex-1 w-full max-w-md md:max-w-3xl lg:max-w-5xl mx-auto px-4 pt-4 md:pt-8 pb-8 md:pb-12">
         {/* Dò vé và 6 số may mắn chỉ ẩn đi chứ không unmount: đang xác nhận vé mà ghé xem kết quả
             đài rồi quay lại thì vẫn còn vé vừa quét (camera thì tắt khi ẩn — xem Home.active).
             fade-up chạy lại mỗi lần hiện ra vì trình duyệt khởi động lại animation khi hết display:none. */}
@@ -131,7 +146,8 @@ export default function App() {
         {/* Blog: key theo tài khoản — đăng nhập/xuất thì tải lại (lượt like, bài "của mình" đổi theo). */}
         {seen.has('blog') && (
           <div hidden={view !== 'blog'} className="fade-up">
-            <Blog key={sessionKey} account={account ?? null} onRequireLogin={() => setAuthReason(null)} />
+            <Blog key={sessionKey} account={account ?? null} onRequireLogin={() => setAuthReason(null)}
+                  focus={blogFocus} onClearFocus={clearBlogFocus} />
           </div>
         )}
         {/* Tài khoản: mount lại mỗi lần mở để lịch sử dò vé có luôn các vé vừa dò. */}
@@ -183,6 +199,7 @@ export default function App() {
         )}
       </main>
 
+      <AppFooter onNavigate={v => go(v)} onOpenDonate={() => setDonateOpen(true)} />
       <BottomNav view={view} busy={checking} onChange={v => go(v)} />
       {themeOpen && <ThemePicker theme={theme} onChange={setTheme} onClose={closeTheme} />}
       {donateOpen && <DonateDialog onClose={closeDonate} />}

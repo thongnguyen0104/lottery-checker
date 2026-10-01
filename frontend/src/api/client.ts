@@ -16,6 +16,18 @@ const api = axios.create({
 // Báo ngôn ngữ đang chọn để máy chủ trả lời nhắn lỗi (và luận giấc mơ) đúng tiếng.
 api.interceptors.request.use(cfg => { cfg.headers.set('Accept-Language', currentLang()); return cfg })
 
+// Mạng tới VM hay rớt gói lúc bắt tay TLS (đo được 1–4s, có lúc treo tới hết timeout) trong khi máy
+// chủ xử lý chỉ vài trăm ms → GET quá hạn / mất kết nối thì tự gửi lại 1 lần, thường lần 2 qua ngay.
+// Chỉ GET (đọc, gửi lại vô hại); POST/DELETE không lặp để khỏi đăng bài / trừ tiền 2 lần.
+api.interceptors.response.use(undefined, async e => {
+  const cfg = axios.isAxiosError(e) ? e.config as (typeof e.config & { _retried?: boolean }) | undefined : undefined
+  const retriable = axios.isAxiosError(e) && !e.response && !axios.isCancel(e)
+    && ['ECONNABORTED', 'ETIMEDOUT', 'ERR_NETWORK'].includes(e.code ?? '')
+  if (!cfg || !retriable || cfg.method !== 'get' || cfg._retried || cfg.signal?.aborted) throw e
+  cfg._retried = true
+  return api.request(cfg)
+})
+
 /**
  * Thời gian từng chặng phía máy chủ (ms) — xem StageTimer/ScanController ở backend.
  * Các chặng chạy NỐI TIẾP; chặng cloud = null khi OCR cục bộ đã đủ tin (không gọi cloud),
@@ -660,6 +672,8 @@ export type BlogAuthorMode = 'Account' | 'Anonymous' | 'Custom'
 
 export type BlogPost = {
   id: number
+  /** Id công khai cho link chia sẻ /blog/{publicId}. */
+  publicId: string
   title: string
   content: string
   authorMode: BlogAuthorMode
@@ -674,6 +688,36 @@ export type BlogPost = {
   mine: boolean
   /** Số bình luận, tính cả trả lời. */
   commentCount: number
+  /** Đường dẫn ảnh đính kèm (tương đối, /api/blog/images/...) — ghép API_BASE bằng blogImageUrl. */
+  images: string[]
+}
+
+/** Ảnh blog đi qua backend (cache RAM + cache trình duyệt 1 năm) — cần API_BASE khi FE ở host khác. */
+export const blogImageUrl = (path: string) => `${API_BASE}${path}`
+
+export type BlogOptions = { imagesEnabled: boolean; maxImages: number; maxImageBytes: number }
+
+let blogOptions: Promise<BlogOptions> | null = null
+
+/** Máy chủ có bật đăng ảnh không (chưa cấu hình bucket thì ẩn nút). Hỏi 1 lần mỗi phiên. */
+export function getBlogOptions(): Promise<BlogOptions> {
+  blogOptions ??= api.get('/api/blog/options').then(r => r.data as BlogOptions)
+    .catch(() => { blogOptions = null; return { imagesEnabled: false, maxImages: 0, maxImageBytes: 0 } })
+  return blogOptions
+}
+
+/** Nén rồi upload 1 ảnh chờ đăng → id gửi kèm lúc đăng bài. */
+export async function uploadBlogImage(file: Blob, signal?: AbortSignal) {
+  try {
+    // Nén về 1600px như ảnh vé: ảnh 12MP từ điện thoại còn vài trăm KB, gửi nhanh trên 4G.
+    const c = await compressImage(file, DEFAULT_COMPRESS)
+    const fd = new FormData()
+    fd.append('image', c.blob, 'image.jpg')
+    const { data } = await api.post('/api/blog/images', fd, { timeout: 60_000, signal })
+    return data as { id: number; url: string }
+  } catch (e) {
+    throw toFriendlyError(e)
+  }
 }
 
 /** parentId null = bình luận gốc; có = trả lời (luôn trỏ về bình luận gốc — luồng 1 cấp). */
@@ -725,7 +769,9 @@ export async function getBlogPosts(sort: 'new' | 'top', page: number) {
   }
 }
 
-export async function createBlogPost(post: { title: string; content: string; authorMode: BlogAuthorMode; authorName?: string }) {
+export async function createBlogPost(post: {
+  title: string; content: string; authorMode: BlogAuthorMode; authorName?: string; imageIds?: number[]
+}) {
   try {
     const { data } = await api.post('/api/blog/posts', post)
     return data as BlogPost
@@ -746,6 +792,52 @@ export async function voteBlogPost(id: number, value: number) {
 export async function deleteBlogPost(id: number) {
   try {
     await api.delete(`/api/blog/posts/${id}`)
+  } catch (e) {
+    throw toFriendlyError(e)
+  }
+}
+
+/** 1 bài — mở thẳng từ chuông thông báo (id số) hoặc link chia sẻ (publicId dạng guid). */
+export async function getBlogPost(id: number | string) {
+  try {
+    const { data } = await api.get(`/api/blog/posts/${id}`)
+    return data as BlogPost
+  } catch (e) {
+    throw toFriendlyError(e)
+  }
+}
+
+// ── Chuông thông báo (cần đăng nhập); thông báo mới đẩy realtime qua SignalR — xem NotificationBell ──
+export type AppNotification = {
+  id: number
+  kind: 'PostComment' | 'CommentReply'
+  postId: number
+  commentId: number
+  postTitle: string
+  /** null = người viết ký Ẩn danh. */
+  actorName: string | null
+  snippet: string
+  createdAt: string
+  isRead: boolean
+}
+
+/** Địa chỉ hub SignalR — cùng tiền tố /api nên đi chung proxy (Vite / Caddy) với API. */
+export const NOTIFICATION_HUB_URL = `${API_BASE}/api/hubs/notifications`
+
+export async function getNotifications() {
+  try {
+    const { data } = await api.get('/api/notifications')
+    return data as { items: AppNotification[]; unread: number }
+  } catch (e) {
+    throw toFriendlyError(e)
+  }
+}
+
+/** ids bỏ trống = đánh dấu đọc hết. Trả số chưa đọc còn lại. */
+export async function markNotificationsRead(ids?: number[]) {
+  try {
+    const { data } = await api.post('/api/notifications/read', { ids: ids ?? null })
+    return (data as { unread: number }).unread
   } catch (e) {
     throw toFriendlyError(e)
   }

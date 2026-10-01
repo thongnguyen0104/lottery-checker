@@ -47,3 +47,14 @@ export const formatDateTime = (iso: string) => {
   return `${formatDayMonth(`${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`)} ${
     d.toLocaleTimeString(currentLocale(), { hour: '2-digit', minute: '2-digit' })}`
 }
+
+/** "5 phút trước" / "5 minutes ago" — quá 30 ngày thì ghi ngày. */
+export function timeAgo(iso: string) {
+  const sec = (Date.now() - new Date(iso).getTime()) / 1000
+  const rtf = new Intl.RelativeTimeFormat(currentLocale(), { numeric: 'auto' })
+  if (sec < 60) return rtf.format(0, 'second')
+  if (sec < 3600) return rtf.format(-Math.floor(sec / 60), 'minute')
+  if (sec < 86400) return rtf.format(-Math.floor(sec / 3600), 'hour')
+  if (sec < 30 * 86400) return rtf.format(-Math.floor(sec / 86400), 'day')
+  return new Date(iso).toLocaleDateString(currentLocale())
+}

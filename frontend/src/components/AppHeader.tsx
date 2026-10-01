@@ -1,10 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import Icon, { type IconName } from './Icon'
 import ConfirmDialog from './ConfirmDialog'
+import NotificationBell from './NotificationBell'
 import { useTranslation } from 'react-i18next'
 import { currentLang } from '../i18n'
 import { VIEWS, type View } from '../views'
-import type { Account } from '../api/client'
+import type { Account, AppNotification } from '../api/client'
+
+// Dò vé không nằm trong dãy tab — có nút primary riêng ở góc phải.
+const TABS = VIEWS.filter(v => v.id !== 'check')
 
 type Props = {
   view: View
@@ -24,13 +28,15 @@ type Props = {
   /** Chỉ hiện khi account.isAdmin. */
   onOpenAdmin: () => void
   onChangePassword: () => void
+  /** Bấm 1 thông báo trong chuông (chỉ hiện khi đã đăng nhập) — mở bài đó. */
+  onOpenNotification: (n: AppNotification) => void
 }
 
 /** Thanh trên cùng: logo + tên tính năng đang mở; màn rộng có thêm tab chuyển tính năng
  *  (điện thoại dùng BottomNav cho vừa tầm ngón cái). Bấm logo sổ menu: ủng hộ, tài khoản, đăng nhập/xuất,
  *  ngôn ngữ, bảng màu. */
 export default function AppHeader({ view, busy, onChange, onOpenTheme, onOpenDonate, account, showProfile, onOpenAuth, onLogout, onOpenProfile,
-                                    onOpenAdmin, onChangePassword }: Props) {
+                                    onOpenAdmin, onChangePassword, onOpenNotification }: Props) {
   const { t, i18n } = useTranslation()
   const lang = currentLang()
   const [confirmLogout, setConfirmLogout] = useState(false)
@@ -113,7 +119,7 @@ export default function AppHeader({ view, busy, onChange, onOpenTheme, onOpenDon
 
         <nav className="hidden md:flex ml-auto items-center gap-1 p-1 rounded-xl bg-muted/80 border border-line/60"
              aria-label={t('app.features')}>
-          {VIEWS.map(v => {
+          {TABS.map(v => {
             const active = v.id === view
             return (
               <button key={v.id} onClick={() => onChange(v.id)} aria-current={active ? 'page' : undefined}
@@ -121,20 +127,35 @@ export default function AppHeader({ view, busy, onChange, onOpenTheme, onOpenDon
                                   ${active
                                     ? 'bg-surface dark:bg-brand-500/10 text-brand-700 shadow-sm dark:text-brand-400'
                                     : 'text-ink-faint hover:text-ink'}`}>
-                <span className="relative">
-                  <Icon name={v.icon} className={`w-[18px] h-[18px] ${active ? 'wiggle' : ''}`} />
-                  {busy && !active && v.id === 'check' && (
-                    <span aria-hidden className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-brand-500 motion-safe:animate-pulse" />
-                  )}
-                </span>
+                <Icon name={v.icon} className={`w-[18px] h-[18px] ${active ? 'wiggle' : ''}`} />
                 {/* md chật (logo + nhiều tab) → tên ngắn; lg mới đủ chỗ cho tên đầy đủ */}
                 <span className="lg:hidden">{t(`views.${v.id}.short`)}</span>
                 <span className="hidden lg:inline">{t(`views.${v.id}.title`)}</span>
-                {busy && !active && v.id === 'check' && <span className="sr-only">{t('app.busy')}</span>}
               </button>
             )
           })}
         </nav>
+        {/* key: đổi tài khoản thì nối lại hub + tải lại danh sách của người mới */}
+        {account && (
+          <div className="ml-auto md:ml-0 shrink-0">
+            <NotificationBell key={account.username} onOpen={onOpenNotification} />
+          </div>
+        )}
+        {/* Dò vé — tính năng chính: nút primary riêng ở góc phải (điện thoại là nút giữa BottomNav) */}
+        <button onClick={() => onChange('check')} aria-current={view === 'check' ? 'page' : undefined}
+                className={`hidden md:flex shrink-0 items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold whitespace-nowrap
+                            bg-gradient-to-r from-primary to-primary-end text-on-primary shadow-md shadow-primary/25
+                            hover:shadow-lg hover:shadow-primary/30 active:scale-95 transition
+                            ${view === 'check' ? 'ring-2 ring-offset-2 ring-offset-canvas ring-primary/50' : ''}`}>
+          <span className="relative">
+            <Icon name="ticket" className={`w-[18px] h-[18px] ${view === 'check' ? 'wiggle' : ''}`} />
+            {busy && view !== 'check' && (
+              <span aria-hidden className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-on-primary ring-2 ring-primary motion-safe:animate-pulse" />
+            )}
+          </span>
+          {t('views.check.short')}
+          {busy && view !== 'check' && <span className="sr-only">{t('app.busy')}</span>}
+        </button>
       </div>
       {confirmLogout && account && (
         <ConfirmDialog title={t('auth.logoutConfirmTitle')}

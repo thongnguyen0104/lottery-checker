@@ -3,6 +3,16 @@ import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig({
+  build: {
+    rolldownOptions: {
+      // @microsoft/signalr đặt /*#__PURE__*/ trước khai báo hàm — Rolldown bỏ qua và in cảnh báo đỏ
+      // mỗi lần build dù vô hại. Chỉ tắt đúng loại này của đúng thư viện đó.
+      onwarn(warning, warn) {
+        if (warning.code === 'INVALID_ANNOTATION' && warning.message.includes('@microsoft/signalr')) return
+        warn(warning)
+      },
+    },
+  },
   plugins: [
     react(),
     VitePWA({
@@ -32,7 +42,7 @@ export default defineConfig({
     proxy: {
       // FE gọi /api/* (cùng origin) → Vite chuyển tiếp sang backend localhost:5177.
       // Nhờ vậy điện thoại chỉ cần tới được cổng 5173; KHÔNG cần CORS, KHÔNG cần lộ 5177.
-      '/api': { target: 'http://localhost:5177', changeOrigin: true },
+      '/api': { target: 'http://localhost:5177', changeOrigin: true, ws: true }, // ws: SignalR (chuông thông báo)
     },
   },
   // `vite preview` = serve bản BUILD thật (bundle production + service worker PWA hoạt động
@@ -43,7 +53,7 @@ export default defineConfig({
     host: true,
     allowedHosts: true,
     proxy: {
-      '/api': { target: 'http://localhost:5177', changeOrigin: true },
+      '/api': { target: 'http://localhost:5177', changeOrigin: true, ws: true }, // ws: SignalR (chuông thông báo)
     },
   }
 })

@@ -12,6 +12,10 @@ export const VIEWS: { id: View; path: string; icon: IconName }[] = [
   { id: 'blog', path: '/blog', icon: 'blog' },
 ]
 
+/** Thứ tự tab BottomNav (điện thoại): Dò vé — tính năng chính — nằm giữa, vẽ thành nút tròn nổi lên.
+ *  Màn rộng thì Dò vé là nút primary riêng ở góc phải AppHeader, không nằm trong dãy tab. */
+export const BOTTOM_NAV: View[] = ['lucky', 'predict', 'check', 'results', 'blog']
+
 /** Màn có đường dẫn riêng nhưng không nằm trên thanh tab — mở từ menu logo. */
 const EXTRA_VIEWS: { id: View; path: string }[] = [
   { id: 'profile', path: '/tai-khoan' },
@@ -25,4 +29,13 @@ export const viewPath = (v: View) => ROUTES.find(x => x.id === v)!.path
 
 /** Màn ứng với đường dẫn; đường dẫn lạ → Dò vé. Bỏ "/" cuối để "/ket-qua/" cũng khớp. */
 export const viewFromPath = (path: string): View =>
-  ROUTES.find(x => x.path === (path.replace(/\/+$/, '') || '/'))?.id ?? 'check'
+  blogPostIdFromPath(path) ? 'blog'
+    : ROUTES.find(x => x.path === (path.replace(/\/+$/, '') || '/'))?.id ?? 'check'
+
+/** Link chia sẻ riêng của 1 bài Blog: /blog/{guid}. */
+export const blogPostPath = (publicId: string) => `/blog/${publicId}`
+
+const BLOG_POST = /^\/blog\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/?$/i
+
+/** Guid bài trong link chia sẻ; null nếu không phải link 1 bài. */
+export const blogPostIdFromPath = (path: string) => BLOG_POST.exec(path)?.[1].toLowerCase() ?? null

@@ -84,4 +84,19 @@ public class BlogServiceTests
         (await blog.DeleteAsync(dto.Id, 7, default)).Should().BeTrue();
         (await blog.ListAsync(null, 1, "g:x", 7, default)).Items.Should().BeEmpty();
     }
+
+    [Fact(DisplayName = "Link chia se: moi bai 1 PublicId rieng, mo lai duoc theo guid kem luot cua minh")]
+    public async Task GetByPublicId()
+    {
+        var blog = NewBlog();
+        var a = await blog.CreateAsync(Post(), null, null, default);
+        var b = await blog.CreateAsync(Post(), null, null, default);
+        a.PublicId.Should().NotBeEmpty().And.NotBe(b.PublicId);
+        await blog.VoteAsync(b.Id, "g:x", 1, default);
+
+        var got = await blog.GetAsync(b.PublicId, "g:x", null, default);
+        got!.Id.Should().Be(b.Id);
+        got.MyVote.Should().Be(1);
+        (await blog.GetAsync(Guid.NewGuid(), "g:x", null, default)).Should().BeNull();
+    }
 }
