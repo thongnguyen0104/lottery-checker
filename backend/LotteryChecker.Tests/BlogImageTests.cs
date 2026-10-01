@@ -65,8 +65,8 @@ public class BlogImageTests
     [Fact(DisplayName = "Validate: toi da 4 anh, khong trung id")]
     public void Validate_ImageCount()
     {
-        BlogService.Validate(Post(1, 2, 3, 4), null, false).Should().BeNull();
-        BlogService.Validate(Post(1, 2, 3, 4, 5), null, false).Should().NotBeNull();
+        BlogService.Validate(Post(1), null, false).Should().BeNull();
+        BlogService.Validate(Post(1, 2), null, false).Should().NotBeNull();
         BlogService.Validate(Post(1, 1), null, false).Should().NotBeNull();
     }
 

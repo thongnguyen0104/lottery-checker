@@ -11,7 +11,8 @@ public class BlogService(AppDbContext db, TimeProvider clock)
     public const int TitleMin = 3, TitleMax = 120;
     public const int ContentMin = 10, ContentMax = 5000;
     public const int NameMin = 2, NameMax = 30;
-    public const int MaxImagesPerPost = 4;
+    /// <summary>1 ảnh/bài: bucket free chỉ 20GB + ~50k request/tháng, VM 1GB RAM cache ảnh.</summary>
+    public const int MaxImagesPerPost = 1;
     /// <summary>Ảnh upload rồi mà chưa đăng bài quá chừng này thì không gắn được nữa (worker sẽ dọn).</summary>
     public static readonly TimeSpan PendingImageTtl = TimeSpan.FromHours(24);
     /// <summary>Tối đa ảnh "chờ đăng" mỗi người — chặn upload hàng loạt không đăng bài để làm đầy bucket.</summary>

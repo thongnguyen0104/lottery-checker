@@ -338,7 +338,7 @@ function Composer({ account, onRequireLogin, onCancel, onPosted }: {
               )}
             </button>
           )}
-          <input ref={fileInput} type="file" accept="image/*" multiple hidden
+          <input ref={fileInput} type="file" accept="image/*" multiple={options.maxImages > 1} hidden
                  onChange={e => { addImages(e.target.files); e.target.value = '' }} />
         </div>
       )}
