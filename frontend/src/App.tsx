@@ -31,6 +31,7 @@ export default function App() {
   const { t: ta } = useTranslation('admin')
   const { t: tm } = useTranslation('map')
   const { t: ts } = useTranslation('site')
+  const { t: tb } = useTranslation('blog')
   // Mở đúng màn theo URL (link chia sẻ / F5); đường dẫn lạ về Dò vé và sửa luôn URL. Xoá state lịch
   // sử còn sót từ trước khi tải lại (vd đang ở bảng 1 đài) — bước bên trong không nằm trên URL.
   // Chạy trước effect của các con để Home ghi stage đầu tiên lên đúng mục này.
@@ -101,6 +102,8 @@ export default function App() {
   const refreshFeatures = useCallback(() => { getFeatures().then(f => { setFeatures(f); setFeaturesReady(true) }) }, [])
   useEffect(() => { if (account !== undefined) refreshFeatures() }, [sessionKey, account, refreshFeatures])
   const hasProfile = features.available.checkHistory || features.available.scratchTickets
+  // Tab Blog theo trạng thái thật của cờ, kể cả admin — admin muốn xem trước thì mở thẳng /blog.
+  const showBlog = features.enabled.blog
 
   // Mọi lối chuyển màn đều qua đây: mở Kết quả từ menu thì xoá focus của vé lần trước.
   // Mỗi lần chuyển = 1 mục lịch sử (kèm focus) để nút Back của trình duyệt/điện thoại quay về
@@ -153,12 +156,13 @@ export default function App() {
                  account={account ?? null} showProfile={hasProfile} onOpenAuth={() => setAuthReason(null)} onLogout={onLogout}
                  onOpenProfile={() => go('profile')} onOpenAdmin={() => go('admin')}
                  showMap={features.available.shopMap} onOpenMap={() => go('map')}
+                 showBlog={showBlog}
                  showMySite={features.available.sites} onOpenMySite={() => go('mySite')}
                  onChangePassword={() => setPwOpen(true)}
                  onOpenNotification={n => {
                    if (n.kind === 'SiteReservation') { go('mySite'); return }
                    if (n.shopPublicId) { openShop(n.shopPublicId); return }
-                   if (n.postId == null || n.commentId == null) return
+                   if (n.postId == null || n.commentId == null || !features.available.blog) return
                    setBlogFocus({ postId: n.postId, commentId: n.commentId, at: Date.now() })
                    go('blog')
                  }} />
@@ -193,11 +197,19 @@ export default function App() {
             <Predictions />
           </div>
         )}
-        {/* Blog: key theo tài khoản — đăng nhập/xuất thì tải lại (lượt like, bài "của mình" đổi theo). */}
+        {/* Blog: key theo tài khoản — đăng nhập/xuất thì tải lại (lượt like, bài "của mình" đổi theo).
+            Cờ blog tắt (admin vẫn xem trước được) → báo chưa mở, kể cả mở thẳng /blog hay link chia sẻ. */}
         {seen.has('blog') && (
           <div hidden={view !== 'blog'} className="fade-up">
-            <Blog key={sessionKey} account={account ?? null} onRequireLogin={() => setAuthReason(null)}
-                  focus={blogFocus} onClearFocus={clearBlogFocus} />
+            {features.available.blog ? (
+              <Blog key={sessionKey} account={account ?? null} onRequireLogin={() => setAuthReason(null)}
+                    focus={blogFocus} onClearFocus={clearBlogFocus} />
+            ) : featuresReady && (
+              <div className="card p-6 text-center space-y-3 max-w-md mx-auto">
+                <Icon name="blog" className="w-10 h-10 mx-auto text-brand-700 dark:text-brand-400" />
+                <p className="font-semibold">{tb('unavailable')}</p>
+              </div>
+            )}
           </div>
         )}
         {/* Tài khoản: mount lại mỗi lần mở để lịch sử dò vé có luôn các vé vừa dò. */}
@@ -292,8 +304,9 @@ export default function App() {
         )}
       </main>
 
-      <AppFooter onNavigate={v => go(v)} onOpenDonate={() => setDonateOpen(true)} showMap={features.available.shopMap} />
-      <BottomNav view={view} busy={checking} onChange={v => go(v)} />
+      <AppFooter onNavigate={v => go(v)} onOpenDonate={() => setDonateOpen(true)} showMap={features.available.shopMap}
+                 showBlog={showBlog} />
+      <BottomNav view={view} busy={checking} showBlog={showBlog} onChange={v => go(v)} />
       {themeOpen && <ThemePicker theme={theme} onChange={setTheme} onClose={closeTheme} />}
       {donateOpen && <DonateDialog onClose={closeDonate} />}
       {account && (pwOpen || mustChangePassword) && (

@@ -6,15 +6,19 @@ const TABS = BOTTOM_NAV.map(id => VIEWS.find(v => v.id === id)!)
 
 /** Thanh tab dưới đáy cho điện thoại (ẩn từ md trở lên — màn rộng dùng tab trên AppHeader). */
 /** busy = Dò vé đang quét/dò → chấm nhấp nháy trên tab đó khi user đang ở tab khác. */
-export default function BottomNav({ view, busy, onChange }: { view: View; busy?: boolean; onChange: (v: View) => void }) {
+/** showBlog = cờ blog; tắt thì còn 4 tab. */
+export default function BottomNav({ view, busy, showBlog, onChange }: {
+  view: View; busy?: boolean; showBlog: boolean; onChange: (v: View) => void
+}) {
   const { t } = useTranslation()
+  const tabs = showBlog ? TABS : TABS.filter(v => v.id !== 'blog')
   return (
     <nav aria-label={t('app.features')}
          className="md:hidden fixed inset-x-0 bottom-0 z-30 pb-[env(safe-area-inset-bottom)]
                     bg-surface/85 backdrop-blur-xl border-t border-line/70">
       {/* items-end: nút giữa nhô lên thấp hơn các tab khác một chút — căn đáy để chữ thẳng hàng */}
-      <div className="grid items-end max-w-md mx-auto px-1" style={{ gridTemplateColumns: `repeat(${TABS.length}, minmax(0, 1fr))` }}>
-        {TABS.map(v => {
+      <div className="grid items-end max-w-md mx-auto px-1" style={{ gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))` }}>
+        {tabs.map(v => {
           const active = v.id === view
           // Dò vé (tính năng chính, nằm giữa): nút tròn màu primary nhô lên khỏi thanh.
           if (v.id === 'check') return (

@@ -15,8 +15,12 @@ public class FeatureFlags(AppDbContext db, IMemoryCache cache, TimeProvider cloc
     public const string ScratchTickets = "scratchTickets";
     public const string ShopMap = "shopMap";
     public const string Sites = "sites";
+    public const string Blog = "blog";
 
-    public record Definition(string Key, string NameVi, string NameEn, string DescriptionVi, string DescriptionEn);
+    /// <summary>DefaultOn: trạng thái khi admin chưa từng bật/tắt (chưa có dòng trong DB) — tính năng đã chạy
+    /// từ trước khi có cờ thì để true, không thì deploy xong tự ẩn mất.</summary>
+    public record Definition(string Key, string NameVi, string NameEn, string DescriptionVi, string DescriptionEn,
+                             bool DefaultOn = false);
 
     /// <summary>Mọi cờ hợp lệ — thêm tính năng mới thì thêm ở đây.</summary>
     public static readonly IReadOnlyList<Definition> All =
@@ -33,6 +37,10 @@ public class FeatureFlags(AppDbContext db, IMemoryCache cache, TimeProvider cloc
         new(Sites, "Website con", "Mini-sites",
             "Người dùng / đại lý tự tạo website riêng (/s/{tên}): giao diện, sản phẩm, bài viết, nhận giữ vé trả tại quầy.",
             "Users / agents build their own site (/s/{name}): theme, products, posts, in-store ticket reservations."),
+        new(Blog, "Blog", "Blog",
+            "Tab Blog (/blog): đọc, viết bài, đăng ảnh, like, bình luận. Tắt thì ẩn tab và chặn API; bài cũ vẫn giữ.",
+            "The Blog tab (/blog): read, post, upload images, vote, comment. Off hides the tab and blocks the API; posts are kept.",
+            DefaultOn: true),
     ];
 
     public record FlagDto(string Key, string Name, string Description, bool Enabled, DateTime? UpdatedAt, string? UpdatedBy);
@@ -42,6 +50,9 @@ public class FeatureFlags(AppDbContext db, IMemoryCache cache, TimeProvider cloc
 
     public static bool IsKnown(string key) => All.Any(d => d.Key == key);
 
+    private static bool On(Dictionary<string, FeatureFlag> flags, string key) =>
+        flags.GetValueOrDefault(key)?.Enabled ?? All.FirstOrDefault(d => d.Key == key)?.DefaultOn == true;
+
     private Task<Dictionary<string, FeatureFlag>> LoadAsync(CancellationToken ct) =>
         cache.GetOrCreateAsync(CacheKey, async e =>
         {
@@ -50,13 +61,13 @@ public class FeatureFlags(AppDbContext db, IMemoryCache cache, TimeProvider cloc
         })!;
 
     public async Task<bool> IsEnabledAsync(string key, CancellationToken ct) =>
-        (await LoadAsync(ct)).GetValueOrDefault(key)?.Enabled == true;
+        On(await LoadAsync(ct), key);
 
     /// <summary>Cờ nào user này dùng được: đã bật, hoặc user là admin (xem trước).</summary>
     public async Task<Dictionary<string, bool>> AvailableAsync(bool isAdmin, CancellationToken ct)
     {
         var flags = await LoadAsync(ct);
-        return All.ToDictionary(d => d.Key, d => isAdmin || flags.GetValueOrDefault(d.Key)?.Enabled == true);
+        return All.ToDictionary(d => d.Key, d => isAdmin || On(flags, d.Key));
     }
 
     /// <summary>Danh sách cho trang Quản trị (tên/mô tả theo ngôn ngữ).</summary>
@@ -66,7 +77,7 @@ public class FeatureFlags(AppDbContext db, IMemoryCache cache, TimeProvider cloc
         return All.Select(d =>
         {
             var f = flags.GetValueOrDefault(d.Key);
-            return new FlagDto(d.Key, en ? d.NameEn : d.NameVi, en ? d.DescriptionEn : d.DescriptionVi, f?.Enabled == true,
+            return new FlagDto(d.Key, en ? d.NameEn : d.NameVi, en ? d.DescriptionEn : d.DescriptionVi, On(flags, d.Key),
                                f == null ? null : DateTime.SpecifyKind(f.UpdatedAt, DateTimeKind.Utc), f?.UpdatedBy);
         }).ToArray();
     }

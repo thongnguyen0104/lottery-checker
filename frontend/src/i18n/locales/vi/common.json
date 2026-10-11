@@ -67,9 +67,9 @@
     "title": "Ủng hộ Dò Vé Số",
     "close": "Đóng",
     "body": "Web miễn phí, không quảng cáo. Nếu thấy có ích, bạn mời mình ly cà phê để duy trì máy chủ nhé!",
-    "qrAlt": "Mã QR MoMo / VietQR — NGUYEN HOANG THONG",
+    "qrAlt": "Mã QR Binance Pay — User-70dd2",
     "download": "Tải ảnh QR",
-    "hint": "Trên điện thoại: tải ảnh về rồi mở app ngân hàng/MoMo → Quét QR → chọn ảnh."
+    "hint": "Trên điện thoại: tải ảnh về rồi mở app Binance → Quét → chọn ảnh từ thư viện."
   },
   "confirmDialog": {
     "cancel": "Huỷ"
