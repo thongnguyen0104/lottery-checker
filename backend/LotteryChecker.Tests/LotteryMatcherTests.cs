@@ -97,4 +97,69 @@ public class LotteryMatcherTests
         r.Winnings.Should().HaveCount(2);
         r.TotalPrize.Should().Be(2_000_100_000m);
     }
+
+    [Fact(DisplayName = "6. Mọi vé sai đúng 1 chữ số so với ĐB → đúng 9 giải phụ ĐB + 45 giải khuyến khích")]
+    public async Task OneDigitOff_Yields_9_PhuDB_And_45_KhuyenKhich()
+    {
+        var db = NewDb();
+        var date = new DateOnly(2026, 6, 2);
+        await SeedAsync(db, date, "TPHCM", "123456", "99");
+        var matcher = new LotteryMatcher(db, DayAfterDraw);
+
+        int phuDb = 0, kk = 0;
+        for (int pos = 0; pos < 6; pos++)
+            for (char d = '0'; d <= '9'; d++)
+            {
+                if (d == "123456"[pos]) continue;
+                var chars = "123456".ToCharArray();
+                chars[pos] = d;
+                var r = await matcher.Match(new string(chars), date, "TPHCM", CancellationToken.None);
+
+                // Mỗi vé chỉ trúng đúng 1 trong 2 giải phụ, không bao giờ cả hai.
+                r.Winnings.Should().ContainSingle();
+                var w = r.Winnings[0];
+                if (pos == 0)
+                {
+                    w.TierName.Should().Be("Giải Phụ Đặc Biệt");
+                    w.Amount.Should().Be(50_000_000m);
+                    phuDb++;
+                }
+                else
+                {
+                    w.TierName.Should().Be("Giải Khuyến Khích");
+                    w.Amount.Should().Be(6_000_000m);
+                    kk++;
+                }
+            }
+
+        phuDb.Should().Be(9);
+        kk.Should().Be(45);
+    }
+
+    [Theory(DisplayName = "7. Sai chữ số hàng trăm ngàn + 1 chữ số khác → không trúng giải phụ nào")]
+    [InlineData("923459")]
+    [InlineData("093456")]
+    public async Task FirstDigitPlusAnother_NoSubPrize(string ticket)
+    {
+        var db = NewDb();
+        var date = new DateOnly(2026, 6, 2);
+        await SeedAsync(db, date, "TPHCM", "123456", "99");
+
+        var r = await new LotteryMatcher(db, DayAfterDraw).Match(ticket, date, "TPHCM", CancellationToken.None);
+
+        r.IsWinner.Should().BeFalse();
+    }
+
+    [Fact(DisplayName = "8. Khuyến khích + Giải Tám cùng lúc → cộng dồn 6tr + 100k")]
+    public async Task KhuyenKhich_Plus_Giai8_Stacks()
+    {
+        var db = NewDb();
+        var date = new DateOnly(2026, 6, 2);
+        await SeedAsync(db, date, "TPHCM", "123456", "56");
+
+        var r = await new LotteryMatcher(db, DayAfterDraw).Match("123956", date, "TPHCM", CancellationToken.None);
+
+        r.Winnings.Should().HaveCount(2);
+        r.TotalPrize.Should().Be(6_100_000m);
+    }
 }

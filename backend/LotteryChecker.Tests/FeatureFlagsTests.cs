@@ -13,14 +13,30 @@ public class FeatureFlagsTests
         new AppDbContext(new DbContextOptionsBuilder<AppDbContext>().UseInMemoryDatabase(Guid.NewGuid().ToString()).Options),
         new MemoryCache(new MemoryCacheOptions()), TimeProvider.System);
 
-    [Fact(DisplayName = "Chua co dong nao = tat het; admin van dung duoc")]
+    [Fact(DisplayName = "Chua co dong nao = theo DefaultOn (chi Blog bat); admin van dung duoc")]
     public async Task DefaultOff_AdminPreview()
     {
         var flags = New();
         (await flags.IsEnabledAsync(FeatureFlags.ScratchTickets, default)).Should().BeFalse();
-        (await flags.AvailableAsync(false, default)).Values.Should().AllBeEquivalentTo(false);
+        (await flags.IsEnabledAsync(FeatureFlags.Blog, default)).Should().BeTrue();
+        (await flags.AvailableAsync(false, default)).Where(x => x.Value).Select(x => x.Key)
+            .Should().BeEquivalentTo([FeatureFlags.Blog]);
         (await flags.AvailableAsync(true, default)).Values.Should().AllBeEquivalentTo(true);
         (await flags.AvailableAsync(false, default)).Keys.Should().BeEquivalentTo(FeatureFlags.All.Select(d => d.Key));
+        (await flags.ListAsync(false, default)).Single(f => f.Key == FeatureFlags.Blog).Enabled.Should().BeTrue();
+    }
+
+    [Fact(DisplayName = "Co mac dinh bat van tat duoc, roi bat lai")]
+    public async Task DefaultOn_CanBeTurnedOff()
+    {
+        var flags = New();
+        await flags.SetAsync(FeatureFlags.Blog, false, "superadmin", default);
+        (await flags.IsEnabledAsync(FeatureFlags.Blog, default)).Should().BeFalse();
+        (await flags.AvailableAsync(false, default))[FeatureFlags.Blog].Should().BeFalse();
+        (await flags.AvailableAsync(true, default))[FeatureFlags.Blog].Should().BeTrue();
+
+        await flags.SetAsync(FeatureFlags.Blog, true, "superadmin", default);
+        (await flags.IsEnabledAsync(FeatureFlags.Blog, default)).Should().BeTrue();
     }
 
     [Fact(DisplayName = "Bat/tat co hieu luc ngay du da doc qua cache; ghi nguoi doi")]

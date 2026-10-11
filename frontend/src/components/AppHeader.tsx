@@ -31,6 +31,8 @@ type Props = {
   /** Bản đồ điểm bán (cờ shopMap) — không nằm trên dãy tab, mở từ menu logo. */
   showMap: boolean
   onOpenMap: () => void
+  /** Tab Blog (cờ blog) — tắt thì bỏ khỏi dãy tab. */
+  showBlog: boolean
   /** Website của tôi (cờ sites) — mở từ menu logo; khách bấm thì màn đó mời đăng nhập. */
   showMySite: boolean
   onOpenMySite: () => void
@@ -42,7 +44,7 @@ type Props = {
  *  (điện thoại dùng BottomNav cho vừa tầm ngón cái). Bấm logo sổ menu: ủng hộ, tài khoản, đăng nhập/xuất,
  *  ngôn ngữ, bảng màu. */
 export default function AppHeader({ view, busy, onChange, onOpenTheme, onOpenDonate, account, showProfile, onOpenAuth, onLogout, onOpenProfile,
-                                    onOpenAdmin, onChangePassword, showMap, onOpenMap, showMySite, onOpenMySite,
+                                    onOpenAdmin, onChangePassword, showMap, onOpenMap, showBlog, showMySite, onOpenMySite,
                                     onOpenNotification }: Props) {
   const { t, i18n } = useTranslation()
   const lang = currentLang()
@@ -134,7 +136,7 @@ export default function AppHeader({ view, busy, onChange, onOpenTheme, onOpenDon
 
         <nav className="hidden md:flex ml-auto items-center gap-1 p-1 rounded-xl bg-muted/80 border border-line/60"
              aria-label={t('app.features')}>
-          {TABS.map(v => {
+          {TABS.filter(v => showBlog || v.id !== 'blog').map(v => {
             const active = v.id === view
             return (
               <button key={v.id} onClick={() => onChange(v.id)} aria-current={active ? 'page' : undefined}

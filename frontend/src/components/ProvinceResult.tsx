@@ -29,6 +29,18 @@ function commonSuffix(ticket: string | undefined, n: string) {
   return k
 }
 
+/** Vị trí chữ số sai nếu vé chỉ lệch đúng 1 chữ số so với ĐB (trúng phụ ĐB / khuyến khích), ngược lại -1. */
+function oneDigitOff(ticket: string | undefined, n: string) {
+  if (!ticket || ticket.length !== n.length) return -1
+  let pos = -1
+  for (let i = 0; i < n.length; i++) {
+    if (ticket[i] === n[i]) continue
+    if (pos !== -1) return -1
+    pos = i
+  }
+  return pos
+}
+
 export default function ProvinceResult({
   drawDate, province, sameDay, ticketNumber, onSelectProvince, backLabel, onBack,
 }: Props) {
@@ -121,9 +133,11 @@ export default function ProvinceResult({
                         {numbers.map((n, i) => {
                           // Trùng hết cả số = trúng giải (cùng cách so của LotteryMatcher: ĐB trùng đủ 6
                           // số, G.1..G.8 trùng N số cuối) → khung xanh cả số. Trùng một phần đuôi → chỉ tô
-                          // các chữ số đó, để thấy vé "suýt trúng" giải nào (với ĐB là cả giải phụ).
+                          // các chữ số đó, để thấy vé "suýt trúng" giải nào. Riêng ĐB: vé lệch đúng 1 chữ số
+                          // (phụ ĐB / khuyến khích) thì tô theo từng vị trí, gạch chữ số sai.
                           const k = commonSuffix(ticketNumber, n)
                           const won = k === n.length
+                          const off = special && !won ? oneDigitOff(ticketNumber, n) : -1
                           return (
                             <span key={i}
                                   className={`tabular-nums tracking-wider font-bold ${
@@ -134,7 +148,11 @@ export default function ProvinceResult({
                                       ? 'bg-ok/15 text-ok ring-1 ring-ok/60 rounded-md px-1.5'
                                       : special || tier === '8' ? 'text-brand-700 dark:text-brand-400' : 'text-ink'
                                   }`}>
-                              {won || k === 0 ? n : (
+                              {off !== -1 ? (
+                                [...n].map((c, j) => j === off
+                                  ? <span key={j} className="line-through decoration-bad/70">{c}</span>
+                                  : <mark key={j} className="bg-ok/20 text-ok">{c}</mark>)
+                              ) : won || k === 0 ? n : (
                                 <>
                                   {n.slice(0, -k)}
                                   <mark className="bg-ok/20 text-ok rounded px-0.5">{n.slice(-k)}</mark>

@@ -2,10 +2,10 @@ import { useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import Icon from './Icon'
 
-const QR_SRC = '/donate-momo.jpg'
+const QR_SRC = '/donate-binance.png'
 
-/** Bảng ủng hộ: ảnh QR MoMo/VietQR. Điện thoại không tự quét được màn hình của chính nó
- *  → có nút tải ảnh về để mở bằng app ngân hàng (Quét QR → chọn ảnh). Cùng kiểu với ThemePicker. */
+/** Bảng ủng hộ: ảnh QR Binance Pay. Điện thoại không tự quét được màn hình của chính nó
+ *  → có nút tải ảnh về để mở bằng app Binance (Quét → chọn ảnh). Cùng kiểu với ThemePicker. */
 export default function DonateDialog({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation()
   useEffect(() => {
@@ -43,7 +43,7 @@ export default function DonateDialog({ onClose }: { onClose: () => void }) {
         <img src={QR_SRC} alt={t('donate.qrAlt')}
              className="w-full max-w-xs mx-auto rounded-2xl border border-line" />
 
-        <a href={QR_SRC} download="ung-ho-do-ve-so.jpg"
+        <a href={QR_SRC} download="ung-ho-do-ve-so.png"
            className="mt-4 flex items-center justify-center gap-2 w-full py-3 rounded-xl font-semibold
                       bg-gradient-to-r from-primary to-primary-end text-on-primary shadow-md shadow-primary/25
                       active:scale-[0.98] transition">

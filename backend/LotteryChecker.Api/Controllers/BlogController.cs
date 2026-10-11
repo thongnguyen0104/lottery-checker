@@ -14,6 +14,7 @@ namespace LotteryChecker.Api.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/blog")]
+[RequireFeature(FeatureFlags.Blog)]
 public partial class BlogController(BlogService blog, BlogImageService images, BlogImageStorage storage,
                                     NotificationService notifications, AppDbContext db, ILogger<BlogController> log) : ControllerBase
 {

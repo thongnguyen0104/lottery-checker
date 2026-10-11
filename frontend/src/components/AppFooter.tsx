@@ -51,10 +51,12 @@ const fmtTime = (m: number) => `${String(Math.floor(m / 60)).padStart(2, '0')}:$
 
 /** Chân trang: giới thiệu + ủng hộ, lịch quay số hôm nay, link tính năng (điện thoại đã có BottomNav
  *  nên ẩn), lưu ý chơi có trách nhiệm, bản quyền + đổi ngôn ngữ + lên đầu trang. */
-export default function AppFooter({ onNavigate, onOpenDonate, showMap }: {
+export default function AppFooter({ onNavigate, onOpenDonate, showMap, showBlog }: {
   onNavigate: (v: View) => void; onOpenDonate: () => void
   /** Bản đồ điểm bán (cờ shopMap) — thêm vào danh sách link tính năng. */
   showMap: boolean
+  /** Blog (cờ blog) — tắt thì bỏ khỏi danh sách link tính năng. */
+  showBlog: boolean
 }) {
   const { t, i18n } = useTranslation()
   const lang = currentLang()
@@ -163,7 +165,7 @@ export default function AppFooter({ onNavigate, onOpenDonate, showMap }: {
                 <nav aria-label={t('app.features')} className="hidden md:block">
                   <h2 className="text-sm font-bold mb-3">{t('app.features')}</h2>
                   <ul className="space-y-1">
-                    {[...VIEWS, ...(showMap ? EXTRA_VIEWS.filter(x => x.id === 'map') : [])].map(v => (
+                    {[...VIEWS.filter(v => showBlog || v.id !== 'blog'), ...(showMap ? EXTRA_VIEWS.filter(x => x.id === 'map') : [])].map(v => (
                       <li key={v.id}>
                         <a href={viewPath(v.id)}
                            onClick={e => {

@@ -370,15 +370,16 @@ export async function changePassword(currentPassword: string, newPassword: strin
 }
 
 // ── Cờ tính năng: tắt = user thường không thấy (máy chủ cũng chặn API); admin luôn xem trước được ──
-export type FeatureKey = 'checkHistory' | 'scratchTickets' | 'shopMap' | 'sites'
+export type FeatureKey = 'checkHistory' | 'scratchTickets' | 'shopMap' | 'sites' | 'blog'
 
 /** available = người đang xem dùng được; enabled = đã bật cho mọi người (admin xem trước khi available && !enabled). */
 export type Features = { available: Record<FeatureKey, boolean>; enabled: Record<FeatureKey, boolean> }
 
-const NO_FEATURES: Record<FeatureKey, boolean> = { checkHistory: false, scratchTickets: false, shopMap: false, sites: false }
+// Blog đã chạy từ trước khi có cờ (máy chủ để DefaultOn) → coi như bật lúc chưa hỏi xong, khỏi nháy tab.
+const NO_FEATURES: Record<FeatureKey, boolean> = { checkHistory: false, scratchTickets: false, shopMap: false, sites: false, blog: true }
 export const FEATURES_OFF: Features = { available: NO_FEATURES, enabled: NO_FEATURES }
 
-/** Lỗi mạng → coi như tắt hết: tính năng mới thà ẩn nhầm còn hơn hiện ra rồi gọi API lỗi. */
+/** Lỗi mạng → coi như tắt hết (trừ Blog): tính năng mới thà ẩn nhầm còn hơn hiện ra rồi gọi API lỗi. */
 export async function getFeatures() {
   try {
     const { data } = await api.get('/api/features', { timeout: 5_000 })

@@ -67,9 +67,9 @@
     "title": "Support Lottery Checker",
     "close": "Close",
     "body": "This site is free with no ads. If you find it useful, buy me a coffee to help keep the server running!",
-    "qrAlt": "MoMo / VietQR code — NGUYEN HOANG THONG",
+    "qrAlt": "Binance Pay QR code — User-70dd2",
     "download": "Download QR image",
-    "hint": "On a phone: download the image, open your banking/MoMo app → Scan QR → pick the image."
+    "hint": "On a phone: download the image, open the Binance app → Scan → pick the image from your gallery."
   },
   "confirmDialog": {
     "cancel": "Cancel"
