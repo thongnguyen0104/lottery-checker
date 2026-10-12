@@ -43,9 +43,9 @@ public class AdminUsersController(AdminUsers admin, Wallet wallet) : ControllerB
             Wallet.AdjustError.None => Ok(new { balance }),
             Wallet.AdjustError.NoAccount => NotFound(new { error = NotFoundError }),
             Wallet.AdjustError.BadAmount => BadRequest(new { error = Lang.T(Request,
-                $"Số tiền phải khác 0 và không quá {Lang.Num(Request, Wallet.MaxTopUp)} ₫.", $"Amount must be non-zero and at most {Lang.Num(Request, Wallet.MaxTopUp)} VND.") }),
+                $"Số tiền phải khác 0 và không quá {Lang.Num(Request, Wallet.MaxTopUp)} xu.", $"Amount must be non-zero and at most {Lang.Num(Request, Wallet.MaxTopUp)} coins.") }),
             _ => Conflict(new { error = Lang.T(Request,
-                $"Không trừ được: số dư hiện chỉ còn {Lang.Num(Request, balance)} ₫.", $"Can't deduct: the balance is only {Lang.Num(Request, balance)} VND.") }),
+                $"Không trừ được: số dư hiện chỉ còn {Lang.Num(Request, balance)} xu.", $"Can't deduct: the balance is only {Lang.Num(Request, balance)} coins.") }),
         };
     }
 

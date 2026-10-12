@@ -34,6 +34,7 @@ public class AppDbContext : DbContext
     public DbSet<SiteImage> SiteImages => Set<SiteImage>();
     public DbSet<SiteReport> SiteReports => Set<SiteReport>();
     public DbSet<SavedTicket> SavedTickets => Set<SavedTicket>();
+    public DbSet<GameSession> GameSessions => Set<GameSession>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -123,6 +124,16 @@ public class AppDbContext : DbContext
             e.Property(x => x.Number).HasMaxLength(2);
             e.Property(x => x.WinningNumber).HasMaxLength(2);
             // Concurrency token: 2 lượt chốt cùng lúc (worker + user mở trang) thì lượt sau lỗi thay vì cộng tiền 2 lần.
+            e.Property(x => x.Status).HasConversion<string>().HasMaxLength(10).IsConcurrencyToken();
+            e.HasOne<User>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<GameSession>(e =>
+        {
+            e.HasIndex(x => x.PublicId).IsUnique();
+            e.HasIndex(x => new { x.UserId, x.StartedAt });   // đếm lượt trong ngày, tìm lượt đang dở
+            e.Property(x => x.Inputs).HasMaxLength(40_000);
+            // Concurrency token: gửi "kết thúc" 2 lần song song thì lượt sau lỗi thay vì cộng thưởng 2 lần.
             e.Property(x => x.Status).HasConversion<string>().HasMaxLength(10).IsConcurrencyToken();
             e.HasOne<User>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
         });

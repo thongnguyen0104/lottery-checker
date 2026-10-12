@@ -370,13 +370,13 @@ export async function changePassword(currentPassword: string, newPassword: strin
 }
 
 // ── Cờ tính năng: tắt = user thường không thấy (máy chủ cũng chặn API); admin luôn xem trước được ──
-export type FeatureKey = 'checkHistory' | 'scratchTickets' | 'shopMap' | 'sites' | 'blog' | 'savedTickets'
+export type FeatureKey = 'checkHistory' | 'scratchTickets' | 'shopMap' | 'sites' | 'blog' | 'savedTickets' | 'miniGame'
 
 /** available = người đang xem dùng được; enabled = đã bật cho mọi người (admin xem trước khi available && !enabled). */
 export type Features = { available: Record<FeatureKey, boolean>; enabled: Record<FeatureKey, boolean> }
 
 // Blog đã chạy từ trước khi có cờ (máy chủ để DefaultOn) → coi như bật lúc chưa hỏi xong, khỏi nháy tab.
-const NO_FEATURES: Record<FeatureKey, boolean> = { checkHistory: false, scratchTickets: false, shopMap: false, sites: false, blog: true, savedTickets: false }
+const NO_FEATURES: Record<FeatureKey, boolean> = { checkHistory: false, scratchTickets: false, shopMap: false, sites: false, blog: true, savedTickets: false, miniGame: false }
 export const FEATURES_OFF: Features = { available: NO_FEATURES, enabled: NO_FEATURES }
 
 /** Lỗi mạng → coi như tắt hết (trừ Blog): tính năng mới thà ẩn nhầm còn hơn hiện ra rồi gọi API lỗi. */
@@ -424,7 +424,7 @@ export type AdminUserDetail = {
 
 export type WalletTransaction = {
   id: number
-  kind: 'TopUp' | 'Purchase' | 'Win' | 'Refund' | 'Adjust'
+  kind: 'TopUp' | 'Purchase' | 'Win' | 'Refund' | 'Adjust' | 'GameReward'
   amount: number
   balanceAfter: number
   note: string | null
@@ -613,6 +613,55 @@ export async function scratchTicket(id: number) {
   try {
     const { data } = await api.post(`/api/tickets/${id}/scratch`)
     return data as ScratchTicket
+  } catch (e) {
+    throw toFriendlyError(e)
+  }
+}
+
+// ── Minigame đua xe kiếm xu: máy chủ cho seed, client gửi lại thao tác — máy chủ tự chạy lại ván để chấm điểm ──
+export type MiniGameStatus = {
+  rewardedLeft: number
+  rewardedPerDay: number
+  rewardPerPoint: number
+  maxRewardPerPlay: number
+  balance: number
+}
+
+export type MiniGameStart = { sessionId: string; seed: number; rewarded: boolean; rewardedLeft: number }
+
+export type MiniGameResult = {
+  score: number
+  coins: number
+  ticks: number
+  crashed: boolean
+  reward: number
+  balance: number
+  rewardedLeft: number
+}
+
+export async function getMiniGame() {
+  try {
+    const { data } = await api.get('/api/minigame')
+    return data as MiniGameStatus
+  } catch (e) {
+    throw toFriendlyError(e)
+  }
+}
+
+export async function startMiniGame() {
+  try {
+    const { data } = await api.post('/api/minigame/start')
+    return data as MiniGameStart
+  } catch (e) {
+    throw toFriendlyError(e)
+  }
+}
+
+/** inputs: [tick, dir] — đổi làn ở tick nào, dir ±1. */
+export async function finishMiniGame(sessionId: string, inputs: [number, number][]) {
+  try {
+    const { data } = await api.post('/api/minigame/finish', { sessionId, inputs })
+    return data as MiniGameResult
   } catch (e) {
     throw toFriendlyError(e)
   }

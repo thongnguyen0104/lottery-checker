@@ -1,12 +1,12 @@
 {
   "title": "Admin",
   "hint": "Manage accounts, adjust balances, review the wallet ledger.",
-  "money": "{{amount}} VND",
+  "money": "{{amount}} coins",
   "overview": {
     "users": "Accounts",
     "admins": "{{count}} admins",
     "balance": "Total balance",
-    "topUp": "Credited {{amount}} VND",
+    "topUp": "Credited {{amount}} coins",
     "tickets": "Tickets sold",
     "won": "{{count}} winning",
     "paidOut": "Paid out"
@@ -40,16 +40,16 @@
     "title": "Adjust balance",
     "add": "Add",
     "subtract": "Deduct",
-    "amount": "Amount (VND)",
+    "amount": "Amount (coins)",
     "note": "Note (shown in the ledger)",
     "notePlaceholder": "e.g. welcome gift",
-    "submitAdd": "Add {{amount}} VND",
-    "submitSubtract": "Deduct {{amount}} VND",
-    "confirmAdd": "Add {{amount}} VND to {{username}}?",
-    "confirmSubtract": "Deduct {{amount}} VND from {{username}}?",
-    "confirmBody": "Balance afterwards: {{after}} VND.",
-    "tooMuch": "The balance is only {{balance}} VND — can't deduct that much.",
-    "done": "Updated. New balance: {{balance}} VND."
+    "submitAdd": "Add {{amount}} coins",
+    "submitSubtract": "Deduct {{amount}} coins",
+    "confirmAdd": "Add {{amount}} coins to {{username}}?",
+    "confirmSubtract": "Deduct {{amount}} coins from {{username}}?",
+    "confirmBody": "Balance afterwards: {{after}} coins.",
+    "tooMuch": "The balance is only {{balance}} coins — can't deduct that much.",
+    "done": "Updated. New balance: {{balance}} coins."
   },
   "account": {
     "title": "Account",
@@ -67,13 +67,14 @@
   "tx": {
     "title": "Wallet ledger",
     "empty": "No transactions yet.",
-    "after": "Balance after: {{amount}} VND",
+    "after": "Balance after: {{amount}} coins",
     "kind": {
       "TopUp": "Credit",
       "Adjust": "Deduction",
       "Purchase": "Ticket purchase",
       "Win": "Winnings",
-      "Refund": "Refund"
+      "Refund": "Refund",
+      "GameReward": "Minigame reward"
     }
   },
   "confirm": "Confirm",

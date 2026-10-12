@@ -534,7 +534,7 @@ function AccountActions({ user, me, onDone }: { user: AdminUserDetail; me: strin
 }
 
 const TX_TONE: Record<WalletTransaction['kind'], string> = {
-  TopUp: 'text-ok', Win: 'text-ok', Refund: 'text-info', Purchase: 'text-ink-soft', Adjust: 'text-bad',
+  TopUp: 'text-ok', Win: 'text-ok', Refund: 'text-info', Purchase: 'text-ink-soft', Adjust: 'text-bad', GameReward: 'text-ok',
 }
 
 function Transactions({ userId }: { userId: number }) {

@@ -3,8 +3,8 @@ using System.Text.Json.Serialization;
 namespace LotteryChecker.Api.Models;
 
 [JsonConverter(typeof(JsonStringEnumConverter))]
-/// <summary>Adjust = admin trừ bớt số dư (sửa nhầm lẫn); TopUp = cộng tiền.</summary>
-public enum WalletTransactionKind { TopUp, Purchase, Win, Refund, Adjust }
+/// <summary>Adjust = admin trừ bớt số dư (sửa nhầm lẫn); TopUp = cộng tiền; GameReward = thưởng minigame.</summary>
+public enum WalletTransactionKind { TopUp, Purchase, Win, Refund, Adjust, GameReward }
 
 /// <summary>
 /// Sổ biến động số dư — mọi lần cộng/trừ <see cref="User.Balance"/> đều ghi 1 dòng trong cùng lần lưu,

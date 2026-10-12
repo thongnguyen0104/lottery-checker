@@ -17,6 +17,7 @@ public class FeatureFlags(AppDbContext db, IMemoryCache cache, TimeProvider cloc
     public const string Sites = "sites";
     public const string Blog = "blog";
     public const string SavedTickets = "savedTickets";
+    public const string MiniGame = "miniGame";
 
     /// <summary>DefaultOn: trạng thái khi admin chưa từng bật/tắt (chưa có dòng trong DB) — tính năng đã chạy
     /// từ trước khi có cờ thì để true, không thì deploy xong tự ẩn mất.</summary>
@@ -45,6 +46,9 @@ public class FeatureFlags(AppDbContext db, IMemoryCache cache, TimeProvider cloc
         new(SavedTickets, "Vé đã lưu & báo kết quả", "Saved tickets & result alerts",
             "Lưu vé, tự dò khi có kết quả, thông báo đẩy và nhắc lĩnh thưởng (tab Vé đã lưu ở trang Tài khoản).",
             "Save tickets, auto-check after the draw, push alerts and claim reminders (Saved tab on the Account page)."),
+        new(MiniGame, "Minigame đua xe", "Racing minigame",
+            "Tab Kiếm xu ở trang Tài khoản: chơi đua xe né chướng ngại để nhận xu ảo mua vé cào (giới hạn lượt có thưởng mỗi ngày).",
+            "The Earn coins tab on the Account page: a dodge-the-obstacles racing game that pays virtual coins for scratch tickets (daily rewarded-play limit)."),
     ];
 
     public record FlagDto(string Key, string Name, string Description, bool Enabled, DateTime? UpdatedAt, string? UpdatedBy);
