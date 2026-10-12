@@ -11,6 +11,7 @@ import viProfile from './locales/vi/profile.json'
 import viAdmin from './locales/vi/admin.json'
 import viMap from './locales/vi/map.json'
 import viSite from './locales/vi/site.json'
+import viVietlott from './locales/vi/vietlott.json'
 import enCommon from './locales/en/common.json'
 import enCheck from './locales/en/check.json'
 import enLucky from './locales/en/lucky.json'
@@ -21,16 +22,17 @@ import enProfile from './locales/en/profile.json'
 import enAdmin from './locales/en/admin.json'
 import enMap from './locales/en/map.json'
 import enSite from './locales/en/site.json'
+import enVietlott from './locales/en/vietlott.json'
 
 export const LANGS = ['vi', 'en'] as const
 export type Lang = typeof LANGS[number]
 
 // Namespace theo khu vực: common (khung app, header, popup chung, tên đài/giải), check (Dò vé),
 // lucky (6 số may mắn + luận giấc mơ), results (Kết quả xổ số), predict (Dự đoán), blog (Blog),
-// profile (Tài khoản), admin (Quản trị), map (Bản đồ điểm bán), site (Website con).
+// profile (Tài khoản), admin (Quản trị), map (Bản đồ điểm bán), site (Website con), vietlott (Vietlott).
 export const resources = {
-  vi: { common: viCommon, check: viCheck, lucky: viLucky, results: viResults, predict: viPredict, blog: viBlog, profile: viProfile, admin: viAdmin, map: viMap, site: viSite },
-  en: { common: enCommon, check: enCheck, lucky: enLucky, results: enResults, predict: enPredict, blog: enBlog, profile: enProfile, admin: enAdmin, map: enMap, site: enSite },
+  vi: { common: viCommon, check: viCheck, lucky: viLucky, results: viResults, predict: viPredict, blog: viBlog, profile: viProfile, admin: viAdmin, map: viMap, site: viSite, vietlott: viVietlott },
+  en: { common: enCommon, check: enCheck, lucky: enLucky, results: enResults, predict: enPredict, blog: enBlog, profile: enProfile, admin: enAdmin, map: enMap, site: enSite, vietlott: enVietlott },
 } as const
 
 i18n

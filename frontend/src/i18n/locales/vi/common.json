@@ -113,6 +113,7 @@
     "check": { "title": "Dò Vé Số", "short": "Dò vé", "hint": "Chụp vé, tự đọc số và dò giải" },
     "lucky": { "title": "6 Số May Mắn", "short": "Số may mắn", "hint": "Chọn số Vietlott, luận số giấc mơ" },
     "predict": { "title": "Dự Đoán", "short": "Dự đoán", "hint": "Thống kê 1 năm, gợi ý số từng đài" },
+    "vietlott": { "title": "Vietlott", "short": "Vietlott", "hint": "Kết quả, thống kê Mega 6/45, Power 6/55" },
     "results": { "title": "Kết Quả Xổ Số", "short": "Kết quả", "hint": "Xem bảng kết quả chi tiết từng đài" },
     "blog": { "title": "Blog", "short": "Blog", "hint": "Chia sẻ chuyện dò vé, trúng trượt" },
     "profile": { "title": "Tài khoản", "short": "Tài khoản", "hint": "Vé, lịch sử dò và số dư của bạn" },

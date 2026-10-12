@@ -1,6 +1,6 @@
 import type { IconName } from './components/Icon'
 
-export type View = 'check' | 'lucky' | 'predict' | 'results' | 'blog' | 'map' | 'profile' | 'admin' | 'mySite' | 'site'
+export type View = 'check' | 'lucky' | 'predict' | 'vietlott' | 'results' | 'blog' | 'map' | 'profile' | 'admin' | 'mySite' | 'site'
 
 /** Các tính năng — dùng chung cho tab trên AppHeader (màn rộng) và BottomNav (điện thoại). */
 // Chữ hiển thị nằm ở common.json → views.<id>.title/short/hint, dịch lúc render để đổi ngôn ngữ là đổi ngay.
@@ -8,6 +8,7 @@ export const VIEWS: { id: View; path: string; icon: IconName }[] = [
   { id: 'check', path: '/', icon: 'ticket' },
   { id: 'lucky', path: '/so-may-man', icon: 'dice' },
   { id: 'predict', path: '/du-doan', icon: 'predict' },
+  { id: 'vietlott', path: '/vietlott', icon: 'trophy' },
   { id: 'results', path: '/ket-qua', icon: 'calendar' },
   { id: 'blog', path: '/blog', icon: 'blog' },
 ]

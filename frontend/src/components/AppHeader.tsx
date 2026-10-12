@@ -33,6 +33,9 @@ type Props = {
   onOpenMap: () => void
   /** Tab Blog (cờ blog) — tắt thì bỏ khỏi dãy tab. */
   showBlog: boolean
+  /** Tab Vietlott (cờ vietlott) — tắt thì bỏ khỏi dãy tab và menu logo. */
+  showVietlott: boolean
+  onOpenVietlott: () => void
   /** Website của tôi (cờ sites) — mở từ menu logo; khách bấm thì màn đó mời đăng nhập. */
   showMySite: boolean
   onOpenMySite: () => void
@@ -44,7 +47,7 @@ type Props = {
  *  (điện thoại dùng BottomNav cho vừa tầm ngón cái). Bấm logo sổ menu: ủng hộ, tài khoản, đăng nhập/xuất,
  *  ngôn ngữ, bảng màu. */
 export default function AppHeader({ view, busy, onChange, onOpenTheme, onOpenDonate, account, showProfile, onOpenAuth, onLogout, onOpenProfile,
-                                    onOpenAdmin, onChangePassword, showMap, onOpenMap, showBlog, showMySite, onOpenMySite,
+                                    onOpenAdmin, onChangePassword, showMap, onOpenMap, showBlog, showVietlott, onOpenVietlott, showMySite, onOpenMySite,
                                     onOpenNotification }: Props) {
   const { t, i18n } = useTranslation()
   const lang = currentLang()
@@ -93,6 +96,11 @@ export default function AppHeader({ view, busy, onChange, onOpenTheme, onOpenDon
             <div role="menu"
                  className="absolute left-0 top-full mt-3 w-64 p-1.5 rounded-2xl bg-surface border border-line shadow-2xl z-40">
               <MenuItem icon="donate" label={t('app.donate')} onClick={pick(onOpenDonate)} iconClass="text-accent" />
+              {/* Điện thoại: BottomNav đã đủ 5 tab nên Vietlott mở từ đây */}
+              {showVietlott && (
+                <MenuItem icon="trophy" label={t('views.vietlott.title')} onClick={pick(onOpenVietlott)}
+                          iconClass="text-brand-700 dark:text-brand-400" />
+              )}
               {showMap && (
                 <MenuItem icon="map" label={t('views.map.title')} onClick={pick(onOpenMap)}
                           iconClass="text-brand-700 dark:text-brand-400" />
@@ -136,7 +144,7 @@ export default function AppHeader({ view, busy, onChange, onOpenTheme, onOpenDon
 
         <nav className="hidden md:flex ml-auto items-center gap-1 p-1 rounded-xl bg-muted/80 border border-line/60"
              aria-label={t('app.features')}>
-          {TABS.filter(v => showBlog || v.id !== 'blog').map(v => {
+          {TABS.filter(v => (showBlog || v.id !== 'blog') && (showVietlott || v.id !== 'vietlott')).map(v => {
             const active = v.id === view
             return (
               <button key={v.id} onClick={() => onChange(v.id)} aria-current={active ? 'page' : undefined}

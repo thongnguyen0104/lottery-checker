@@ -285,6 +285,15 @@ builder.Services.AddHttpClient<ResultScraper>(c =>
     c.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64)");
 });
 builder.Services.AddHostedService<DailyResultFetchWorker>();
+// Kết quả Vietlott (Mega 6/45, Power 6/55) — cào cả lịch sử lần đầu, rồi mỗi tối có quay.
+builder.Services.AddHttpClient<VietlottScraper>(c =>
+{
+    c.Timeout = TimeSpan.FromSeconds(30);
+    c.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64)");
+});
+builder.Services.AddScoped<VietlottStatsService>();
+builder.Services.AddHostedService<VietlottFetchWorker>();
+builder.Services.AddHostedService<VietlottBackfillWorker>();
 
 var app = builder.Build();
 

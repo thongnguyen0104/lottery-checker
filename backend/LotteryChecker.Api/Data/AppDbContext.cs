@@ -35,6 +35,8 @@ public class AppDbContext : DbContext
     public DbSet<SiteReport> SiteReports => Set<SiteReport>();
     public DbSet<SavedTicket> SavedTickets => Set<SavedTicket>();
     public DbSet<GameSession> GameSessions => Set<GameSession>();
+    public DbSet<VietlottDraw> VietlottDraws => Set<VietlottDraw>();
+    public DbSet<VietlottBackfillState> VietlottBackfillStates => Set<VietlottBackfillState>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -46,6 +48,20 @@ public class AppDbContext : DbContext
             e.Property(x => x.Province).HasMaxLength(32);
             e.Property(x => x.PrizeTier).HasMaxLength(4);
             e.Property(x => x.Number).HasMaxLength(8);
+        });
+
+        b.Entity<VietlottDraw>(e =>
+        {
+            e.HasIndex(x => new { x.Game, x.DrawId }).IsUnique();
+            e.HasIndex(x => new { x.Game, x.DrawDate });
+            e.Property(x => x.Game).HasMaxLength(4);
+            e.Property(x => x.Numbers).HasMaxLength(24);
+        });
+
+        b.Entity<VietlottBackfillState>(e =>
+        {
+            e.HasKey(x => x.Game);
+            e.Property(x => x.Game).HasMaxLength(4);
         });
 
         b.Entity<User>(e =>

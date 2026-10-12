@@ -18,6 +18,7 @@ public class FeatureFlags(AppDbContext db, IMemoryCache cache, TimeProvider cloc
     public const string Blog = "blog";
     public const string SavedTickets = "savedTickets";
     public const string MiniGame = "miniGame";
+    public const string Vietlott = "vietlott";
 
     /// <summary>DefaultOn: trạng thái khi admin chưa từng bật/tắt (chưa có dòng trong DB) — tính năng đã chạy
     /// từ trước khi có cờ thì để true, không thì deploy xong tự ẩn mất.</summary>
@@ -49,6 +50,9 @@ public class FeatureFlags(AppDbContext db, IMemoryCache cache, TimeProvider cloc
         new(MiniGame, "Minigame đua xe", "Racing minigame",
             "Tab Kiếm xu ở trang Tài khoản: chơi đua xe né chướng ngại để nhận xu ảo mua vé cào (giới hạn lượt có thưởng mỗi ngày).",
             "The Earn coins tab on the Account page: a dodge-the-obstacles racing game that pays virtual coins for scratch tickets (daily rewarded-play limit)."),
+        new(Vietlott, "Kết quả & thống kê Vietlott", "Vietlott results & stats",
+            "Tab Vietlott (/vietlott): kết quả Mega 6/45, Power 6/55 từ kỳ đầu tiên, thống kê tần suất và gợi ý số kỳ tới. Dữ liệu vẫn được cào khi tắt.",
+            "The Vietlott tab (/vietlott): Mega 6/45 and Power 6/55 results since the first draw, frequency stats and picks for the next draw. Data is still scraped while off."),
     ];
 
     public record FlagDto(string Key, string Name, string Description, bool Enabled, DateTime? UpdatedAt, string? UpdatedBy);

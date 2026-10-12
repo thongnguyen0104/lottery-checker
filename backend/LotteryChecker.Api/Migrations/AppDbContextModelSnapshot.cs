@@ -1181,6 +1181,61 @@ namespace LotteryChecker.Api.Migrations
                     b.ToTable("Users");
                 });
 
+            modelBuilder.Entity("LotteryChecker.Api.Models.VietlottBackfillState", b =>
+                {
+                    b.Property<string>("Game")
+                        .HasMaxLength(4)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("Completed")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Game");
+
+                    b.ToTable("VietlottBackfillStates");
+                });
+
+            modelBuilder.Entity("LotteryChecker.Api.Models.VietlottDraw", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("Bonus")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateOnly>("DrawDate")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("DrawId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Game")
+                        .IsRequired()
+                        .HasMaxLength(4)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Numbers")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Game", "DrawDate");
+
+                    b.HasIndex("Game", "DrawId")
+                        .IsUnique();
+
+                    b.ToTable("VietlottDraws");
+                });
+
             modelBuilder.Entity("LotteryChecker.Api.Models.WalletTransaction", b =>
                 {
                     b.Property<int>("Id")
