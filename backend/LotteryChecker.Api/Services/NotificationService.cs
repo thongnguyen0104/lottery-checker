@@ -131,6 +131,21 @@ public class NotificationService(AppDbContext db, INotificationPusher pusher, Ti
         await PushAllAsync([n], _ => SiteDto(n, x.Slug, x.r, x.ProductName), ct);
     }
 
+    /// <summary>Vé đã lưu vừa chốt / sắp hết hạn lĩnh: 1 thông báo mỗi vé.</summary>
+    public async Task OnSavedTicketsAsync(IReadOnlyList<(SavedTicket Ticket, NotificationKind Kind)> items, CancellationToken ct)
+    {
+        if (items.Count == 0) return;
+        var now = clock.GetUtcNow().UtcDateTime;
+        var rows = items.Select(x => (Row: new Notification
+        {
+            UserId = x.Ticket.UserId, Kind = x.Kind, SavedTicketId = x.Ticket.Id, CreatedAt = now,
+        }, x.Ticket)).ToList();
+        db.Notifications.AddRange(rows.Select(x => x.Row));
+        await db.SaveChangesAsync(ct);
+        var byId = rows.ToDictionary(x => x.Row, x => x.Ticket);
+        await PushAllAsync(byId.Keys, n => TicketDto(n, byId[n]), ct);
+    }
+
     private IQueryable<ReservationRow> ReservationQuery(IQueryable<SiteReservation> q) =>
         from r in q
         join s in db.Sites on r.SiteId equals s.Id
@@ -192,7 +207,14 @@ public class NotificationService(AppDbContext db, INotificationPusher pusher, Ti
                                   orderby n.Id descending
                                   select new { n, r, s.Slug, ProductName = p == null ? null : p.Name }).Take(ListSize).ToListAsync(ct);
 
+        var tickets = await (from n in db.Notifications.AsNoTracking()
+                             where n.UserId == userId
+                             join t in db.SavedTickets on n.SavedTicketId equals (int?)t.Id
+                             orderby n.Id descending
+                             select new { n, t }).Take(ListSize).ToListAsync(ct);
+
         var items = blog.Select(x => ToDto(x.n, x.Title, x.c))
+            .Concat(tickets.Select(x => TicketDto(x.n, x.t)))
             .Concat(reviews.Select(x => ShopDto(x.n, x.s, x.Username, x.Content ?? "", x.Stars)))
             .Concat(wins.Select(x => ShopDto(x.n, x.s, x.Username, WinSnippet(x.w), null)))
             .Concat(reservations.Select(x => SiteDto(x.n, x.Slug, x.r, x.ProductName)))
@@ -207,7 +229,8 @@ public class NotificationService(AppDbContext db, INotificationPusher pusher, Ti
         return await (from n in unread join c in db.BlogComments on n.CommentId equals (int?)c.Id select n.Id).CountAsync(ct)
              + await (from n in unread join r in db.ShopReviews on n.ShopReviewId equals (int?)r.Id select n.Id).CountAsync(ct)
              + await (from n in unread join w in db.ShopWinReports on n.ShopWinReportId equals (int?)w.Id select n.Id).CountAsync(ct)
-             + await (from n in unread join r in db.SiteReservations on n.SiteReservationId equals (int?)r.Id select n.Id).CountAsync(ct);
+             + await (from n in unread join r in db.SiteReservations on n.SiteReservationId equals (int?)r.Id select n.Id).CountAsync(ct)
+             + await (from n in unread join t in db.SavedTickets on n.SavedTicketId equals (int?)t.Id select n.Id).CountAsync(ct);
     }
 
     /// <summary>ids null = đánh dấu đọc hết. Trả số chưa đọc còn lại.</summary>
@@ -232,6 +255,11 @@ public class NotificationService(AppDbContext db, INotificationPusher pusher, Ti
     private static NotificationDto SiteDto(Notification n, string slug, SiteReservation r, string? productName) => new(
         n.Id, n.Kind, null, null, null, r.CustomerName, Snip($"{r.Quantity}|{productName}"),
         DateTime.SpecifyKind(n.CreatedAt, DateTimeKind.Utc), n.IsRead, SiteSlug: slug);
+
+    /// <summary>Vé đã lưu — FE tự dịch: Snippet = "{số}|{đài}|{yyyy-MM-dd}|{tiền}".</summary>
+    private static NotificationDto TicketDto(Notification n, SavedTicket t) => new(
+        n.Id, n.Kind, null, null, null, null, $"{t.TicketNumber}|{t.Province}|{t.DrawDate:yyyy-MM-dd}|{t.Prize}",
+        DateTime.SpecifyKind(n.CreatedAt, DateTimeKind.Utc), n.IsRead);
 
     /// <summary>FE tự dịch: "{đài}|{giải}|{yyyy-MM-dd}".</summary>
     private static string WinSnippet(ShopWinReport w) => $"{w.ProvinceCode}|{w.PrizeTier}|{w.DrawDate:yyyy-MM-dd}";

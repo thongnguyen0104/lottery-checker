@@ -5,7 +5,7 @@ import {
   TrendingUp, Flame, Snowflake, Newspaper, ThumbsUp, ThumbsDown, Send, Trash2, TriangleAlert, Trophy, Wallet, X,
   KeyRound, ShieldCheck, Users, Search, MessageCircle, Reply, Bell, CheckCheck, Link2, ImagePlus,
   MapIcon, Star, Navigation, Phone, Flag, LocateFixed, Plus, SlidersHorizontal, Share2, Eye, EyeOff, Store, Footprints,
-  GripVertical, LayoutTemplate, Bold, Italic, Underline, List, Quote, Heading2, Undo2, Redo2, ExternalLink, Rocket, Package,
+  GripVertical, Bookmark, BookmarkCheck, LayoutTemplate, Bold, Italic, Underline, List, Quote, Heading2, Undo2, Redo2, ExternalLink, Rocket, Package,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -72,6 +72,8 @@ const ICONS = {
   comment: MessageCircle,
   reply: Reply,
   bell: Bell,
+  bookmark: Bookmark,
+  bookmarked: BookmarkCheck,
   readAll: CheckCheck,
   link: Link2,
   addImage: ImagePlus,

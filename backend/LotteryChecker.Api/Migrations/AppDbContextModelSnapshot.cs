@@ -351,6 +351,9 @@ namespace LotteryChecker.Api.Migrations
                     b.Property<int?>("PostId")
                         .HasColumnType("INTEGER");
 
+                    b.Property<int?>("SavedTicketId")
+                        .HasColumnType("INTEGER");
+
                     b.Property<int?>("ShopId")
                         .HasColumnType("INTEGER");
 
@@ -372,6 +375,8 @@ namespace LotteryChecker.Api.Migrations
 
                     b.HasIndex("PostId");
 
+                    b.HasIndex("SavedTicketId");
+
                     b.HasIndex("ShopId");
 
                     b.HasIndex("ShopReviewId");
@@ -383,6 +388,67 @@ namespace LotteryChecker.Api.Migrations
                     b.HasIndex("UserId", "Id");
 
                     b.ToTable("Notifications");
+                });
+
+            modelBuilder.Entity("LotteryChecker.Api.Models.SavedTicket", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("ClaimedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateOnly>("DrawDate")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("Prize")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("PrizeTiers")
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Province")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<byte>("ReminderStage")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("SettledAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Status")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .HasMaxLength(8)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TicketNumber")
+                        .IsRequired()
+                        .HasMaxLength(6)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Status", "DrawDate", "Province");
+
+                    b.HasIndex("UserId", "DrawDate", "Province", "TicketNumber")
+                        .IsUnique();
+
+                    b.ToTable("SavedTickets");
                 });
 
             modelBuilder.Entity("LotteryChecker.Api.Models.ScratchTicket", b =>
@@ -1148,6 +1214,11 @@ namespace LotteryChecker.Api.Migrations
                         .HasForeignKey("PostId")
                         .OnDelete(DeleteBehavior.Cascade);
 
+                    b.HasOne("LotteryChecker.Api.Models.SavedTicket", null)
+                        .WithMany()
+                        .HasForeignKey("SavedTicketId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
                     b.HasOne("LotteryChecker.Api.Models.ShopLocation", null)
                         .WithMany()
                         .HasForeignKey("ShopId")
@@ -1168,6 +1239,15 @@ namespace LotteryChecker.Api.Migrations
                         .HasForeignKey("SiteReservationId")
                         .OnDelete(DeleteBehavior.Cascade);
 
+                    b.HasOne("LotteryChecker.Api.Models.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("LotteryChecker.Api.Models.SavedTicket", b =>
+                {
                     b.HasOne("LotteryChecker.Api.Models.User", null)
                         .WithMany()
                         .HasForeignKey("UserId")

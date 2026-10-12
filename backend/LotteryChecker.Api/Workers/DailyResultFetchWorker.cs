@@ -77,9 +77,27 @@ public class DailyResultFetchWorker : BackgroundService
     /// </summary>
     private async Task SettleTicketsAsync(CancellationToken ct)
     {
-        using var scope = _scopeFactory.CreateScope();
-        try { await scope.ServiceProvider.GetRequiredService<ScratchTicketService>().SettleAsync(null, ct); }
-        catch (OperationCanceledException) { }   // app đang tắt
+        using (var scope = _scopeFactory.CreateScope())
+        {
+            try { await scope.ServiceProvider.GetRequiredService<ScratchTicketService>().SettleAsync(null, ct); }
+            catch (OperationCanceledException) { }   // app đang tắt
+        }
+        await SettleSavedTicketsAsync(ct);
+    }
+
+    /// <summary>Có kết quả mới → dò vé người dùng đã lưu và báo (chuông + Web Push). Lỗi chỉ ghi log, không hỏng lượt cào.</summary>
+    private async Task SettleSavedTicketsAsync(CancellationToken ct)
+    {
+        try
+        {
+            using var scope = _scopeFactory.CreateScope();
+            await scope.ServiceProvider.GetRequiredService<SavedTicketService>().SettleAsync(ct);
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Chốt vé đã lưu lỗi");
+        }
     }
 
     /// <summary>

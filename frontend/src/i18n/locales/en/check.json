@@ -1,6 +1,14 @@
 {
   "money": "{{amount}} VND",
   "unknownError": "Unknown error",
+  "save": {
+    "notifyMe": "Save ticket, alert me when results are in",
+    "remindClaim": "Save to get claim reminders",
+    "saveWaiting": "Save {{count}} tickets without results yet",
+    "saving": "Saving…",
+    "done": "Saved to Account › Saved. You will get a bell notification when results are in (around 16:45 on draw day).",
+    "southOnly": "Only Southern (MN) tickets can be saved for now."
+  },
   "home": {
     "stepUpload": "Uploading photo",
     "stepReadText": "Reading text on the ticket",

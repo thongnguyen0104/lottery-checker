@@ -44,3 +44,27 @@ Content-Type: application/json
   "drawDate": "2026-06-02",
   "province": "TPHCM"
 }
+
+### ── Vé đã lưu (cờ savedTickets; cần cookie đăng nhập dvs.auth) ──
+### Lưu vé chưa xổ → Waiting; đã có kết quả → chốt ngay Won/Lost
+POST http://localhost:5177/api/saved-tickets
+Content-Type: application/json
+
+{
+  "ticketNumber": "123456",
+  "drawDate": "2026-10-14",
+  "province": "DongNai",
+  "note": "vé mua ở chợ"
+}
+
+### Danh sách vé đang chờ
+GET http://localhost:5177/api/saved-tickets?status=waiting&page=1
+
+### Badge: số vé chờ / trúng chưa lĩnh
+GET http://localhost:5177/api/saved-tickets/summary
+
+### Đánh dấu đã lĩnh
+PATCH http://localhost:5177/api/saved-tickets/1/claimed
+Content-Type: application/json
+
+{ "claimed": true }

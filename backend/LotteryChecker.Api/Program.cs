@@ -92,6 +92,9 @@ builder.Services.AddHostedService<BlogImageCleanupWorker>();
 builder.Services.AddSignalR();
 builder.Services.AddSingleton<INotificationPusher, SignalRNotificationPusher>();
 builder.Services.AddScoped<NotificationService>();
+// Vé đã lưu: tự dò sau giờ xổ, báo ở chuông, nhắc lĩnh thưởng.
+builder.Services.AddScoped<SavedTicketService>();
+builder.Services.AddHostedService<TicketReminderWorker>();
 // Bản đồ điểm bán vé số (mục "Shops") + tìm địa chỉ qua Nominatim (mục "Geo").
 builder.Services.AddSingleton(builder.Configuration.GetSection("Shops").Get<ShopOptions>() ?? new ShopOptions());
 builder.Services.AddScoped<ShopService>();

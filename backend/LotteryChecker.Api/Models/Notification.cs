@@ -10,6 +10,9 @@ public enum NotificationKind
     ShopReview,    // có người đánh giá điểm bán mình ghim
     ShopWin,       // có người báo điểm bán mình ghim từng bán vé trúng
     SiteReservation, // có khách gửi yêu cầu giữ vé trên website của mình
+    TicketWon,     // vé đã lưu vừa chốt: trúng
+    TicketLost,    // vé đã lưu vừa chốt: không trúng
+    TicketExpiring, // vé trúng chưa lĩnh sắp hết hạn
 }
 
 /// <summary>
@@ -29,6 +32,7 @@ public class Notification
     public int? ShopReviewId { get; set; }
     public int? ShopWinReportId { get; set; }
     public int? SiteReservationId { get; set; }
+    public int? SavedTicketId { get; set; }
     public DateTime CreatedAt { get; set; }
     public bool IsRead { get; set; }
 }

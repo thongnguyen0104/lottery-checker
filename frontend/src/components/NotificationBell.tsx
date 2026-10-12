@@ -3,7 +3,7 @@ import { Trans, useTranslation } from 'react-i18next'
 import type { HubConnection } from '@microsoft/signalr'
 import Icon, { type IconName } from './Icon'
 import { getNotifications, markNotificationsRead, NOTIFICATION_HUB_URL, type AppNotification } from '../api/client'
-import i18n from '../i18n'
+import i18n, { currentLocale } from '../i18n'
 import { provinceName } from '../data/provinces'
 import { formatDate, timeAgo } from '../utils/date'
 
@@ -16,6 +16,9 @@ const KIND_ICON: Record<AppNotification['kind'], IconName> = {
   ShopReview: 'star',
   ShopWin: 'trophy',
   SiteReservation: 'ticket',
+  TicketWon: 'trophy',
+  TicketLost: 'ticket',
+  TicketExpiring: 'clock',
 }
 
 /** Dòng trích dưới thông báo. Vé trúng: máy chủ gửi "đài|giải|yyyy-MM-dd" để FE dịch. */
@@ -29,6 +32,10 @@ function snippet(n: AppNotification) {
     })
   }
   if (n.kind === 'SiteReservation') return ''
+  if (isTicket(n)) {
+    const [, province, date] = n.snippet.split('|')
+    return `${provinceName(province)} · ${date ? formatDate(date) : ''}`
+  }
   return n.snippet ? `“${n.snippet}”` : ''
 }
 
@@ -161,7 +168,7 @@ export default function NotificationBell({ onOpen }: { onOpen: (n: AppNotificati
                   <span className={`block text-sm leading-snug break-words ${n.isRead ? 'text-ink-soft' : 'text-ink'}`}>
                     <Trans t={t} i18nKey={`notifications.${n.kind}`}
                            values={{ name: n.actorName ?? t('notifications.someone'), title: n.postTitle, shop: n.shopName, stars: n.stars,
-                                     ...reservation(n) }}
+                                     ...reservation(n), ...ticket(n) }}
                            components={{ b: <b className="font-semibold" /> }} />
                   </span>
                   {snippet(n) && <span className="mt-0.5 block text-xs text-ink-faint line-clamp-2 break-words">{snippet(n)}</span>}
@@ -182,4 +189,13 @@ function reservation(n: AppNotification) {
   if (n.kind !== 'SiteReservation') return {}
   const [qty, product] = n.snippet.split('|')
   return { qty, product: product || '' }
+}
+
+const isTicket = (n: AppNotification) => n.kind === 'TicketWon' || n.kind === 'TicketLost' || n.kind === 'TicketExpiring'
+
+/** Vé đã lưu: máy chủ gửi "số vé|đài|yyyy-MM-dd|tiền". */
+function ticket(n: AppNotification) {
+  if (!isTicket(n)) return {}
+  const [number, , , prize] = n.snippet.split('|')
+  return { number, amount: i18n.t('check:money', { amount: Number(prize || 0).toLocaleString(currentLocale()) }) }
 }

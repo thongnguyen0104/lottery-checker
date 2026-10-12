@@ -57,6 +57,7 @@
       "special": "Có ký tự đặc biệt (vd !@#$%)"
     },
     "trialUsedUp": "Bạn đã dùng hết lượt dò thử. Đăng nhập hoặc tạo tài khoản để dò tiếp nhé.",
+    "saveTicketReason": "Đăng nhập để lưu vé — có kết quả là máy báo cho bạn ngay.",
     "luckyTitle": "Đăng nhập để dùng 6 Số May Mắn",
     "luckyBody": "Chưa đăng nhập bạn chỉ xem được kết quả xổ số và dò thử 1 vé.",
     "profileTitle": "Đăng nhập để xem tài khoản",
@@ -85,6 +86,9 @@
     "ShopReview": "<b>{{name}}</b> đã đánh giá {{stars}}★ điểm bán <b>{{shop}}</b>",
     "ShopWin": "<b>{{name}}</b> báo điểm bán <b>{{shop}}</b> từng bán vé trúng",
     "SiteReservation": "<b>{{name}}</b> muốn giữ {{qty}} vé {{product}} trên website của bạn",
+    "TicketWon": "🎉 Vé <b>{{number}}</b> đã lưu trúng <b>{{amount}}</b>",
+    "TicketLost": "Vé <b>{{number}}</b> đã có kết quả — chưa trúng lần này",
+    "TicketExpiring": "Vé <b>{{number}}</b> trúng <b>{{amount}}</b> sắp hết hạn lĩnh thưởng",
     "loadError": "Không tải được thông báo.",
     "focusedPost": "Bài viết từ thông báo",
     "showAll": "Xem tất cả bài",

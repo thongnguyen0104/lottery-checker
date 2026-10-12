@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
-  getCheckHistory, getProfile, type CheckHistoryItem, type FeatureKey, type Features, type Profile as ProfileData,
+  getCheckHistory, getProfile, getSavedTicketSummary, type CheckHistoryItem, type FeatureKey, type Features, type Profile as ProfileData,
 } from '../api/client'
 import { provinceName } from '../data/provinces'
 import { currentLocale } from '../i18n'
@@ -9,16 +9,22 @@ import { formatDate, formatDateTime } from '../utils/date'
 import type { ResultsFocus } from './AvailableData'
 import Icon, { IconBadge, type IconName } from './Icon'
 import MyTickets from './MyTickets'
+import SavedTickets from './SavedTickets'
 
-type Tab = 'tickets' | 'history'
+export type ProfileTab = 'tickets' | 'history' | 'saved'
+type Tab = ProfileTab
 
 /** Mỗi tab thuộc 1 cờ tính năng — cờ tắt thì tab ẩn. */
-const TAB_FEATURE: Record<Tab, FeatureKey> = { tickets: 'scratchTickets', history: 'checkHistory' }
+const TAB_FEATURE: Record<Tab, FeatureKey> = { saved: 'savedTickets', tickets: 'scratchTickets', history: 'checkHistory' }
+
+const isTab = (x: string | null): x is Tab => x === 'tickets' || x === 'history' || x === 'saved'
 
 type Props = {
   onShowResults: (focus: ResultsFocus) => void
   onGoCheck: () => void
   features: Features
+  /** Mở đúng tab (link ?tab=saved từ Web Push, chuông thông báo); at đổi = chọn lại dù đang mở trang. */
+  focusTab?: { tab: ProfileTab; at: number } | null
 }
 
 const num = (n: number) => n.toLocaleString(currentLocale())
@@ -27,14 +33,33 @@ const num = (n: number) => n.toLocaleString(currentLocale())
  * Trang Tài khoản (đã đăng nhập): số dư, Vé của tôi, Lịch sử dò vé — phần nào hiện tuỳ cờ tính năng.
  * Mount lại mỗi lần mở để lịch sử luôn mới.
  */
-export default function Profile({ onShowResults, onGoCheck, features }: Props) {
+export default function Profile({ onShowResults, onGoCheck, features, focusTab }: Props) {
   const { t } = useTranslation('profile')
   const [profile, setProfile] = useState<ProfileData | null>(null)
-  const tabs = (['tickets', 'history'] as const).filter(x => features.available[TAB_FEATURE[x]])
-  const [picked, setPicked] = useState<Tab>('tickets')
+  const tabs = (['tickets', 'history', 'saved'] as const).filter(x => features.available[TAB_FEATURE[x]])
+  const [picked, setPicked] = useState<Tab>(() => {
+    const fromUrl = new URLSearchParams(location.search).get('tab')
+    return focusTab?.tab ?? (isTab(fromUrl) ? fromUrl : 'tickets')
+  })
+  // focusTab mới (bấm chuông khi đang ở trang này) → chọn lại tab ngay trong lúc render.
+  const [seenFocus, setSeenFocus] = useState(focusTab)
+  if (focusTab !== seenFocus) {
+    setSeenFocus(focusTab)
+    if (focusTab) setPicked(focusTab.tab)
+  }
   // Tab đang chọn vừa bị tắt (admin đổi cờ) → về tab đầu còn lại.
   const tab = tabs.includes(picked) ? picked : tabs[0]
-  const setTab = setPicked
+  // Ghi tab lên URL (không thêm mục lịch sử) để F5 / link chia sẻ mở đúng tab.
+  const setTab = (x: Tab) => {
+    setPicked(x)
+    history.replaceState(history.state, '', `${location.pathname}?tab=${x}`)
+  }
+  // Badge tab Vé đã lưu = số vé trúng chưa lĩnh.
+  const [unclaimed, setUnclaimed] = useState(0)
+  const refreshUnclaimed = useCallback(() => {
+    if (features.available.savedTickets) getSavedTicketSummary().then(s => setUnclaimed(s.unclaimedWins)).catch(() => {})
+  }, [features.available.savedTickets])
+  useEffect(refreshUnclaimed, [refreshUnclaimed])
   const tickets = features.available.scratchTickets
   const [error, setError] = useState<string | null>(null)
   const [reload, setReload] = useState(0)
@@ -108,6 +133,13 @@ export default function Profile({ onShowResults, onGoCheck, features }: Props) {
                       ? 'tab-pop bg-surface dark:bg-brand-500/10 shadow-sm text-brand-700 dark:text-brand-400'
                       : 'text-ink-faint hover:text-ink-soft'}`}>
               {t(`tabs.${x}`)}
+              {x === 'saved' && unclaimed > 0 && (
+                <span aria-label={t('saved.unclaimedBadge', { count: unclaimed })}
+                      className="ml-1.5 inline-block min-w-[18px] h-[18px] px-1 rounded-full bg-ok text-white text-[11px] font-bold
+                                 leading-[18px] text-center tabular-nums align-text-bottom">
+                  {unclaimed}
+                </span>
+              )}
               {!features.enabled[TAB_FEATURE[x]] && <span className="ml-1 text-warn" aria-label={t('previewOnly')}>●</span>}
             </button>
           ))}
@@ -127,6 +159,14 @@ export default function Profile({ onShowResults, onGoCheck, features }: Props) {
           {!features.enabled.checkHistory && <PreviewBadge />}
           {profile && <Summary checks={profile.checks} />}
           <History onShowResults={onShowResults} onGoCheck={onGoCheck} />
+        </div>
+      )}
+
+      {/* Vé đã lưu: tự dò sau giờ xổ, báo kết quả, nhắc lĩnh thưởng. Mount khi mở tab lần đầu. */}
+      {features.available.savedTickets && tab === 'saved' && (
+        <div className="space-y-3">
+          {!features.enabled.savedTickets && <PreviewBadge />}
+          <SavedTickets onShowResults={onShowResults} onUnclaimedChange={refreshUnclaimed} />
         </div>
       )}
     </div>
