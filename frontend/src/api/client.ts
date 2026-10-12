@@ -600,7 +600,7 @@ export async function getMyTickets(page: number) {
   }
 }
 
-export async function buyTickets(body: { province: string; drawDate: string; quantity: number }) {
+export async function buyTickets(body: { province: string; drawDate: string; quantity: number; numbers?: string[] }) {
   try {
     const { data } = await api.post('/api/tickets', body)
     return data as { tickets: ScratchTicket[]; balance: number }

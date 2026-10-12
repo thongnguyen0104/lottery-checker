@@ -22,9 +22,10 @@ public class ScratchTicketService(AppDbContext db, TimeProvider clock, ILogger<S
     public const int RefundAfterDays = 3;
     private const int MaxAttempts = 3;
 
-    public enum BuyError { None, BadQuantity, Closed, BadProvince, InsufficientBalance, NoAccount, Busy }
+    public enum BuyError { None, BadQuantity, Closed, BadProvince, InsufficientBalance, NoAccount, Busy, BadNumbers }
 
-    public record BuyRequest(string? Province, DateOnly DrawDate, int Quantity);
+    /// <summary>Numbers: số user tự chọn ("00".."99", không trùng) — null/rỗng = ngẫu nhiên; có thì Quantity phải bằng số lượng số.</summary>
+    public record BuyRequest(string? Province, DateOnly DrawDate, int Quantity, string[]? Numbers = null);
 
     public record TicketDto(int Id, DateOnly DrawDate, string Province, string Number, long Price,
                             ScratchTicketStatus Status, string? WinningNumber, long Prize, bool Scratched,
@@ -66,6 +67,8 @@ public class ScratchTicketService(AppDbContext db, TimeProvider clock, ILogger<S
     public async Task<BuyOutcome> BuyAsync(int userId, BuyRequest req, CancellationToken ct)
     {
         if (req.Quantity is < 1 or > MaxQuantity) return new(null, BuyError.BadQuantity);
+        var picked = req.Numbers is { Length: > 0 } ? req.Numbers : null;
+        if (picked != null && (picked.Length != req.Quantity || !ValidPick(picked))) return new(null, BuyError.BadNumbers);
         var day = SalesDay(DrawSchedule.NowVn(clock));
         if (req.DrawDate != day) return new(null, BuyError.Closed);
         var province = DrawSchedule.MnProvincesOn(day)
@@ -81,7 +84,7 @@ public class ScratchTicketService(AppDbContext db, TimeProvider clock, ILogger<S
             if (user.Balance < cost) return new(null, BuyError.InsufficientBalance);
 
             var now = clock.GetUtcNow().UtcDateTime;
-            var tickets = RandomNumbers(req.Quantity).Select(n => new ScratchTicket
+            var tickets = (picked ?? RandomNumbers(req.Quantity)).Select(n => new ScratchTicket
             {
                 UserId = userId, DrawDate = day, Province = province, Number = n, Price = Price,
                 Status = ScratchTicketStatus.Pending, PurchasedAt = now,
@@ -205,6 +208,9 @@ public class ScratchTicketService(AppDbContext db, TimeProvider clock, ILogger<S
             catch (DbUpdateConcurrencyException) when (attempt < MaxAttempts) { }
         }
     }
+
+    private static bool ValidPick(string[] numbers) =>
+        numbers.All(n => n is { Length: 2 } && n.All(char.IsAsciiDigit)) && numbers.Distinct().Count() == numbers.Length;
 
     /// <summary>count số khác nhau trong 00–99 (1 lượt mua không trùng số), xáo bằng RNG mật mã.</summary>
     private static IEnumerable<string> RandomNumbers(int count)

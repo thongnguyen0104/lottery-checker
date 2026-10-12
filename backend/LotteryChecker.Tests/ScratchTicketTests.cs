@@ -76,6 +76,34 @@ public class ScratchTicketTests
             t.Kind == WalletTransactionKind.Purchase && t.Amount == -30_000 && t.BalanceAfter == 70_000);
     }
 
+    [Fact(DisplayName = "Mua: tu chon so -> ve dung cac so da chon")]
+    public async Task Buy_PickedNumbers()
+    {
+        var env = new Env();
+        var uid = env.AddUser(100_000);
+
+        var (result, error) = await env.Service().BuyAsync(uid, new BuyRequest("CanTho", Day, 2, ["07", "99"]), default);
+
+        error.Should().Be(BuyError.None);
+        result!.Tickets.Select(t => t.Number).Should().Equal("07", "99");
+        result.Balance.Should().Be(80_000);
+    }
+
+    [Theory(DisplayName = "Mua: so tu chon sai (trung / khong 2 chu so / lech so luong) -> tu choi")]
+    [InlineData(2, new[] { "07", "07" })]
+    [InlineData(1, new[] { "7" })]
+    [InlineData(1, new[] { "1a" })]
+    [InlineData(1, new[] { "100" })]
+    [InlineData(1, new[] { "01", "02" })]
+    public async Task Buy_RejectsBadNumbers(int quantity, string[] numbers)
+    {
+        var env = new Env();
+        var uid = env.AddUser(100_000);
+        (await env.Service().BuyAsync(uid, new BuyRequest("CanTho", Day, quantity, numbers), default))
+            .Error.Should().Be(BuyError.BadNumbers);
+        env.Balance(uid).Should().Be(100_000);
+    }
+
     [Fact(DisplayName = "Mua: khong du so du -> tu choi, khong tru tien, khong tao ve")]
     public async Task Buy_InsufficientBalance()
     {

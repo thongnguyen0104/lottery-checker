@@ -110,23 +110,31 @@ function Shop({ shop, onBought, onFailed, onEarnCoins }: {
 }) {
   const { t } = useTranslation('profile')
   const [province, setProvince] = useState(shop.provinces[0] ?? '')
-  const [quantity, setQuantity] = useState(1)
+  const [randomQty, setRandomQty] = useState(1)
+  const [picking, setPicking] = useState(false)
+  const [picked, setPicked] = useState<string[]>([])
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [done, setDone] = useState<string | null>(null)
   // Qua giờ ngừng bán, máy chủ chuyển sang ngày mai với danh sách đài khác → chọn lại đài đầu tiên.
   const selected = shop.provinces.includes(province) ? province : shop.provinces[0] ?? ''
+  const quantity = picking ? picked.length : randomQty
   const total = quantity * shop.price
+  const togglePick = (n: string) => {
+    setPicked(p => p.includes(n) ? p.filter(x => x !== n) : p.length < shop.maxQuantity ? [...p, n].sort() : p)
+    setDone(null)
+  }
   const short = total > shop.balance
 
   const buy = async () => {
-    if (!selected || busy || short) return
+    if (!selected || busy || short || quantity < 1) return
     setBusy(true)
     setError(null)
     setDone(null)
     try {
-      const r = await buyTickets({ province: selected, drawDate: shop.drawDate, quantity })
+      const r = await buyTickets({ province: selected, drawDate: shop.drawDate, quantity, numbers: picking ? picked : undefined })
       onBought(r.tickets, r.balance)
+      setPicked([])
       setDone(t('shop.bought', { count: r.tickets.length, time: hhmm(shop.drawsAt) }))
     } catch (e) {
       setError((e as Error).message)
@@ -170,21 +178,63 @@ function Shop({ shop, onBought, onFailed, onEarnCoins }: {
         </div>
       </fieldset>
 
-      <div className="flex items-center justify-between gap-3">
-        <span className="text-sm font-semibold">{t('shop.quantity')}</span>
-        <div className="flex items-center gap-1 p-1 rounded-xl bg-muted border border-line/60">
-          <button type="button" onClick={() => { setQuantity(q => Math.max(1, q - 1)); setDone(null) }} disabled={quantity <= 1}
-                  aria-label={t('shop.less')}
-                  className="w-9 h-9 rounded-lg text-lg font-bold text-ink-soft hover:bg-surface disabled:opacity-40 transition">−</button>
-          <span className="w-10 text-center font-extrabold tabular-nums" aria-live="polite">{quantity}</span>
-          <button type="button" onClick={() => { setQuantity(q => Math.min(shop.maxQuantity, q + 1)); setDone(null) }}
-                  disabled={quantity >= shop.maxQuantity} aria-label={t('shop.more')}
-                  className="w-9 h-9 rounded-lg text-lg font-bold text-ink-soft hover:bg-surface disabled:opacity-40 transition">+</button>
-        </div>
+      <div role="radiogroup" aria-label={t('shop.mode')} className="grid grid-cols-2 gap-1 p-1 rounded-xl bg-muted border border-line/60">
+        {[false, true].map(pick => (
+          <button key={String(pick)} type="button" role="radio" aria-checked={picking === pick}
+                  onClick={() => { setPicking(pick); setDone(null) }}
+                  className={`py-2 rounded-lg text-sm font-semibold transition
+                              ${picking === pick ? 'bg-surface shadow-sm text-ink' : 'text-ink-soft hover:bg-surface/60'}`}>
+            {t(pick ? 'shop.modePick' : 'shop.modeRandom')}
+          </button>
+        ))}
       </div>
 
+      {picking ? (
+        <fieldset>
+          <legend className="text-sm font-semibold mb-1.5 flex w-full justify-between gap-2">
+            <span>{t('shop.pickNumbers', { max: shop.maxQuantity })}</span>
+            {picked.length > 0 && (
+              <button type="button" onClick={() => setPicked([])} className="text-xs font-semibold text-brand-700 dark:text-brand-400">
+                {t('shop.clearPick')}
+              </button>
+            )}
+          </legend>
+          <div className="grid grid-cols-10 gap-1">
+            {Array.from({ length: 100 }, (_, i) => String(i).padStart(2, '0')).map(n => {
+              const on = picked.includes(n)
+              return (
+                <button key={n} type="button" aria-pressed={on} onClick={() => togglePick(n)}
+                        disabled={!on && picked.length >= shop.maxQuantity}
+                        className={`aspect-square rounded-md text-xs font-bold tabular-nums border transition active:scale-95 disabled:opacity-40
+                                    ${on
+                                      ? 'bg-gradient-to-r from-primary to-primary-end text-on-primary border-transparent'
+                                      : 'bg-surface border-line text-ink-soft hover:bg-muted'}`}>
+                  {n}
+                </button>
+              )
+            })}
+          </div>
+          <p className="text-xs text-ink-faint mt-1.5" aria-live="polite">
+            {t('shop.picked', { count: picked.length, max: shop.maxQuantity })}
+          </p>
+        </fieldset>
+      ) : (
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-sm font-semibold">{t('shop.quantity')}</span>
+          <div className="flex items-center gap-1 p-1 rounded-xl bg-muted border border-line/60">
+            <button type="button" onClick={() => { setRandomQty(q => Math.max(1, q - 1)); setDone(null) }} disabled={randomQty <= 1}
+                    aria-label={t('shop.less')}
+                    className="w-9 h-9 rounded-lg text-lg font-bold text-ink-soft hover:bg-surface disabled:opacity-40 transition">−</button>
+            <span className="w-10 text-center font-extrabold tabular-nums" aria-live="polite">{randomQty}</span>
+            <button type="button" onClick={() => { setRandomQty(q => Math.min(shop.maxQuantity, q + 1)); setDone(null) }}
+                    disabled={randomQty >= shop.maxQuantity} aria-label={t('shop.more')}
+                    className="w-9 h-9 rounded-lg text-lg font-bold text-ink-soft hover:bg-surface disabled:opacity-40 transition">+</button>
+          </div>
+        </div>
+      )}
+
       <div className="space-y-2">
-        <button onClick={buy} disabled={!selected || busy || short} className="btn btn-primary w-full">
+        <button onClick={buy} disabled={!selected || busy || short || quantity < 1} className="btn btn-primary w-full">
           {busy ? t('shop.buying') : t('shop.buy', { count: quantity, total: num(total) })}
         </button>
         {short && (onEarnCoins ? (
