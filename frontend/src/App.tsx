@@ -104,7 +104,7 @@ export default function App() {
   const [featuresReady, setFeaturesReady] = useState(false)
   const refreshFeatures = useCallback(() => { getFeatures().then(f => { setFeatures(f); setFeaturesReady(true) }) }, [])
   useEffect(() => { if (account !== undefined) refreshFeatures() }, [sessionKey, account, refreshFeatures])
-  const hasProfile = features.available.checkHistory || features.available.scratchTickets || features.available.savedTickets
+  const hasProfile = features.available.checkHistory || features.available.scratchTickets || features.available.savedTickets || features.available.miniGame
   // Tab Blog theo trạng thái thật của cờ, kể cả admin — admin muốn xem trước thì mở thẳng /blog.
   const showBlog = features.enabled.blog
 

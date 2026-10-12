@@ -267,6 +267,59 @@ namespace LotteryChecker.Api.Migrations
                     b.ToTable("FeatureFlags");
                 });
 
+            modelBuilder.Entity("LotteryChecker.Api.Models.GameSession", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("FinishedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Inputs")
+                        .HasMaxLength(40000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("PublicId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("Reward")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("Rewarded")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Score")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<uint>("Seed")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("StartedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Status")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Ticks")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PublicId")
+                        .IsUnique();
+
+                    b.HasIndex("UserId", "StartedAt");
+
+                    b.ToTable("GameSessions");
+                });
+
             modelBuilder.Entity("LotteryChecker.Api.Models.GuestUsage", b =>
                 {
                     b.Property<string>("Key")
@@ -1194,6 +1247,15 @@ namespace LotteryChecker.Api.Migrations
                 });
 
             modelBuilder.Entity("LotteryChecker.Api.Models.CheckHistoryEntry", b =>
+                {
+                    b.HasOne("LotteryChecker.Api.Models.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("LotteryChecker.Api.Models.GameSession", b =>
                 {
                     b.HasOne("LotteryChecker.Api.Models.User", null)
                         .WithMany()

@@ -16,7 +16,8 @@ const hhmm = (vn: string) => vn.slice(11, 16)
 const reached = (vn: string) => new Date(`${vn.slice(0, 19)}+07:00`).getTime() <= Date.now()
 
 /** Vé của tôi: quầy mua vé cào 2 số + các vé đã mua (cào xem kết quả sau giờ xổ). */
-export default function MyTickets({ onBalance }: { onBalance: (balance: number) => void }) {
+/** onEarnCoins: có thì khi thiếu số dư hiện nút sang minigame kiếm xu (cờ miniGame bật). */
+export default function MyTickets({ onBalance, onEarnCoins }: { onBalance: (balance: number) => void; onEarnCoins?: () => void }) {
   const { t } = useTranslation('profile')
   const [shop, setShop] = useState<TicketShop | null>(null)
   const [tickets, setTickets] = useState<ScratchTicket[]>([])
@@ -72,7 +73,7 @@ export default function MyTickets({ onBalance }: { onBalance: (balance: number) 
           setTickets(ts => [...bought, ...ts])
           setShop({ ...shop, balance })
           onBalance(balance)
-        }} onFailed={refreshShop} />
+        }} onFailed={refreshShop} onEarnCoins={onEarnCoins} />
       ) : (
         <div className="card p-4 space-y-3 motion-safe:animate-pulse">
           <div className="h-5 w-40 rounded-full bg-muted" />
@@ -101,10 +102,11 @@ export default function MyTickets({ onBalance }: { onBalance: (balance: number) 
   )
 }
 
-function Shop({ shop, onBought, onFailed }: {
+function Shop({ shop, onBought, onFailed, onEarnCoins }: {
   shop: TicketShop
   onBought: (tickets: ScratchTicket[], balance: number) => void
   onFailed: () => void
+  onEarnCoins?: () => void
 }) {
   const { t } = useTranslation('profile')
   const [province, setProvince] = useState(shop.provinces[0] ?? '')
@@ -185,7 +187,14 @@ function Shop({ shop, onBought, onFailed }: {
         <button onClick={buy} disabled={!selected || busy || short} className="btn btn-primary w-full">
           {busy ? t('shop.buying') : t('shop.buy', { count: quantity, total: num(total) })}
         </button>
-        {short && <p className="text-sm text-warn text-center">{t('shop.insufficient')}</p>}
+        {short && (onEarnCoins ? (
+          <div className="text-center space-y-2">
+            <p className="text-sm text-warn">{t('shop.insufficientGame')}</p>
+            <button type="button" onClick={onEarnCoins} className="btn btn-soft w-full">
+              <Icon name="trophy" className="w-4 h-4" /> {t('shop.earnCoins')}
+            </button>
+          </div>
+        ) : <p className="text-sm text-warn text-center">{t('shop.insufficient')}</p>)}
         {error && <p className="text-sm text-bad text-center">{error}</p>}
         {done && (
           <p className="text-sm text-ok text-center flex items-center justify-center gap-1.5">
@@ -232,7 +241,7 @@ function TicketCard({ ticket }: { ticket: ScratchTicket }) {
         </span>
         <div className="min-w-0">
           <div className="font-semibold truncate">{provinceName(ticket.province)}</div>
-          <div className="text-xs text-ink-faint">{formatDate(ticket.drawDate)} · {num(ticket.price)} ₫</div>
+          <div className="text-xs text-ink-faint">{formatDate(ticket.drawDate)} · {t('coins', { amount: num(ticket.price) })}</div>
         </div>
       </div>
 

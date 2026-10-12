@@ -83,6 +83,7 @@ builder.Services.AddScoped<Wallet>();               // số dư ảo + sổ giao
 builder.Services.AddScoped<AdminUsers>();           // trang quản trị
 builder.Services.AddScoped<FeatureFlags>();         // bật/tắt tính năng (trang quản trị)
 builder.Services.AddScoped<ScratchTicketService>(); // vé cào 2 số theo giải tám
+builder.Services.AddScoped<MiniGameService>(); // minigame đua xe kiếm xu cho vé cào
 builder.Services.AddScoped<BlogService>();
 // Ảnh Blog nằm trên object storage (Oracle, API S3) — mục "Storage"; thiếu cấu hình thì tắt đăng ảnh.
 builder.Services.AddSingleton<BlogImageStorage>();
@@ -258,6 +259,14 @@ builder.Services.AddRateLimiter(o =>
             new FixedWindowRateLimiterOptions
             {
                 PermitLimit = builder.Configuration.GetValue("Tickets:BuysPerUserPerMinute", 10),
+                Window = TimeSpan.FromMinutes(1),
+            }));
+    // Minigame: theo IP — 1 ván ít nhất vài giây, chặn script mở/kết thúc lượt liên tục, nhiều tài khoản chung 1 máy.
+    o.AddPolicy(LotteryChecker.Api.Controllers.MiniGameController.RateLimitPolicy, ctx =>
+        RateLimitPartition.GetFixedWindowLimiter(ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown", _ =>
+            new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = builder.Configuration.GetValue("MiniGame:RequestsPerIpPerMinute", 20),
                 Window = TimeSpan.FromMinutes(1),
             }));
     o.OnRejected = (ctx, ct) => new ValueTask(ctx.HttpContext.Response.WriteAsJsonAsync(

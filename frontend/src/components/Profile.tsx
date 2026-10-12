@@ -8,16 +8,17 @@ import { currentLocale } from '../i18n'
 import { formatDate, formatDateTime } from '../utils/date'
 import type { ResultsFocus } from './AvailableData'
 import Icon, { IconBadge, type IconName } from './Icon'
+import MiniGame from './MiniGame'
 import MyTickets from './MyTickets'
 import SavedTickets from './SavedTickets'
 
-export type ProfileTab = 'tickets' | 'history' | 'saved'
+export type ProfileTab = 'tickets' | 'game' | 'history' | 'saved'
 type Tab = ProfileTab
 
 /** Mỗi tab thuộc 1 cờ tính năng — cờ tắt thì tab ẩn. */
-const TAB_FEATURE: Record<Tab, FeatureKey> = { saved: 'savedTickets', tickets: 'scratchTickets', history: 'checkHistory' }
+const TAB_FEATURE: Record<Tab, FeatureKey> = { saved: 'savedTickets', tickets: 'scratchTickets', game: 'miniGame', history: 'checkHistory' }
 
-const isTab = (x: string | null): x is Tab => x === 'tickets' || x === 'history' || x === 'saved'
+const isTab = (x: string | null): x is Tab => x === 'tickets' || x === 'game' || x === 'history' || x === 'saved'
 
 type Props = {
   onShowResults: (focus: ResultsFocus) => void
@@ -36,7 +37,7 @@ const num = (n: number) => n.toLocaleString(currentLocale())
 export default function Profile({ onShowResults, onGoCheck, features, focusTab }: Props) {
   const { t } = useTranslation('profile')
   const [profile, setProfile] = useState<ProfileData | null>(null)
-  const tabs = (['tickets', 'history', 'saved'] as const).filter(x => features.available[TAB_FEATURE[x]])
+  const tabs = (['tickets', 'game', 'history', 'saved'] as const).filter(x => features.available[TAB_FEATURE[x]])
   const [picked, setPicked] = useState<Tab>(() => {
     const fromUrl = new URLSearchParams(location.search).get('tab')
     return focusTab?.tab ?? (isTab(fromUrl) ? fromUrl : 'tickets')
@@ -112,7 +113,7 @@ export default function Profile({ onShowResults, onGoCheck, features, focusTab }
         <div className="min-w-0">
           <div className="text-sm text-ink-faint">{t('balance')}</div>
           <div className="text-2xl md:text-3xl font-extrabold tabular-nums text-brand-700 dark:text-brand-400 truncate">
-            {profile ? t('money', { amount: num(profile.balance) })
+            {profile ? t('coins', { amount: num(profile.balance) })
                      : <span className="inline-block h-7 w-32 rounded-full bg-muted motion-safe:animate-pulse" />}
           </div>
           <div className="text-xs text-ink-faint mt-0.5">{t('balanceNote')}</div>
@@ -150,7 +151,15 @@ export default function Profile({ onShowResults, onGoCheck, features, focusTab }
       {tickets && (
         <div hidden={tab !== 'tickets'} className="space-y-3">
           {!features.enabled.scratchTickets && <PreviewBadge />}
-          <MyTickets onBalance={onBalance} />
+          <MyTickets onBalance={onBalance} onEarnCoins={features.available.miniGame ? () => setTab('game') : undefined} />
+        </div>
+      )}
+
+      {/* Kiếm xu: minigame đua xe, thưởng cộng vào số dư. Mount khi mở tab — ván đang chạy dừng khi rời tab. */}
+      {features.available.miniGame && tab === 'game' && (
+        <div className="space-y-3">
+          {!features.enabled.miniGame && <PreviewBadge />}
+          <MiniGame onBalance={onBalance} />
         </div>
       )}
 

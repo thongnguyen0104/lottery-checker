@@ -21,6 +21,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Dùng chung với frontend (npm run check:minigame) — 2 bên mô phỏng phải ra cùng điểm. -->
+    <None Include="TestData\minigame-golden.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\LotteryChecker.Api\LotteryChecker.Api.csproj" />
   </ItemGroup>
 
