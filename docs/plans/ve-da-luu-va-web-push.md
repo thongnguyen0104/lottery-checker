@@ -1,6 +1,6 @@
 # Kế hoạch: Vé đã lưu, tự dò sau giờ xổ, Web Push, nhắc lĩnh thưởng
 
-> Trạng thái: **đề xuất** — 2026-10-11
+> Trạng thái: **đã triển khai bước 1–5** (cờ `savedTickets` mặc định tắt) — 2026-10-12. Câu hỏi mục 8 chốt theo đề xuất: báo cả vé không trúng (push gộp), ghi `CheckStats` không ghi `CheckHistory`, 100 vé chờ/user, bắt buộc đăng nhập, chưa làm trang cài đặt thông báo. **Đã bỏ Web Push** (mục 3.4–3.5, 4.3, 4.5): theo yêu cầu chỉ báo ở chuông trong app, nên không cần khoá VAPID / cấu hình server.
 > Phạm vi: tính năng 1 + 2 + 3 trong danh sách đề xuất (xem [Phụ lục](#phụ-lục--các-đề-xuất-còn-lại)).
 
 ## 1. Vấn đề và mục tiêu

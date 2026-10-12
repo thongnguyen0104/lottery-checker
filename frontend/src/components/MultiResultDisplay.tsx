@@ -4,7 +4,8 @@ import { useTranslation } from 'react-i18next'
 import Confetti from './Confetti'
 import ScratchCard from './ScratchCard'
 import Icon, { IconBadge, type IconName } from './Icon'
-import type { MultiTicket } from '../api/client'
+import type { MultiTicket, TicketQuery } from '../api/client'
+import { SaveTicketButton } from './SaveTicket'
 import { provinceName } from '../data/provinces'
 import i18n, { currentLocale } from '../i18n'
 
@@ -55,6 +56,10 @@ export default function MultiResultDisplay({ tickets, imageUrl, onOpen, onRescan
   const [needScratch] = useState(() => !scratched.has(tickets) && tickets.some(t => t.result?.status === 'Checked'))
   const [revealed, setRevealed] = useState(!needScratch)
   const onReveal = () => { scratched.add(tickets); setRevealed(true) }
+  // Vé đã đọc chắc mà chưa xổ / chưa có kết quả → lưu để tự dò sau.
+  const waiting: TicketQuery[] = tickets.flatMap(t =>
+    t.result && (t.result.status === 'NotDrawnYet' || t.result.status === 'NoData') && t.ticketNumber && t.drawDate && t.province
+      ? [{ ticketNumber: t.ticketNumber, drawDate: t.drawDate.slice(0, 10), province: t.province }] : [])
 
   if (tickets.length === 0)
     return (
@@ -144,6 +149,10 @@ export default function MultiResultDisplay({ tickets, imageUrl, onOpen, onRescan
           )
         })}
       </ul>
+
+      {waiting.length > 0 && (
+        <SaveTicketButton tickets={waiting} primary label={tr('save.saveWaiting', { count: waiting.length })} />
+      )}
 
       <p className="text-xs text-ink-faint text-center px-2">
         {tr('result.disclaimer')}

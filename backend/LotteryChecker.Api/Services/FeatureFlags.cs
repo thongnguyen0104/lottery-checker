@@ -16,6 +16,7 @@ public class FeatureFlags(AppDbContext db, IMemoryCache cache, TimeProvider cloc
     public const string ShopMap = "shopMap";
     public const string Sites = "sites";
     public const string Blog = "blog";
+    public const string SavedTickets = "savedTickets";
 
     /// <summary>DefaultOn: trạng thái khi admin chưa từng bật/tắt (chưa có dòng trong DB) — tính năng đã chạy
     /// từ trước khi có cờ thì để true, không thì deploy xong tự ẩn mất.</summary>
@@ -41,6 +42,9 @@ public class FeatureFlags(AppDbContext db, IMemoryCache cache, TimeProvider cloc
             "Tab Blog (/blog): đọc, viết bài, đăng ảnh, like, bình luận. Tắt thì ẩn tab và chặn API; bài cũ vẫn giữ.",
             "The Blog tab (/blog): read, post, upload images, vote, comment. Off hides the tab and blocks the API; posts are kept.",
             DefaultOn: true),
+        new(SavedTickets, "Vé đã lưu & báo kết quả", "Saved tickets & result alerts",
+            "Lưu vé, tự dò khi có kết quả, thông báo đẩy và nhắc lĩnh thưởng (tab Vé đã lưu ở trang Tài khoản).",
+            "Save tickets, auto-check after the draw, push alerts and claim reminders (Saved tab on the Account page)."),
     ];
 
     public record FlagDto(string Key, string Name, string Description, bool Enabled, DateTime? UpdatedAt, string? UpdatedBy);

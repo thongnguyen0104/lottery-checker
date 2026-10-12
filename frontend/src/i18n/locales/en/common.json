@@ -57,6 +57,7 @@
       "special": "A special character (e.g. !@#$%)"
     },
     "trialUsedUp": "You've used your free check. Log in or create an account to keep checking.",
+    "saveTicketReason": "Log in to save this ticket — we'll alert you as soon as results are in.",
     "luckyTitle": "Log in to use Lucky Numbers",
     "luckyBody": "Without an account you can only view lottery results and check 1 ticket for free.",
     "profileTitle": "Log in to see your account",
@@ -85,6 +86,9 @@
     "ShopReview": "<b>{{name}}</b> gave your shop <b>{{shop}}</b> {{stars}}★",
     "ShopWin": "<b>{{name}}</b> reported a winning ticket from your shop <b>{{shop}}</b>",
     "SiteReservation": "<b>{{name}}</b> wants to reserve {{qty}} × {{product}} on your site",
+    "TicketWon": "🎉 Saved ticket <b>{{number}}</b> won <b>{{amount}}</b>",
+    "TicketLost": "Results are in for ticket <b>{{number}}</b> — no win this time",
+    "TicketExpiring": "Ticket <b>{{number}}</b> won <b>{{amount}}</b> — the claim deadline is near",
     "loadError": "Couldn't load notifications.",
     "focusedPost": "Post from notification",
     "showAll": "See all posts",

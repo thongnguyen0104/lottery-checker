@@ -33,6 +33,7 @@ public class AppDbContext : DbContext
     public DbSet<SiteReservation> SiteReservations => Set<SiteReservation>();
     public DbSet<SiteImage> SiteImages => Set<SiteImage>();
     public DbSet<SiteReport> SiteReports => Set<SiteReport>();
+    public DbSet<SavedTicket> SavedTickets => Set<SavedTicket>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -145,6 +146,20 @@ public class AppDbContext : DbContext
             e.HasOne<ShopReview>().WithMany().HasForeignKey(x => x.ShopReviewId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne<ShopWinReport>().WithMany().HasForeignKey(x => x.ShopWinReportId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne<SiteReservation>().WithMany().HasForeignKey(x => x.SiteReservationId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne<SavedTicket>().WithMany().HasForeignKey(x => x.SavedTicketId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<SavedTicket>(e =>
+        {
+            e.HasIndex(x => new { x.UserId, x.DrawDate, x.Province, x.TicketNumber }).IsUnique();
+            e.HasIndex(x => new { x.Status, x.DrawDate, x.Province });   // tìm vé chờ chốt
+            e.Property(x => x.TicketNumber).HasMaxLength(6);
+            e.Property(x => x.Province).HasMaxLength(32);
+            e.Property(x => x.PrizeTiers).HasMaxLength(200);
+            e.Property(x => x.Note).HasMaxLength(100);
+            // Concurrency token: worker chốt cùng lúc user lưu (chốt ngay) thì lượt sau lỗi thay vì báo 2 lần.
+            e.Property(x => x.Status).HasConversion<string>().HasMaxLength(8).IsConcurrencyToken();
+            e.HasOne<User>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
         });
 
         b.Entity<ShopLocation>(e =>

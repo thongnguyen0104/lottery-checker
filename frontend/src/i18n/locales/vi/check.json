@@ -1,6 +1,14 @@
 {
   "money": "{{amount}} ₫",
   "unknownError": "Lỗi không xác định",
+  "save": {
+    "notifyMe": "Lưu vé, báo tôi khi có kết quả",
+    "remindClaim": "Lưu để nhắc lĩnh thưởng",
+    "saveWaiting": "Lưu {{count}} vé chưa có kết quả",
+    "saving": "Đang lưu…",
+    "done": "Đã lưu vào Tài khoản › Vé đã lưu. Có kết quả (khoảng 16:45 ngày xổ) sẽ báo ở chuông thông báo.",
+    "southOnly": "Hiện chỉ hỗ trợ lưu vé Miền Nam."
+  },
   "home": {
     "stepUpload": "Tải ảnh lên",
     "stepReadText": "Đọc chữ trên vé",

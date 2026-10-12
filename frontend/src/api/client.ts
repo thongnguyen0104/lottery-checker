@@ -370,13 +370,13 @@ export async function changePassword(currentPassword: string, newPassword: strin
 }
 
 // ── Cờ tính năng: tắt = user thường không thấy (máy chủ cũng chặn API); admin luôn xem trước được ──
-export type FeatureKey = 'checkHistory' | 'scratchTickets' | 'shopMap' | 'sites' | 'blog'
+export type FeatureKey = 'checkHistory' | 'scratchTickets' | 'shopMap' | 'sites' | 'blog' | 'savedTickets'
 
 /** available = người đang xem dùng được; enabled = đã bật cho mọi người (admin xem trước khi available && !enabled). */
 export type Features = { available: Record<FeatureKey, boolean>; enabled: Record<FeatureKey, boolean> }
 
 // Blog đã chạy từ trước khi có cờ (máy chủ để DefaultOn) → coi như bật lúc chưa hỏi xong, khỏi nháy tab.
-const NO_FEATURES: Record<FeatureKey, boolean> = { checkHistory: false, scratchTickets: false, shopMap: false, sites: false, blog: true }
+const NO_FEATURES: Record<FeatureKey, boolean> = { checkHistory: false, scratchTickets: false, shopMap: false, sites: false, blog: true, savedTickets: false }
 export const FEATURES_OFF: Features = { available: NO_FEATURES, enabled: NO_FEATURES }
 
 /** Lỗi mạng → coi như tắt hết (trừ Blog): tính năng mới thà ẩn nhầm còn hơn hiện ra rồi gọi API lỗi. */
@@ -812,6 +812,7 @@ export async function getBlogPost(id: number | string) {
 export type AppNotification = {
   id: number
   kind: 'PostComment' | 'CommentReply' | 'ShopReview' | 'ShopWin' | 'SiteReservation'
+    | 'TicketWon' | 'TicketLost' | 'TicketExpiring'
   /** Blog — null với thông báo điểm bán. */
   postId: number | null
   commentId: number | null
@@ -1189,3 +1190,81 @@ export async function uploadSiteImage(file: Blob, signal?: AbortSignal) {
 export const getAdminSites = () => call<AdminSite[]>(() => api.get('/api/admin/sites'))
 export const setAdminSiteStatus = (id: string, status: 'Active' | 'Hidden') =>
   call<void>(() => api.post(`/api/admin/sites/${id}/status`, { status }))
+
+// ── Vé đã lưu (cờ savedTickets, cần đăng nhập): tự dò sau giờ xổ, báo kết quả, nhắc lĩnh thưởng ──
+export type SavedTicketStatus = 'Waiting' | 'Won' | 'Lost' | 'Expired'
+
+export type SavedTicket = {
+  id: number
+  ticketNumber: string
+  drawDate: string
+  province: string
+  status: SavedTicketStatus
+  prize: number
+  /** Tên giải trúng (tiếng Việt, như CheckResult.winnings[].tierName). */
+  prizeTiers: string[]
+  note: string | null
+  createdAt: string
+  settledAt: string | null
+  claimedAt: string | null
+  /** Ngày cuối còn lĩnh được (yyyy-MM-dd). */
+  claimDeadline: string
+  /** Giờ VN (không kèm múi giờ). */
+  drawsAt: string
+}
+
+export type SavedTicketSummary = { waiting: number; unclaimedWins: number; unclaimedPrize: number }
+
+export async function saveTicket(body: TicketQuery & { note?: string | null }) {
+  try {
+    const { data } = await api.post('/api/saved-tickets', body)
+    return data as SavedTicket
+  } catch (e) {
+    throw toFriendlyError(e)
+  }
+}
+
+/** Lưu nhiều vé; error = lỗi của vé đầu tiên không lưu được (các vé khác vẫn lưu). */
+export async function saveTickets(items: TicketQuery[]) {
+  try {
+    const { data } = await api.post('/api/saved-tickets/bulk', { items })
+    return data as { items: SavedTicket[]; error: string | null }
+  } catch (e) {
+    throw toFriendlyError(e)
+  }
+}
+
+export async function getSavedTickets(status: SavedTicketStatus | null, page: number) {
+  try {
+    const { data } = await api.get('/api/saved-tickets', { params: { status: status ?? undefined, page } })
+    return data as { items: SavedTicket[]; hasMore: boolean }
+  } catch (e) {
+    throw toFriendlyError(e)
+  }
+}
+
+export async function getSavedTicketSummary() {
+  try {
+    const { data } = await api.get('/api/saved-tickets/summary')
+    return data as SavedTicketSummary
+  } catch (e) {
+    throw toFriendlyError(e)
+  }
+}
+
+export async function setTicketClaimed(id: number, claimed: boolean) {
+  try {
+    const { data } = await api.patch(`/api/saved-tickets/${id}/claimed`, { claimed })
+    return data as SavedTicket
+  } catch (e) {
+    throw toFriendlyError(e)
+  }
+}
+
+export async function deleteSavedTicket(id: number) {
+  try {
+    await api.delete(`/api/saved-tickets/${id}`)
+  } catch (e) {
+    throw toFriendlyError(e)
+  }
+}

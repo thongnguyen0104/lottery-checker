@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import AppHeader from './components/AppHeader'
 import BottomNav from './components/BottomNav'
@@ -7,12 +7,15 @@ import ThemePicker from './components/ThemePicker'
 import DonateDialog from './components/DonateDialog'
 import AuthDialog from './components/AuthDialog'
 import Icon from './components/Icon'
-import { FEATURES_OFF, getFeatures, getMe, logout, type Account, type Features } from './api/client'
+import {
+  FEATURES_OFF, getFeatures, getMe, logout, saveTicket, saveTickets, type Account, type Features, type TicketQuery,
+} from './api/client'
+import { SaveTicketsContext, type SaveTicketsApi } from './lib/saveTickets'
 import AvailableData, { type ResultsFocus } from './components/AvailableData'
 import LuckyNumbers from './components/LuckyNumbers'
 import Predictions from './components/Predictions'
 import Blog, { type BlogFocus } from './components/Blog'
-import Profile from './components/Profile'
+import Profile, { type ProfileTab } from './components/Profile'
 import AdminPanel from './components/AdminPanel'
 import ChangePasswordDialog from './components/ChangePasswordDialog'
 import Home from './pages/Home'
@@ -101,7 +104,7 @@ export default function App() {
   const [featuresReady, setFeaturesReady] = useState(false)
   const refreshFeatures = useCallback(() => { getFeatures().then(f => { setFeatures(f); setFeaturesReady(true) }) }, [])
   useEffect(() => { if (account !== undefined) refreshFeatures() }, [sessionKey, account, refreshFeatures])
-  const hasProfile = features.available.checkHistory || features.available.scratchTickets
+  const hasProfile = features.available.checkHistory || features.available.scratchTickets || features.available.savedTickets
   // Tab Blog theo trạng thái thật của cờ, kể cả admin — admin muốn xem trước thì mở thẳng /blog.
   const showBlog = features.enabled.blog
 
@@ -114,6 +117,37 @@ export default function App() {
     window.scrollTo(0, 0)
     history.pushState({ view: v, focus }, '', viewPath(v))
   }
+
+  // Tab Vé đã lưu ở trang Tài khoản — mở từ chuông / sau khi đăng nhập để lưu vé.
+  const [profileFocus, setProfileFocus] = useState<{ tab: ProfileTab; at: number } | null>(null)
+  const openSaved = () => {
+    setProfileFocus({ tab: 'saved', at: Date.now() })
+    go('profile')
+    history.replaceState({ view: 'profile' }, '', `${viewPath('profile')}?tab=saved`)
+  }
+
+  // Lưu vé khi chưa đăng nhập: giữ lại vé, mở form đăng nhập, xong thì lưu tiếp (effect dưới).
+  const pendingSave = useRef<TicketQuery[] | null>(null)
+  const doSave = async (items: TicketQuery[]) => {
+    if (items.length === 1) return [await saveTicket(items[0])]
+    return (await saveTickets(items)).items
+  }
+  const saveApi: SaveTicketsApi = {
+    available: features.available.savedTickets,
+    save: async items => {
+      if (account) return doSave(items)
+      pendingSave.current = items
+      setAuthReason(t('auth.saveTicketReason'))
+      return null
+    },
+  }
+  useEffect(() => {
+    const items = pendingSave.current
+    if (!account || !items) return
+    pendingSave.current = null
+    doSave(items).then(openSaved).catch(e => alert((e as Error)?.message ?? ''))
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- chỉ chạy khi vừa đăng nhập
+  }, [account])
 
   const openShop = (id: string) => {
     setMapFocus({ id, at: Date.now() })
@@ -149,6 +183,7 @@ export default function App() {
   )
 
   return (
+    <SaveTicketsContext.Provider value={saveApi}>
     <div className="min-h-screen flex flex-col">
       <div aria-hidden className={`backdrop bgfx-${theme.bg}`} />
       <AppHeader view={view} busy={checking} onChange={v => go(v)} onOpenTheme={() => setThemeOpen(true)}
@@ -161,6 +196,7 @@ export default function App() {
                  onChangePassword={() => setPwOpen(true)}
                  onOpenNotification={n => {
                    if (n.kind === 'SiteReservation') { go('mySite'); return }
+                   if (n.kind === 'TicketWon' || n.kind === 'TicketLost' || n.kind === 'TicketExpiring') { openSaved(); return }
                    if (n.shopPublicId) { openShop(n.shopPublicId); return }
                    if (n.postId == null || n.commentId == null || !features.available.blog) return
                    setBlogFocus({ postId: n.postId, commentId: n.commentId, at: Date.now() })
@@ -216,7 +252,7 @@ export default function App() {
         {view === 'profile' && (
           <div className="fade-up">
             {account ? (
-              <Profile key={sessionKey} features={features} onShowResults={focus => go('results', focus)} onGoCheck={() => go('check')} />
+              <Profile key={sessionKey} features={features} focusTab={profileFocus} onShowResults={focus => go('results', focus)} onGoCheck={() => go('check')} />
             ) : account === null && (
               <div className="card p-6 text-center space-y-3 max-w-md mx-auto">
                 <Icon name="user" className="w-10 h-10 mx-auto text-brand-700 dark:text-brand-400" />
@@ -314,9 +350,10 @@ export default function App() {
                               onDone={a => { setAccount(a); closePw() }} />
       )}
       {authReason !== undefined && (
-        <AuthDialog reason={authReason ?? undefined} onClose={closeAuth}
+        <AuthDialog reason={authReason ?? undefined} onClose={() => { pendingSave.current = null; closeAuth() }}
                     onDone={a => { setAccount(a); closeAuth() }} />
       )}
     </div>
+    </SaveTicketsContext.Provider>
   )
 }

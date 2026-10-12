@@ -55,3 +55,9 @@ export const provinceName = (code: string): string => {
   if (!p) return code
   return currentLang() === 'en' ? EN_NAMES[code] ?? stripDiacritics(p.name) : p.name
 }
+
+// 22 đài đầu của ALL_PROVINCES là Miền Nam — khớp DrawSchedule.RegionOf ở backend.
+const SOUTH = new Set(ALL_PROVINCES.slice(0, 22).map(p => p.code))
+
+/** Đài Miền Nam? (lưu vé / tự dò hiện chỉ hỗ trợ MN vì scraper chỉ cào MN.) */
+export const isSouth = (code: string | null | undefined) => !!code && SOUTH.has(code)

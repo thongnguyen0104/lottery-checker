@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import ScratchCard from './ScratchCard'
 import Confetti from './Confetti'
 import Icon, { IconBadge, type IconName } from './Icon'
+import { SaveTicketButton } from './SaveTicket'
 import { provinceName } from '../data/provinces'
 import { CLAIM_DAYS, claimDeadline } from '../utils/claim'
 import i18n, { currentLocale } from '../i18n'
@@ -162,6 +163,12 @@ export default function ResultDisplay({ result, onRescan, rescanLabel, onEdit, o
             {t('result.loseBody')}
           </StatusCard>
         </ScratchCard>
+      )}
+
+      {/* Lưu vé: chưa xổ / chưa có kết quả → tự dò và báo khi có; trúng → nhắc lĩnh trước hạn. */}
+      {drawDate && province && (status === 'NotDrawnYet' || status === 'NoData' || (won && revealed)) && (
+        <SaveTicketButton tickets={[{ ticketNumber: extractedNumber, drawDate: drawDate.slice(0, 10), province }]}
+                          primary={!won} label={t(won ? 'save.remindClaim' : 'save.notifyMe')} />
       )}
 
       <p className="text-xs text-ink-faint text-center px-2">
