@@ -27,6 +27,7 @@ import type { MapFocus } from './components/map/ShopMap'
 const ShopMap = lazy(() => import('./components/map/ShopMap'))
 // Website con: trang công khai + trình sửa (TipTap, dnd-kit) — tải riêng, người chỉ dò vé không phải tải.
 const SitePage = lazy(() => import('./components/site/SitePage'))
+const Vietlott = lazy(() => import('./components/Vietlott'))
 const SiteEditor = lazy(() => import('./components/site/SiteEditor'))
 
 export default function App() {
@@ -35,6 +36,7 @@ export default function App() {
   const { t: tm } = useTranslation('map')
   const { t: ts } = useTranslation('site')
   const { t: tb } = useTranslation('blog')
+  const { t: tv } = useTranslation('vietlott')
   // Mở đúng màn theo URL (link chia sẻ / F5); đường dẫn lạ về Dò vé và sửa luôn URL. Xoá state lịch
   // sử còn sót từ trước khi tải lại (vd đang ở bảng 1 đài) — bước bên trong không nằm trên URL.
   // Chạy trước effect của các con để Home ghi stage đầu tiên lên đúng mục này.
@@ -191,7 +193,7 @@ export default function App() {
                  account={account ?? null} showProfile={hasProfile} onOpenAuth={() => setAuthReason(null)} onLogout={onLogout}
                  onOpenProfile={() => go('profile')} onOpenAdmin={() => go('admin')}
                  showMap={features.available.shopMap} onOpenMap={() => go('map')}
-                 showBlog={showBlog}
+                 showBlog={showBlog} showVietlott={features.available.vietlott} onOpenVietlott={() => go('vietlott')}
                  showMySite={features.available.sites} onOpenMySite={() => go('mySite')}
                  onChangePassword={() => setPwOpen(true)}
                  onOpenNotification={n => {
@@ -231,6 +233,20 @@ export default function App() {
         {seen.has('predict') && (
           <div hidden={view !== 'predict'} className="fade-up">
             <Predictions />
+          </div>
+        )}
+        {/* Vietlott: mount lần đầu mở tới rồi giữ lại (ẩn) — quay lại vẫn đúng loại vé / tab đang xem.
+            Cờ vietlott tắt (admin vẫn xem trước được) → báo chưa mở, kể cả mở thẳng /vietlott. */}
+        {seen.has('vietlott') && (
+          <div hidden={view !== 'vietlott'} className="fade-up">
+            {features.available.vietlott ? (
+              <Suspense fallback={null}><Vietlott /></Suspense>
+            ) : featuresReady && (
+              <div className="card p-6 text-center space-y-3 max-w-md mx-auto">
+                <Icon name="trophy" className="w-10 h-10 mx-auto text-brand-700 dark:text-brand-400" />
+                <p className="font-semibold">{tv('unavailable')}</p>
+              </div>
+            )}
           </div>
         )}
         {/* Blog: key theo tài khoản — đăng nhập/xuất thì tải lại (lượt like, bài "của mình" đổi theo).

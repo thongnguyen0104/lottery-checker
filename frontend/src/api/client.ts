@@ -370,13 +370,13 @@ export async function changePassword(currentPassword: string, newPassword: strin
 }
 
 // ── Cờ tính năng: tắt = user thường không thấy (máy chủ cũng chặn API); admin luôn xem trước được ──
-export type FeatureKey = 'checkHistory' | 'scratchTickets' | 'shopMap' | 'sites' | 'blog' | 'savedTickets' | 'miniGame'
+export type FeatureKey = 'checkHistory' | 'scratchTickets' | 'shopMap' | 'sites' | 'blog' | 'savedTickets' | 'miniGame' | 'vietlott'
 
 /** available = người đang xem dùng được; enabled = đã bật cho mọi người (admin xem trước khi available && !enabled). */
 export type Features = { available: Record<FeatureKey, boolean>; enabled: Record<FeatureKey, boolean> }
 
 // Blog đã chạy từ trước khi có cờ (máy chủ để DefaultOn) → coi như bật lúc chưa hỏi xong, khỏi nháy tab.
-const NO_FEATURES: Record<FeatureKey, boolean> = { checkHistory: false, scratchTickets: false, shopMap: false, sites: false, blog: true, savedTickets: false, miniGame: false }
+const NO_FEATURES: Record<FeatureKey, boolean> = { checkHistory: false, scratchTickets: false, shopMap: false, sites: false, blog: true, savedTickets: false, miniGame: false, vietlott: false }
 export const FEATURES_OFF: Features = { available: NO_FEATURES, enabled: NO_FEATURES }
 
 /** Lỗi mạng → coi như tắt hết (trừ Blog): tính năng mới thà ẩn nhầm còn hơn hiện ra rồi gọi API lỗi. */
@@ -1313,6 +1313,68 @@ export async function setTicketClaimed(id: number, claimed: boolean) {
 export async function deleteSavedTicket(id: number) {
   try {
     await api.delete(`/api/saved-tickets/${id}`)
+  } catch (e) {
+    throw toFriendlyError(e)
+  }
+}
+
+// ── Vietlott: kết quả Mega 6/45, Power 6/55 + thống kê, gợi ý số kỳ tới ──
+export type VietlottGame = '645' | '655'
+
+export type VietlottDraw = { drawId: number; date: string; numbers: number[]; bonus: number | null }
+
+export type VietlottResults = {
+  game: VietlottGame; total: number; page: number; size: number
+  /** Kỳ quay kế tiếp, yyyy-MM-dd. */
+  nextDraw: string
+  items: VietlottDraw[]
+}
+
+export type VietlottNumberStat = {
+  number: number; hits: number; probability: number; recentProbability: number
+  /** Đã bao nhiêu kỳ liền chưa về. */
+  gap: number
+  score: number
+}
+
+export type VietlottStats = {
+  game: VietlottGame; maxNumber: number; draws: number; from: string | null; to: string | null
+  /** 6 / max — xác suất 1 số về trong 1 kỳ nếu ngẫu nhiên đều. */
+  baseline: number
+  jackpotOneIn: number
+  odds: { match: number; oneIn: number }[]
+  nextDraw: string
+  all: VietlottNumberStat[]
+  hot: VietlottNumberStat[]
+  cold: VietlottNumberStat[]
+  pairs: { a: number; b: number; hits: number }[]
+  /** [k] = số kỳ có k số lẻ. */
+  oddCounts: number[]
+  /** Tổng 6 số: [phân vị 10, trung vị, phân vị 90]. */
+  sumBand: number[]
+  suggestions: { kind: 'hot' | 'balanced' | 'cold'; numbers: number[] }[]
+  backtest: {
+    averageMatches: number; randomExpectation: number; matchCounts: number[]
+    rows: { drawId: number; date: string; suggested: number[]; actual: number[]; matches: number }[]
+  } | null
+  /** Power 6/55: tần suất số đặc biệt. */
+  bonusAll: VietlottNumberStat[]
+}
+
+export async function getVietlottResults(game: VietlottGame, page = 0, size = 20) {
+  try {
+    const { data } = await api.get(`/api/vietlott/${game}`, { params: { page, size } })
+    return data as VietlottResults
+  } catch (e) {
+    throw toFriendlyError(e)
+  }
+}
+
+/** last = 0: toàn bộ lịch sử; > 0: chỉ N kỳ gần nhất. */
+export async function getVietlottStats(game: VietlottGame, last = 0) {
+  try {
+    const { data } = await api.get(`/api/vietlott/${game}/stats`, { params: { last } })
+    return data as VietlottStats
   } catch (e) {
     throw toFriendlyError(e)
   }
